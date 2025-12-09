@@ -1,0 +1,185 @@
+/* src/styles/markdown.css */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #24292e;
+  word-wrap: break-word;
+}
+
+/* ========== 代码块样式 ========== */
+.markdown-body :deep(pre[class*="language-"]) {
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #2d2d2d;
+  overflow: auto;
+  position: relative;
+  border: 1px solid #e1e4e8;
+}
+
+.markdown-body :deep(code[class*="language-"]) {
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Andale Mono', monospace;
+  text-shadow: none;
+}
+
+/* 行号样式 */
+.markdown-body :deep(.line-numbers .line-numbers-rows) {
+  border-right: 1px solid #555;
+  padding-right: 1em;
+}
+
+.markdown-body :deep(.line-numbers-rows > span:before) {
+  color: #666;
+}
+
+/* 命令行样式 */
+.markdown-body :deep(.command-line) {
+  background: #1d1f21;
+}
+
+.markdown-body :deep(.command-line-prompt) {
+  border-right: 1px solid #555;
+  padding-right: 1em;
+}
+
+/* 工具栏样式 */
+.markdown-body :deep(.prism-toolbar) {
+  background: #3d3d3d;
+  border-bottom: 1px solid #555;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.markdown-body :deep(.prism-copy-to-clipboard) {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.markdown-body :deep(.prism-copy-to-clipboard:hover) {
+  background: #45a049;
+}
+
+/* ========== 表格样式 ========== */
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+  border: 1px solid #e1e4e8;
+}
+
+.markdown-body :deep(th, td) {
+  border: 1px solid #e1e4e8;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.markdown-body :deep(th) {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-body :deep(tr:nth-child(even)) {
+  background: #f6f8fa;
+}
+
+/* ========== 数学公式样式 ========== */
+.markdown-body :deep(.math) {
+  font-size: 1.1em;
+}
+
+.markdown-body :deep(.math-display) {
+  text-align: center;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(.math-error) {
+  color: #d73a49;
+  background: #ffebee;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+/* ========== 自定义容器样式 ========== */
+.markdown-body :deep(.custom-container) {
+  border-left: 4px solid;
+  margin: 1.5rem 0;
+  padding: 1rem 1.5rem;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(.custom-container.info) {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  color: #1565c0;
+}
+
+.markdown-body :deep(.custom-container.warning) {
+  background: #fff3e0;
+  border-color: #ff9800;
+  color: #e65100;
+}
+
+.markdown-body :deep(.custom-container.tip) {
+  background: #e8f5e8;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.markdown-body :deep(.custom-container-title) {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1.1em;
+}
+
+/* ========== 任务列表样式 ========== */
+.markdown-body :deep(.task-list-item) {
+  list-style-type: none;
+}
+
+.markdown-body :deep(.task-list-item-checkbox) {
+  margin: 0 0.5rem 0.25rem -1.5rem;
+}
+
+/* ========== 其他元素样式 ========== */
+.markdown-body :deep(blockquote) {
+  border-left: 4px solid #dfe2e5;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: #6a737d;
+  font-style: italic;
+}
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(a) {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 2px solid #e1e4e8;
+  margin: 2rem 0;
+}

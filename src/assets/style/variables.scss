@@ -1,0 +1,234 @@
+// ==========================================================================
+// 颜色变量
+// ==========================================================================
+
+// 主色调
+$primary-color: #1890ff;
+$primary-hover: #40a9ff;
+$primary-active: #096dd9;
+
+// 成功色
+$success-color: #52c41a;
+$success-hover: #73d13d;
+$success-active: #389e0d;
+
+// 警告色
+$warning-color: #faad14;
+$warning-hover: #ffc53d;
+$warning-active: #d48806;
+
+// 错误色
+$error-color: #ff4d4f;
+$error-hover: #ff7875;
+$error-active: #d9363e;
+
+// 信息色
+$info-color: #1890ff;
+$info-hover: #40a9ff;
+$info-active: #096dd9;
+
+// 中性色
+$white: #ffffff;
+$black: #000000;
+$gray-1: #fafafa;
+$gray-2: #f5f5f5;
+$gray-3: #f0f0f0;
+$gray-4: #d9d9d9;
+$gray-5: #bfbfbf;
+$gray-6: #8c8c8c;
+$gray-7: #595959;
+$gray-8: #434343;
+$gray-9: #262626;
+$gray-10: #1f1f1f;
+
+// 文本色
+$text-primary: rgba(0, 0, 0, 0.85);
+$text-secondary: rgba(0, 0, 0, 0.65);
+$text-disabled: rgba(0, 0, 0, 0.25);
+
+// ==========================================================================
+// 字体变量
+// ==========================================================================
+
+// 字体家族
+$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+              'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 
+              'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 
+              'Noto Color Emoji';
+
+// 字体大小
+$font-size-xs: 12px;
+$font-size-sm: 14px;
+$font-size-base: 16px;
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-xxl: 24px;
+
+// 字体权重
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// 行高
+$line-height-base: 1.5;
+$line-height-tight: 1.25;
+$line-height-loose: 1.75;
+
+// ==========================================================================
+// 间距变量
+// ==========================================================================
+
+// 基础间距
+$spacing-base: 4px;
+
+// 间距尺度
+$spacing-1: $spacing-base;       // 4px
+$spacing-2: $spacing-base * 2;   // 8px
+$spacing-3: $spacing-base * 3;   // 12px
+$spacing-4: $spacing-base * 4;   // 16px
+$spacing-5: $spacing-base * 5;   // 20px
+$spacing-6: $spacing-base * 6;   // 24px
+$spacing-8: $spacing-base * 8;   // 32px
+$spacing-10: $spacing-base * 10; // 40px
+$spacing-12: $spacing-base * 12; // 48px
+$spacing-16: $spacing-base * 16; // 64px
+
+// ==========================================================================
+// 边框变量
+// ==========================================================================
+
+// 边框半径
+$border-radius-sm: 2px;
+$border-radius-base: 4px;
+$border-radius-lg: 8px;
+$border-radius-xl: 16px;
+$border-radius-full: 50%;
+
+// 边框颜色
+$border-color-light: $gray-3;
+$border-color-base: $gray-4;
+$border-color-dark: $gray-6;
+
+// 边框宽度
+$border-width-base: 1px;
+$border-width-thick: 2px;
+
+// ==========================================================================
+// 阴影变量
+// ==========================================================================
+
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+// ==========================================================================
+// 断点变量 (响应式)
+// ==========================================================================
+
+$breakpoint-xs: 480px;
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-xxl: 1600px;
+
+// ==========================================================================
+// 布局变量
+// ==========================================================================
+
+// 容器最大宽度
+$container-max-width: 1200px;
+
+// 侧边栏宽度
+$sidebar-width: 240px;
+$sidebar-collapsed-width: 80px;
+
+// 头部高度
+$header-height: 64px;
+
+// 底部高度
+$footer-height: 60px;
+
+// ==========================================================================
+// 动画变量
+// ==========================================================================
+
+// 动画时长
+$duration-fast: 0.1s;
+$duration-base: 0.2s;
+$duration-slow: 0.3s;
+
+// 动画曲线
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-out: cubic-bezier(0, 0, 0.2, 1);
+$ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+// ==========================================================================
+// Z-index 层级
+// ==========================================================================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+$z-index-toast: 1080;
+
+// ==========================================================================
+// 组件特定变量
+// ==========================================================================
+
+// 按钮
+$btn-height-base: 32px;
+$btn-height-lg: 40px;
+$btn-height-sm: 24px;
+
+// 输入框
+$input-height-base: 32px;
+$input-height-lg: 40px;
+$input-height-sm: 24px;
+
+// 卡片
+$card-padding-base: $spacing-6;
+$card-padding-sm: $spacing-4;
+
+// ==========================================================================
+// 工具函数
+// ==========================================================================
+
+// 颜色变亮函数
+@function tint-color($color, $weight) {
+  @return mix(white, $color, $weight);
+}
+
+// 颜色变暗函数
+@function shade-color($color, $weight) {
+  @return mix(black, $color, $weight);
+}
+
+// 响应式媒体查询 mixin
+@mixin respond-to($breakpoint) {
+  @if map-has-key($breakpoints, $breakpoint) {
+    @media (min-width: map-get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else {
+    @warn "Unknown breakpoint: #{$breakpoint}";
+  }
+}
+
+// 定义断点映射
+$breakpoints: (
+  'xs': $breakpoint-xs,
+  'sm': $breakpoint-sm,
+  'md': $breakpoint-md,
+  'lg': $breakpoint-lg,
+  'xl': $breakpoint-xl,
+  'xxl': $breakpoint-xxl,
+);
