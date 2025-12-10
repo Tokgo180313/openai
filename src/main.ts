@@ -1,4 +1,6 @@
 import { createApp } from 'vue'
+// iconfont
+import "@/assets/iconfont/iconfont.css"
 import './style.css'
 // 清除浏览器默认样式
 import "reset-css"

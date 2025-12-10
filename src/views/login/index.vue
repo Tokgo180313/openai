@@ -53,7 +53,6 @@ let submitForm = reactive<FormState>({
 });
 const onFinish = (values: any) => {
   loginInterface(submitForm).then((res) => {
-    console.log(res);
     if(res.code ==200){
       message.success("登录成功")
       sessionStorage.setItem("access_token",res.data.access_token)
