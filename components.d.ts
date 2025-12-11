@@ -26,6 +26,7 @@ declare module 'vue' {
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     MarkdownFile: typeof import('./src/components/MarkdownFile.vue')['default']
     MarkdownViewer: typeof import('./src/components/MarkdownViewer.vue')['default']
+    RemoveChatDialog: typeof import('./src/components/RemoveChatDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TinyEditor: typeof import('./src/components/TinyEditor.vue')['default']
