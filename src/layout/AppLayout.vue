@@ -2,7 +2,7 @@
   <a-layout class="layout-container">
     <a-layout-sider :width="asideWidth" class="aside-container">
       <div class="main-sider">
-        <ToolSideBar @collapsed-change="handleCollapsedChange"></ToolSideBar>
+        <SideBar @collapsed-change="handleCollapsedChange"></SideBar>
       </div>
     </a-layout-sider>
     <a-layout class="main-layout">
@@ -24,7 +24,7 @@
 
 <script lang="ts" setup>
 import { computed, ref } from "vue";
-import ToolSideBar from "./ToolSideBar.vue";
+import SideBar from "./SideBar.vue";
 const isCollapsed = ref(false);
 const handleCollapsedChange = function(value){
   isCollapsed.value = value
