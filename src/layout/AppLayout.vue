@@ -12,7 +12,9 @@
           padding: 0 2px;
           border-bottom: 1px solid lightgray;
         "
-        >header</a-layout-header
+        >
+        <Headerbar></Headerbar>
+        </a-layout-header
       >
       <a-layout-content class="content-area">
         <!-- 子路由出口 -->
@@ -25,6 +27,7 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import SideBar from "./SideBar.vue";
+import Headerbar from "./Headerbar.vue";
 const isCollapsed = ref(false);
 const handleCollapsedChange = function(value){
   isCollapsed.value = value

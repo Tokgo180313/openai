@@ -27,6 +27,8 @@
     "markdown-it-sup": "^2.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "normalize.css": "^8.0.1",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "prismjs": "^1.30.0",
     "reset-css": "^5.0.2",
     "tinymce": "^8.2.0",
