@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AButton: typeof import('ant-design-vue/es')['Button']
+    ADivider: typeof import('ant-design-vue/es')['Divider']
     AForm: typeof import('ant-design-vue/es')['Form']
     AFormItem: typeof import('ant-design-vue/es')['FormItem']
     AInput: typeof import('ant-design-vue/es')['Input']
@@ -17,7 +18,9 @@ declare module 'vue' {
     ALayoutContent: typeof import('ant-design-vue/es')['LayoutContent']
     ALayoutHeader: typeof import('ant-design-vue/es')['LayoutHeader']
     ALayoutSider: typeof import('ant-design-vue/es')['LayoutSider']
+    APopover: typeof import('ant-design-vue/es')['Popover']
     ATextarea: typeof import('ant-design-vue/es')['Textarea']
+    ATooltip: typeof import('ant-design-vue/es')['Tooltip']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     MarkdownFile: typeof import('./src/components/MarkdownFile.vue')['default']
     MarkdownViewer: typeof import('./src/components/MarkdownViewer.vue')['default']
