@@ -1,6 +1,8 @@
 import { createApp } from 'vue'
 import { clickOutsidePlugin } from "./directives/clickOutsidePlugin";
 import pinia from './stores/index';
+// reset.css
+import "./assets/style/reset.css"
 // iconfont
 import "@/assets/iconfont/iconfont.css"
 import './style.css'

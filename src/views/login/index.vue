@@ -69,4 +69,31 @@ const onFinishFailed = (values: any) => {
 };
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+ .content{
+  width: 100vw;
+  height: 100vh;
+  background: url("@/assets/images/background.jpg")  no-repeat center;
+  background-size: 100% 100%;
+ }
+ .login{
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  width: 26vw;
+  height: 26vh;
+  position: absolute;
+  border-radius: 1em;
+  box-shadow: 0 0 0 0.1em rgba(211,211,211,0.5);
+  left:50%;
+  top:50%;
+  transform: translate(-50%,-50%);
+  background-color: #fff;
+  // display: grid;
+  // place-items: center;
+ }
+ .login-input{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+ }
+
+</style>
