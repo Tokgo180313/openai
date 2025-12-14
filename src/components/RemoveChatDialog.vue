@@ -2,7 +2,7 @@
   <a-modal
     v-model:open="openModal"
     title="永久删除聊天"
-    cancle-text="取消"
+    cancel-text="取消"
     ok-text="确认"
     @ok="confirmRemoveEvent"
     @cancel="closeModelEvent"
@@ -13,8 +13,11 @@
 
 <script lang="ts" setup>
 import { computed } from "vue";
-
-const props = defineProps({ visible: boolean, id: string });
+interface Props {
+  visible:boolean,
+  id:string,
+}
+const props = defineProps<Props>();
 const openModal = computed(() => props.visible);
 const emit = defineEmits(["update-modal"]);
 const closeModelEvent = function () {

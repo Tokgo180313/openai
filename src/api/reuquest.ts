@@ -9,7 +9,7 @@ const service = axios.create({
 })
 //请求拦截器
 service.interceptors.request.use((config)=>{
-    const token = sessionStorage.getItem("token")
+    const token = sessionStorage.getItem("access_token")
     if(token){
         config.headers.Authorization = `Bearer ${token}`
     }
@@ -23,7 +23,7 @@ service.interceptors.request.use((config)=>{
 service.interceptors.response.use((response)=>{
     return response.data
 },(error)=>{
-    message.error(error)
+    message.error(error.response.data.message||error)
     return Promise.reject(error)
 })
 

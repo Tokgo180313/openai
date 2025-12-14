@@ -1,8 +1,12 @@
 <template>
   <div class="main-container">
     <div class="system-setting">
-      <a-select v-model:value="questionType" :bordered="false" @change="handleQuestionTypeChange">
-        <a-select-option value="deepseek" title="DeepSeek" >
+      <a-select
+        v-model:value="questionType"
+        :bordered="false"
+        @change="handleQuestionTypeChange"
+      >
+        <a-select-option value="deepseek" title="DeepSeek">
           <div class="option-item">
             <div class="item-icon">
               <i class="iconfont icon-deepseek"></i>
@@ -21,23 +25,42 @@
       </a-select>
     </div>
     <div class="system-operation">
-        <a-tooltip title="分享" placement="bottom">
-            <i style="margin:0 1em;cursor: pointer;" class="iconfont icon-daochu"></i>
-        </a-tooltip>
-        <a-tooltip title="删除" placement="bottom">
-            <i style="margin:0 1em;cursor: pointer;" class="iconfont icon-shanchu"></i>
-        </a-tooltip>
+      <a-tooltip title="分享" placement="bottom">
+        <i
+          style="margin: 0 1em; cursor: pointer"
+          class="iconfont icon-daochu"
+        ></i>
+      </a-tooltip>
+      <a-tooltip title="删除" placement="bottom">
+        <i
+          style="margin: 0 1em; cursor: pointer"
+          class="iconfont icon-shanchu"
+          @click="showRemoveEvent"
+        ></i>
+      </a-tooltip>
     </div>
   </div>
+  <RemoveChatDialog :visible="showRemoveDialog" :id="id" @update-modal="handleUpdateModal"></RemoveChatDialog>
 </template>
 
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useRequestStore } from "../stores/requestStore";
+import RemoveChatDialog from "../components/RemoveChatDialog.vue";
+import { storeToRefs } from "pinia";
 const questionType = ref("chatgpt");
-const handleQuestionTypeChange = function(){
-    useRequestStore().updateQuestionTye(questionType.value)
-}
+const showRemoveDialog = ref(false);
+const store = useRequestStore();
+const { id } = storeToRefs(store);
+const handleQuestionTypeChange = function () {
+  useRequestStore().updateQuestionTye(questionType.value);
+};
+const showRemoveEvent = function () {
+  showRemoveDialog.value = true;
+};
+const handleUpdateModal = function (value) {
+  showRemoveDialog.value = value;
+};
 </script>
 
 <style scoped lang="scss">

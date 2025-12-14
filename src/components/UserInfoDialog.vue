@@ -1,0 +1,42 @@
+<template>
+  <a-modal v-model:open="openModal" title="编辑个人资料">
+    <div class="content">
+      <a-form :model="submitForm">
+        <a-form-item>
+          <a-avatar></a-avatar>
+        </a-form-item>
+        <a-form-item label="显示名称">
+          <a-input v-model:vlaue="submitForm.nickName"></a-input>
+        </a-form-item>
+        <a-form-item label="账户名称">
+          <a-input v-model:value="submitForm.account"></a-input>
+        </a-form-item>
+        <a-form-item>
+          <div class="operation">
+            <a-button>取消</a-button>
+            <a-button type="primary">保存</a-button>
+          </div>
+        </a-form-item>
+      </a-form>
+    </div>
+  </a-modal>
+</template>
+
+<script lang="ts" setup>
+import { ref } from "vue";
+
+const submitForm = ref({
+  avatar:""
+  nickName: "",
+  account: "",
+});
+</script>
+
+<style scoped lang="scss">
+  .content{
+    padding: 1em;
+  }
+  .operation{
+    text-align: right;
+  }
+</style>

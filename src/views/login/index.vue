@@ -12,6 +12,7 @@
         >
           <a-form-item
             label="account"
+            name="account"
             :rules="[{ required: true, message: 'please input your account' }]"
           >
             <a-input
@@ -21,6 +22,7 @@
           </a-form-item>
           <a-form-item
             label="password"
+            name="password"
             :rules="[{ required: true, message: 'please input your password' }]"
           >
             <a-input-password
@@ -57,15 +59,18 @@ const onFinish = (values: any) => {
       message.success("登录成功")
       sessionStorage.setItem("access_token",res.data.access_token)
       sessionStorage.setItem("account",res.data.user.account)
-      router.push("/chat")
+      if(res.data.user.roleId==="1"){
+        router.push("/user")
+      }else{
+        router.push("/chat")
+      }
     }else{
-      console.log(res.message)
       message.error(res.message)
     }
   });
 };
 const onFinishFailed = (values: any) => {
-  message.error(values)
+  // message.error(values)
 };
 </script>
 

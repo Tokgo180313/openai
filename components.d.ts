@@ -9,7 +9,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AButton: typeof import('ant-design-vue/es')['Button']
-    ADivider: typeof import('ant-design-vue/es')['Divider']
     AForm: typeof import('ant-design-vue/es')['Form']
     AFormItem: typeof import('ant-design-vue/es')['FormItem']
     AInput: typeof import('ant-design-vue/es')['Input']
@@ -19,18 +18,19 @@ declare module 'vue' {
     ALayoutHeader: typeof import('ant-design-vue/es')['LayoutHeader']
     ALayoutSider: typeof import('ant-design-vue/es')['LayoutSider']
     AModal: typeof import('ant-design-vue/es')['Modal']
+    APagination: typeof import('ant-design-vue/es')['Pagination']
     APopover: typeof import('ant-design-vue/es')['Popover']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
-    ATextarea: typeof import('ant-design-vue/es')['Textarea']
+    ATable: typeof import('ant-design-vue/es')['Table']
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
-    HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     MarkdownFile: typeof import('./src/components/MarkdownFile.vue')['default']
     MarkdownViewer: typeof import('./src/components/MarkdownViewer.vue')['default']
     RemoveChatDialog: typeof import('./src/components/RemoveChatDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TinyEditor: typeof import('./src/components/TinyEditor.vue')['default']
+    UserAddDialog: typeof import('./src/components/UserAddDialog.vue')['default']
     UserInfoDialog: typeof import('./src/components/UserInfoDialog.vue')['default']
   }
 }
