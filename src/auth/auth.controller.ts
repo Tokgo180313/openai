@@ -12,7 +12,7 @@ export class AuthController{
     @Post("/login")
     @HttpCode(HttpStatus.OK)
     async login(@Body() loginDto:LoginDto){
-        console.log("loginDto",loginDto)
+        // console.log("loginDto",this.authService.login(loginDto))
         return this.authService.login(loginDto)
     }
 
