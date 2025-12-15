@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { User, UserDocument } from "src/schemas/user/user.schema";
 import { UserDto } from "./dto/UserDto";
 import { UserEntity } from "./entity/UserEntity";
@@ -17,8 +17,9 @@ export class UserService{
                 throw new ConflictException("账号已存在");
             }
         }
+        console.log(userDto)
+        userDto.password = process.env.INITIAL_PASSWORD || "123456!"
         const createUser = new this.userSchema(userDto)
-    
         return await createUser.save();
     }
     //查询
@@ -41,6 +42,7 @@ export class UserService{
     //删除
     async deleteById(id:string):Promise<void>{
         const deleteUser =  await this.userSchema.findByIdAndDelete(id).exec();
+        console.log("id",id)
         if(!deleteUser){
             throw new NotFoundException("用户不存在");
         }
@@ -49,7 +51,7 @@ export class UserService{
     async updatePassword(id:string,newPassword:string):Promise<void>{
         const hashPassword = await PasswordUtil.hash(newPassword);
         const result = await this.userSchema.findByIdAndUpdate(id,
-            {password:hashPassword},
+            {password:hashPassword,passwordType:"1"},
             {
                 new:true,
             }
@@ -61,10 +63,20 @@ export class UserService{
     async updateUser(userDto:UserDto):Promise<User>{
         if(userDto.password){
             userDto.password = await PasswordUtil.hash(userDto.password);
+            userDto.passwordType="1"
         }
         const updateUser = await this.userSchema.findByIdAndUpdate(userDto.id,userDto,{new:true}).exec();
         if(!updateUser){
             throw new NotFoundException("用户不存在");
+        }
+        return updateUser;
+    }
+    async resetUser(userDto:UserDto):Promise<User>{
+        userDto.password = process.env.INITIAL_PASSWORD || "123456!"
+        userDto.passwordType = "";
+        const updateUser = await this.userSchema.findByIdAndUpdate(userDto.id,userDto,{new:true}).exec();
+        if(!updateUser){
+            throw new NotFoundException("重置失败")
         }
         return updateUser;
     }

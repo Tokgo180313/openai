@@ -13,4 +13,7 @@ export class UserDto{
     @IsString()
     roleId:string
 
+    @IsString()
+    passwordType:string
+
 }

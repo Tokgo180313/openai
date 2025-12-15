@@ -21,6 +21,12 @@ export class User extends Document{
     @Prop({required:true})
     password:string;
 
+    @Prop({required:true})
+    roleId:string
+
+    @Prop({required:true})
+    passwordType:string
+
     validaterPassword:(password:string)=>Promise<boolean>
 
 }
