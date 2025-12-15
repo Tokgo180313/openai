@@ -16,13 +16,13 @@ const findAllUserInfoInterface = function(param){
  const addUserInfoInterface = function(param){
     return request({
         url:"/user/add",
-        method:"post",
+        method:"put",
         data:param
     })
  }
  const resetUserInfoInterface = function(param){
     return request({
-        url:"/user/reset",
+        url:"/user/resetById",
         method:"post",
         data:param
     })

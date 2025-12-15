@@ -13,11 +13,11 @@ service.interceptors.request.use((config)=>{
     if(token){
         config.headers.Authorization = `Bearer ${token}`
     }
+    console.log(config)
     return config
 },(error)=>{
     Promise.reject(error)
 })
-
 //响应拦截器
 
 service.interceptors.response.use((response)=>{
