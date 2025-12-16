@@ -3,6 +3,7 @@ import { UserService } from "./user.service";
 import { UserDto } from "./dto/UserDto";
 import { ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import { PaginationDto } from "./dto/PaginationDto";
 
 @ApiTags("user")
 @Controller("/user")
@@ -16,8 +17,8 @@ export class UserController{
 
     @Post("/findAll")
     @UseGuards(JwtAuthGuard)
-    async findAll(){
-        return await this.userService.findAll()
+    async findAll(@Body() pagination:PaginationDto){
+        return await this.userService.findAll(pagination)
     }
 
     @Post("/updateUser")
@@ -34,7 +35,6 @@ export class UserController{
     @Delete("/deleteById")
     @UseGuards(JwtAuthGuard)
     async removeUser(@Query("id") id:string){
-        console.log("id",id)
         return this.userService.deleteById(id);
     }
 
