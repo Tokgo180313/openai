@@ -59,6 +59,7 @@ const onFinish = (values: any) => {
       message.success("登录成功")
       sessionStorage.setItem("access_token",res.data.access_token)
       sessionStorage.setItem("account",res.data.user.account)
+      sessionStorage.setItem("role_id",res.data.user.roleId)
       if(res.data.user.roleId==="1"){
         router.push("/user")
       }else{
