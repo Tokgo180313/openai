@@ -59,40 +59,38 @@
         @click="selectedEvent(item)"
         v-for="item in contentList"
         :key="item.id"
-        :class="{'content-selected':selectedRow == item.id}"
+        :class="{ 'content-selected': selectedRow == item.id }"
       >
         <div class="content-text">{{ item.title }}</div>
-        <div v-show="currentRow == item.id || showContentItemIcon == item.id" >
-          <a-popover placement="right" trigger="click" @openChange="handleOpenChange">
+        <div v-show="currentRow == item.id || showContentItemIcon == item.id">
+          <a-popover
+            placement="right"
+            trigger="click"
+            @openChange="handleOpenChange"
+          >
             <template #content>
               <div class="item-list">
                 <p class="item">
                   <span class="item-icon"
-                    ><i
-                      class="iconfont icon-daochu1"
-                    ></i
+                    ><i class="iconfont icon-daochu1"></i
                   ></span>
                   <span class="item-text">分享</span>
                 </p>
                 <p class="item">
                   <span class="item-icon">
-                    <i
-                      class="iconfont icon-shuxie1"
-                    ></i
+                    <i class="iconfont icon-shuxie1"></i
                   ></span>
                   <span class="item-text">重命名</span>
                 </p>
                 <p class="item">
                   <span class="item-icon"
-                    ><i
-                      class="iconfont icon-shanchu"
-                    ></i
+                    ><i class="iconfont icon-shanchu"></i
                   ></span>
                   <span class="item-text">删除</span>
                 </p>
               </div>
             </template>
-            <span class="content-icon" >
+            <span class="content-icon">
               <i class="iconfont icon-gengduo1"></i>
             </span>
           </a-popover>
@@ -115,11 +113,11 @@
               ></span>
               <span class="item-text">设置</span>
             </p>
-            <p class="item">
+            <p class="item" @click="loginOutEvent">
               <span class="item-icon"
                 ><i class="iconfont icon-tuichu"></i
               ></span>
-              <span class="item-text" @click="loginOutEvent">退出</span>
+              <span class="item-text">退出</span>
             </p>
           </div>
         </template>
@@ -131,11 +129,16 @@
         </div>
       </a-popover>
     </div>
+    <login-out-dialog
+      :visible="showLoginOutDialog"
+      @close-modal="closeModalEvent"
+    ></login-out-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, reactive, ref } from "vue";
+import LoginOutDialog from "@/components/LoginOutDialog.vue";
 const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
 });
@@ -145,7 +148,8 @@ const isCollapsed = ref(false);
 const emit = defineEmits(["collapsedChange"]);
 const isEnter = ref(false);
 const showIcon = ref("icon-gpt");
-const showContentItemIcon = ref(null)
+const showContentItemIcon = ref(null);
+let showLoginOutDialog = ref(false);
 const contentList = reactive([
   {
     title: "标题1",
@@ -187,27 +191,28 @@ const selectedEvent = function (item) {
 const newChatEvent = function () {
   selectedRow.value = null;
 };
-const loginOutEvent = function(){
-    console.log("login out");
-    
-}
-const showUserSetEvent = function(){
-    console.log('user set');
-    
-}
-const selectedIconEvent = function(item){
-    event?.stopPropagation()
-    showContentItemIcon.value = item.id
-}
-const handleOpenChange = function(value){
-
-  if(!value){
-    showContentItemIcon.value = null
-    currentRow.value  = null
-  }else{
-        showContentItemIcon.value = currentRow.value
+const loginOutEvent = function () {
+  showLoginOutDialog.value = true;
+  console.log(showLoginOutDialog.value);
+};
+const closeModalEvent = function () {
+  showLoginOutDialog.value = false;
+};
+const showUserSetEvent = function () {
+  console.log("user set");
+};
+const selectedIconEvent = function (item) {
+  event?.stopPropagation();
+  showContentItemIcon.value = item.id;
+};
+const handleOpenChange = function (value) {
+  if (!value) {
+    showContentItemIcon.value = null;
+    currentRow.value = null;
+  } else {
+    showContentItemIcon.value = currentRow.value;
   }
-}
+};
 </script>
 <style scoped lang="scss">
 .iconfont {
@@ -319,11 +324,11 @@ const handleOpenChange = function(value){
     padding: 0 0.5em;
     cursor: pointer;
     border-radius: 0.6rem;
-    .item-icon{
-        padding: 0 0.5em;
+    .item-icon {
+      padding: 0 0.5em;
     }
   }
-  .item:hover{
+  .item:hover {
     background-color: rgba(211, 211, 211, 0.5);
   }
 }

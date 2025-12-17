@@ -25,6 +25,8 @@ declare module 'vue' {
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
     ATable: typeof import('ant-design-vue/es')['Table']
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
+    LoginOoutDialog: typeof import('./src/components/LoginOoutDialog.vue')['default']
+    LoginOutDialog: typeof import('./src/components/LoginOutDialog.vue')['default']
     MarkdownFile: typeof import('./src/components/MarkdownFile.vue')['default']
     MarkdownViewer: typeof import('./src/components/MarkdownViewer.vue')['default']
     RemoveChatDialog: typeof import('./src/components/RemoveChatDialog.vue')['default']

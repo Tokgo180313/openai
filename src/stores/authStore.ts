@@ -5,6 +5,7 @@ export const useAuthStore =  defineStore("auth",{
     state:()=>({
         token:null,
     }),
+    persist:true,
     getters:{
         getToken(){
             return this.token;
@@ -24,6 +25,9 @@ export const useAuthStore =  defineStore("auth",{
         },
         setToken(token){
             this.token = token
+        },
+        clearToken(){
+            this.token = null;
         }
     }
 })

@@ -3,6 +3,7 @@ export const useRequestStore = defineStore('request',{
     state:()=>({
         questionType:null,
     }),
+    persist:true,
     getters:{
         getQuestionType():string {
             return this.questionType;

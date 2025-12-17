@@ -8,10 +8,12 @@
       cancel-text="取消"
       title="添加用户"
     >
-      <a-form :model="submitForm" 
-          autocomplete="off"
-          @finish="onFinish"
-          @finishFailed="onFinishFailed">
+      <a-form
+        :model="submitForm"
+        autocomplete="off"
+        @finish="onFinish"
+        @finishFailed="onFinishFailed"
+      >
         <a-form-item
           label="帐号"
           name="account"
@@ -57,8 +59,7 @@ let submitForm = ref<UserInfoDtoType>({
 const emits = defineEmits(["close-modal"]);
 let openModal = computed(() => props.visible);
 const confirmAddEvent = function () {
-  console.log(submitForm)
-  if(submitForm.value.account.trim() !==''){
+  if (submitForm.value.account.trim() !== "") {
     addUserInfoInterface(submitForm.value).then((res) => {
       if (res.code === 200) {
         message.success(res.message);
@@ -73,11 +74,11 @@ const cancelEvent = function () {
 const roleChangeEvent = function (value) {
   submitForm.value.roleId = value;
 };
-const onFinish = function(){
-  console.log(submitForm)
-}
+const onFinish = function () {
+  console.log(submitForm);
+};
 
-const onFinishFailed = function(){}
+const onFinishFailed = function () {};
 </script>
 
 <style scoped lang="scss"></style>
