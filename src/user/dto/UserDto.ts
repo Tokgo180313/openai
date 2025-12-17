@@ -16,4 +16,9 @@ export class UserDto{
     @IsString()
     passwordType:string
 
+    @IsString()
+    nickName?:string
+
+    @IsString()
+    avatar?:string
 }

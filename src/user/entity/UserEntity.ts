@@ -5,4 +5,6 @@ export class UserEntity{
     account:string
     password:string
     roleId:string
+    nickName?:string
+    avatar?:string
 }

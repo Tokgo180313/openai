@@ -55,4 +55,27 @@ export class AuthService {
     };
     return this.jwtService.sign(payload);
   }
+  async validateToken(token: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET || 'my-secret-key',
+      });
+
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        throw new Error('Token 已过期');
+      }
+      if (payload.nbf && payload.nbf > now) {
+        throw new Error('Token 未生效');
+      }
+
+      if (payload.iss && payload.isss !== process.env.JWT_ISSUER) {
+        throw new Error('无效的签发者');
+      }
+
+      return payload;
+    } catch (error) {
+      throw new Error('Token验证失败；' + error.message);
+    }
+  }
 }
