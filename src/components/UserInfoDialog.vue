@@ -8,13 +8,13 @@
         <a-form-item label="显示名称">
           <a-input v-model:vlaue="submitForm.nickName"></a-input>
         </a-form-item>
-        <a-form-item label="账户名称">
+        <a-form-item label="帐号">
           <a-input v-model:value="submitForm.account"></a-input>
         </a-form-item>
         <a-form-item>
           <div class="operation">
             <a-button>取消</a-button>
-            <a-button type="primary">保存</a-button>
+            <a-button type="primary" @click="confirmEvent">保存</a-button>
           </div>
         </a-form-item>
       </a-form>
@@ -24,12 +24,21 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-
+import api from "@/api/apiList"
+import { message } from "ant-design-vue";
+let {updateUserInfoInterface} = api;
 const submitForm = ref({
   avatar:""
   nickName: "",
   account: "",
 });
+const confirmEvent = function(){
+  updateUserInfoInterface(submitForm.value).then(res=>{
+    if(res.code ===201){
+      message.success(res.message)
+    }
+  })
+}
 </script>
 
 <style scoped lang="scss">

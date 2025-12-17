@@ -48,6 +48,8 @@ import api from "@/api/apiList.ts";
 import { useRouter } from "vue-router";
 const router = useRouter();
 import { message } from "ant-design-vue";
+import { useAuthStore } from "../../stores/authStore.ts";
+const userStore = useAuthStore();
 let {loginInterface} =api;
 let submitForm = reactive<FormState>({
   account: "",
@@ -60,6 +62,7 @@ const onFinish = (values: any) => {
       sessionStorage.setItem("access_token",res.data.access_token)
       sessionStorage.setItem("account",res.data.user.account)
       sessionStorage.setItem("role_id",res.data.user.roleId)
+      userStore.setToken(res.data.access_token)
       if(res.data.user.roleId==="1"){
         router.push("/user")
       }else{

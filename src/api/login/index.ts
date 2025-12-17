@@ -6,6 +6,13 @@ const loginInterface = function(param){
         data:param
     })
 }
+const validateTokenInterface = function(){
+    return request({
+        url:"/auth/validate",
+        method:"get"
+    })
+}
 export default {
-    loginInterface
+    loginInterface,
+    validateTokenInterface,
 }
