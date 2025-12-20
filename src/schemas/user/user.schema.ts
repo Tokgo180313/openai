@@ -39,7 +39,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.methods.validaterPassword = async function(password:string):Promise<boolean> {
     return PasswordUtil.compare(password,this.password)
 }
-// 前置中间件 - 保存钱加密密码
+// 前置中间件 - 保存前加密密码
 UserSchema.pre("save",async function(next) {
     const user = this as UserDocument;
 

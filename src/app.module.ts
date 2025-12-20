@@ -10,11 +10,13 @@ import { HttpExecptionFilter } from './common/filters/http-exception.filter';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
+import { FileModule } from './file/file.module';
 @Module({
   imports: [ConfigModule.forRoot({isGlobal:true}),
     MongooseModule.forRoot("mongodb://127.0.0.1:27017/nest"),
     ChatModule,
     UserModule,
+    FileModule,
     AuthModule],
   controllers: [AppController],
   providers: [
