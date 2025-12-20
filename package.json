@@ -13,6 +13,14 @@
     "@tinymce/tinymce-vue": "^6.3.0",
     "ant-design-vue": "^4.2.6",
     "axios": "^1.12.2",
+    "filepond": "^4.32.10",
+    "filepond-plugin-file-validate-size": "^2.2.8",
+    "filepond-plugin-file-validate-type": "^1.2.9",
+    "filepond-plugin-image-crop": "^2.0.6",
+    "filepond-plugin-image-edit": "^1.6.3",
+    "filepond-plugin-image-exif-orientation": "^1.0.11",
+    "filepond-plugin-image-preview": "^4.6.12",
+    "filepond-plugin-image-resize": "^2.0.10",
     "katex": "^0.16.25",
     "markdown-it": "^14.1.0",
     "markdown-it-abbr": "^2.0.0",
@@ -33,6 +41,7 @@
     "reset-css": "^5.0.2",
     "tinymce": "^8.2.0",
     "vue": "^3.5.18",
+    "vue-filepond": "^7.0.4",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {

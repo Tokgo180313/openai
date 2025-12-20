@@ -1,9 +1,40 @@
 <template>
   <div class="main">
     <div class="content">
-      <MarkdownViewer :content="markdownContent"></MarkdownViewer>
+      <!-- <MarkdownViewer :content="markdownContent"></MarkdownViewer> -->
+      <!-- 预览组件 -->
+      <h3>图片预览</h3>
+      <ImagePreview
+        :images="previewImages"
+        @remove="handleRemovePreviewImage"
+        @image-click="handleImageClick"
+      />
+    </div>
+    <div>
+      <!-- 上传组件 -->
+      <FileUpload
+        ref="fileUploadRef"
+        :allow-multiple="true"
+        :max-files="10"
+        :instant-upload="false"
+        :accepted-file-types="['image/jpeg', 'image/png', 'image/gif']"
+        server-endpoint="/file/upload"
+        @upload-success="handleUploadSuccess"
+        @upload-error="handleUploadError"
+        @file-added="handleFileAdded"
+      />
+
+      <div class="actions">
+        <button @click="handleUpload">手动上传</button>
+        <button @click="handleClear">清空</button>
+      </div>
     </div>
     <div class="footer">
+      <ImagePreview
+        :images="previewImages"
+        @remove="handleRemovePreviewImage"
+        @image-click="handleImageClick"
+      ></ImagePreview>
       <div
         id="markdown-content"
         class="markdown-content"
@@ -11,14 +42,45 @@
         placeholder="请输入内容"
         @keydown="submitEvent"
       ></div>
+      <div class="operate-bar">
+        <div class="upload-file">
+          <a-popover placement="topLeft" trigger="hover">
+            <template #content>
+              <p class="is-button">
+                <a-upload
+                  v-model:file-list="imageList"
+                  :action="baseUrl"
+                  list-type="picture"
+                  @preview="previewEvent"
+                >
+                  <span class="is-icon">
+                    <FileImageOutlined />
+                  </span>
+                  上传图片
+                </a-upload>
+              </p>
+              <p class="is-button">
+                <span class="is-icon">
+                  <FileAddOutlined />
+                </span>
+                上传文件
+              </p>
+            </template>
+            <i class="iconfont icon-jiahao"></i>
+          </a-popover>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { FolderOutlined } from "@ant-design/icons-vue";
+import { FileImageOutlined, FileAddOutlined } from "@ant-design/icons-vue";
 import MarkdownViewer from "../../components/MarkdownViewer.vue";
+import FileUpload from "../../components/FileUpload.vue";
+import ImagePreview from "../../components/ImagePreview.vue";
 import { ref, onMounted, onUnmounted } from "vue";
+import { message } from "ant-design-vue";
 const markdownContent = ref("");
 interface PatseOptions {
   stripFormatting?: boolean;
@@ -35,19 +97,6 @@ onMounted(() => {
       "markdown-content"
     ) as HTMLTextAreaElement;
     if (textContent) {
-      // textContent.addEventListener("paste",async (event)=>{
-      //   // event.preventDefault();
-      //   const clipboardData = (event.clipboardData||window.clipboardEvent)
-      //   // console.log(clipboardData)
-      //   for(let i =0;i<clipboardData.items.length;i++){
-      //     const item = clipboardData.items[i]
-      //     console.log("item",item)
-      //     if(item.type.indexOf("image") !==-1){
-      //       console.log("检测到图片粘贴")
-      //     }
-      //   }
-      //   // patseImageEvent(event)
-      // })
       textContent.addEventListener("paste", patseImageEvent);
     }
   } catch (error) {
@@ -69,11 +118,8 @@ const submitEvent = function (event) {
   }
 };
 const handleEnterEvent = function () {
-  const content = document
-    .querySelector("[contenteditable]")
-    ?.innerHTML;
+  const content = document.querySelector("[contenteditable]")?.innerHTML;
   markdownContent.value = content || "";
-  console.log("markdown", markdownContent.value);
 };
 const uploadImageEvent = function () {};
 const uploadFileEvent = function () {};
@@ -94,8 +140,6 @@ const handlePatse = function (
   if (!clipboardData) {
     return null;
   }
-  console.log(clipboardData);
-
   try {
     for (let i = 0; i < clipboardData.items.length; i++) {
       const item = clipboardData.items[i];
@@ -118,12 +162,55 @@ const handlePastedImage = function (file) {
   img.src = imageUrl;
   img.setHTMLUnsafe.maxWidth = "300px";
   document.body.appendChild(img);
-  console.log("图片信息：", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    lastModified: file.lastModified,
+};
+
+const imageList = ref([]);
+const baseUrl = ref(import.meta.env.VITE_APP_BASIC_URL);
+const previewEvent = function (p) {
+  console.log(p);
+};
+// 文件上传
+import type { ImageItem } from "../../components/ImagePreview.vue";
+const fileUploadRef = ref();
+
+const previewImages = ref<ImageItem[]>([]);
+const handleUploadSuccess = (files: any[]) => {
+  console.log("上传成功", files);
+  files.forEach((file) => {
+    if (file.serverid) {
+      previewImages.value.push({
+        id: file.serverId,
+        url: file.serverId,
+        name: file.filename,
+      });
+    }
   });
+};
+const handleUploadError = (error: Error) => {
+  message.error(error.message);
+};
+const handleFileAdded = (file: any) => {
+  console.log("文件添加", file);
+};
+const handleUpload = () => {
+  if (fileUploadRef.value) {
+    fileUploadRef.value.uploadFiles();
+  }
+};
+const handleClear = () => {
+  if (fileUploadRef.value) {
+    fileUploadRef.value.clearFiles();
+    previewImages.value = [];
+  }
+};
+const handleRemovePreviewImage = (image: ImageItem) => {
+  const index = previewImages.value.findIndex((img) => img.id === image.id);
+  if (index > -1) {
+    previewImages.value.splice(index, 1);
+  }
+};
+const handleImageClick = (image: ImageItem) => {
+  console.log("点击图片", image);
 };
 </script>
 
@@ -171,5 +258,47 @@ const handlePastedImage = function (file) {
 .set-btn {
   display: flex;
   justify-content: space-between;
+}
+.operate-bar {
+  display: flex;
+  justify-content: flex-start;
+}
+.upload-file {
+  cursor: pointer;
+  padding: 0.5em 1em;
+  border: 1px solid lightgray;
+  border-radius: 30%;
+}
+.is-button {
+  cursor: pointer;
+  padding: 0 0.5em;
+}
+.is-icon {
+  padding: 0 0.5em;
+}
+
+.upload-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.actions {
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
+}
+
+.actions button {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background: #0056b3;
 }
 </style>
