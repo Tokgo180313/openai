@@ -1,9 +1,10 @@
 import request from "../reuquest"
 
-const chatDeepSeekInterface = function(){
+const chatDeepSeekInterface = function(param){
     return request({
         url:"/chat/deepseek",
-        method:"post"
+        method:"post",
+        data:param
     })
 }
 export default{

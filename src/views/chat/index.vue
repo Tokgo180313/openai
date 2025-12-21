@@ -3,12 +3,6 @@
     <div class="content">
       <!-- <MarkdownViewer :content="markdownContent"></MarkdownViewer> -->
       <!-- 预览组件 -->
-      <h3>图片预览</h3>
-      <ImagePreview
-        :images="previewImages"
-        @remove="handleRemovePreviewImage"
-        @image-click="handleImageClick"
-      />
     </div>
     <div>
       <!-- 上传组件 -->
@@ -69,6 +63,9 @@
             <i class="iconfont icon-jiahao"></i>
           </a-popover>
         </div>
+        <div class="send-btn">
+          <a-button type="primary" @click="sendMessageEvent">发送</a-button>
+        </div>
       </div>
     </div>
   </div>
@@ -79,14 +76,23 @@ import { FileImageOutlined, FileAddOutlined } from "@ant-design/icons-vue";
 import MarkdownViewer from "../../components/MarkdownViewer.vue";
 import FileUpload from "../../components/FileUpload.vue";
 import ImagePreview from "../../components/ImagePreview.vue";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, useModel } from "vue";
 import { message } from "ant-design-vue";
+import api from "@/api/apiList";
+import { nanoid } from "nanoid";
+import { MessageItem } from "../../types/messageItem.type";
+let messageItemList = ref<MessageItem[]>([]);
+const { chatDeepSeekInterface } = api;
 const markdownContent = ref("");
 interface PatseOptions {
   stripFormatting?: boolean;
   convertToMarkdown?: boolean;
   maxLength?: number;
 }
+const messageId = ref("")
+onMounted(() => {
+  messageId.value = nanoid();
+});
 const onContentChange = (value: string) => {
   console.log("内容变化", value);
 };
@@ -120,6 +126,24 @@ const submitEvent = function (event) {
 const handleEnterEvent = function () {
   const content = document.querySelector("[contenteditable]")?.innerHTML;
   markdownContent.value = content || "";
+};
+import { useRequestStore } from "../../stores/requestStore";
+const requestStore = useRequestStore()
+const sendMessageEvent = () => {
+  const content = document.querySelector("[contenteditable]")?.innerText;
+  const param = {
+    role: "user",
+    content: content || "",
+  };
+  messageItemList.value.push(param);
+  console.log(param);
+  chatDeepSeekInterface({ id: messageId.value, question:{...param,useModel:requestStore.getQuestionType},list: [param] }).then(
+    (res) => {
+      if (res.code === 200) {
+        message.success(res.message);
+      }
+    }
+  );
 };
 const uploadImageEvent = function () {};
 const uploadFileEvent = function () {};

@@ -48,7 +48,7 @@ import { ref } from "vue";
 import { useRequestStore } from "../stores/requestStore";
 import RemoveChatDialog from "../components/RemoveChatDialog.vue";
 import { storeToRefs } from "pinia";
-const questionType = ref("chatgpt");
+const questionType = ref("deepseek");
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
 const { id } = storeToRefs(store);
