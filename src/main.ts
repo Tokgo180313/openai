@@ -9,6 +9,13 @@ async function bootstrap() {
   const config = new DocumentBuilder()
                   .setTitle("接口文档")
                   .setVersion("1.0")
+                  .addBearerAuth({
+                    type:"http",
+                    bearerFormat:"JWT",
+                    description:"请输入JWT Token",
+                    name:"JWT",
+                    in:"header"
+                  },"access_token")
                   .build();
   const documentFactory = SwaggerModule.createDocument(app,config);
   SwaggerModule.setup("openai",app,documentFactory)

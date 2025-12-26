@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { Model, now } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -12,10 +12,14 @@ import {
 import { MessageDto } from './dto/MessageDto';
 import { QuestionDto } from './dto/question.dto';
 import { v4 as uuid } from 'uuid';
+import { ChatDto } from './dto/chat.dto';
+import { ChatTitle,ChatTitleSchema, ChatTitleDocument } from 'src/schemas/chat/chat.schema';
+import { ChatEntity } from './entity/Chat.entity';
 @Injectable()
 export class ChatService {
   constructor(
     @InjectModel(Content.name) private contentSchema: Model<ContentDocument>,
+    @InjectModel(ChatTitle.name) private chatTitleSchema: Model<ChatTitleDocument>,
     private configService: ConfigService,
   ) {}
 
@@ -66,5 +70,73 @@ export class ChatService {
 
       throw new Error(error.messages);
     }
+  }
+  /**
+   * 新增聊天主题
+   * @param chatDto 
+   * @param userId 
+   * @returns 
+   */
+  public async addChatTitle(chatDto:ChatDto,userId:string){
+    let chatEntity = new ChatEntity({
+      id:chatDto.id,
+      userId:userId,
+      documentId:chatDto.documentId,
+      title:chatDto.keywordText,
+    })
+    return await new this.chatTitleSchema(chatEntity).save();
+  }
+
+  /**
+   * 根据ID查找聊天
+   * @param id 
+   * @returns 
+   */
+  public async findOneChat(id:string){
+    return await this.chatTitleSchema.findById(id)
+  }
+  /**
+   * 更新聊天时间
+   * @param id 
+   * @returns 
+   */
+  public async updateChatTitle(id){
+    return await this.chatTitleSchema.updateOne({id:id},{$set:{updateAt:new Date()}}).exec()
+  }
+
+  /**
+   * 根据ID删除聊天
+   * @param id 
+   * @returns 
+   */
+  public async deleteChatTitle(id:string){
+    let chatInfo = await this.findOneChat(id)
+    try {
+      if(chatInfo && chatInfo.documentId){
+       await  this.contentSchema.findByIdAndDelete(chatInfo.documentId)
+       return this.chatTitleSchema.findByIdAndDelete(chatInfo.id)
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(error)
+    }
+
+  }
+
+  /**
+   * 查找聊天列表
+   * @param chatDto 
+   */
+  public async chatList(chatDto:ChatDto){
+
+
+  }
+
+  /**
+   * 查找聊天主题对应的内容
+   * @param id 
+   * @returns 
+   */
+  public async chatInfo(id:string){
+    return await this.contentSchema.findById(id).exec()
   }
 }
