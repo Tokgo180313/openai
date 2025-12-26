@@ -12,6 +12,7 @@ import { MessageDto } from './dto/MessageDto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ChatDto } from './dto/chat.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Token } from 'src/common/decorators/token.decorator';
 
 @ApiTags('chat')
 @Controller('/chat')
@@ -41,14 +42,19 @@ export class ChatController {
     return null;
   }
 
-  @Post('/list')
-  async chatList(@Body() chatDto: ChatDto) {
-    return this.chatService.chatList(chatDto);
+  @Post('/chatList/:id')
+  async chatList(@Param("id") id:string) {
+    return this.chatService.chatList(id);
   }
 
   @Get('/titleList')
-  async chatTitleList() {
-    console.log('title');
+  async chatTitleList(@Token() token:string) {
+    return await this.chatService.chatTitleList(token);
+  }
+
+  @Post("/addChatTitle")
+  async addChatTitle(@Body() chatDto:ChatDto,@Token() token:string){
+    return await this.chatService.addChatTitle(chatDto,token)
   }
 
   @Get('/info')
