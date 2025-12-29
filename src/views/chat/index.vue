@@ -1,12 +1,17 @@
 <template>
   <div class="main">
     <div class="content">
-      <!-- <MarkdownViewer :content="markdownContent"></MarkdownViewer> -->
+      <div v-for="content in markdownContentList" :key="content.id">
+        <MarkdownViewer
+          :content="content.content"
+          :role="content.role"
+        ></MarkdownViewer>
+      </div>
       <!-- 预览组件 -->
     </div>
     <div>
       <!-- 上传组件 -->
-      <FileUpload
+      <!-- <FileUpload
         ref="fileUploadRef"
         :allow-multiple="true"
         :max-files="10"
@@ -21,14 +26,14 @@
       <div class="actions">
         <button @click="handleUpload">手动上传</button>
         <button @click="handleClear">清空</button>
-      </div>
+      </div> -->
     </div>
     <div class="footer">
-      <ImagePreview
+      <!-- <ImagePreview
         :images="previewImages"
         @remove="handleRemovePreviewImage"
         @image-click="handleImageClick"
-      ></ImagePreview>
+      ></ImagePreview> -->
       <div
         id="markdown-content"
         class="markdown-content"
@@ -37,7 +42,7 @@
         @keydown="submitEvent"
       ></div>
       <div class="operate-bar">
-        <div class="upload-file">
+        <!-- <div class="upload-file">
           <a-popover placement="topLeft" trigger="hover">
             <template #content>
               <p class="is-button">
@@ -62,7 +67,7 @@
             </template>
             <i class="iconfont icon-jiahao"></i>
           </a-popover>
-        </div>
+        </div> -->
         <div class="send-btn">
           <a-button type="primary" @click="sendMessageEvent">发送</a-button>
         </div>
@@ -82,20 +87,18 @@ import api from "@/api/apiList";
 import { nanoid } from "nanoid";
 import { MessageItem } from "../../types/messageItem.type";
 let messageItemList = ref<MessageItem[]>([]);
-const { chatDeepSeekInterface } = api;
+const { chatDeepSeekInterface, chatListInterface } = api;
 const markdownContent = ref("");
+const markdownContentList = ref([]);
 interface PatseOptions {
   stripFormatting?: boolean;
   convertToMarkdown?: boolean;
   maxLength?: number;
 }
-const messageId = ref("")
+const messageId = ref("");
 onMounted(() => {
   messageId.value = nanoid();
 });
-const onContentChange = (value: string) => {
-  console.log("内容变化", value);
-};
 let textContent: HTMLTextAreaElement | null = null;
 onMounted(() => {
   try {
@@ -128,22 +131,30 @@ const handleEnterEvent = function () {
   markdownContent.value = content || "";
 };
 import { useRequestStore } from "../../stores/requestStore";
-const requestStore = useRequestStore()
+const requestStore = useRequestStore();
+const clearInputData = () => {
+  const inputEl = document.querySelector("[contenteditable]");
+  inputEl.textContent = "";
+};
 const sendMessageEvent = () => {
   const content = document.querySelector("[contenteditable]")?.innerText;
   const param = {
     role: "user",
     content: content || "",
   };
-  messageItemList.value.push(param);
-  console.log(param);
-  chatDeepSeekInterface({ id: messageId.value, question:{...param,useModel:requestStore.getQuestionType},list: [param] }).then(
-    (res) => {
-      if (res.code === 200) {
-        message.success(res.message);
-      }
+  markdownContentList.value.push(param);
+  clearInputData();
+  chatDeepSeekInterface({
+    id: documentId.value,
+    titleId: messageId.value,
+    question: { ...param, useModel: requestStore.getQuestionType },
+    list: [param],
+  }).then((res) => {
+    if (res.code === 201) {
+      message.success(res.message);
+      refreshChatContnet()
     }
-  );
+  });
 };
 const uploadImageEvent = function () {};
 const uploadFileEvent = function () {};
@@ -195,8 +206,29 @@ const previewEvent = function (p) {
 };
 // 文件上传
 import type { ImageItem } from "../../components/ImagePreview.vue";
+import { useEventsBus } from "../../stores/event-bus";
+import { useChatStore } from "../../stores/chatStore";
+const chatStore = useChatStore();
 const fileUploadRef = ref();
-
+const eventBus = useEventsBus();
+const documentId = ref("");
+const chatChageEvent = eventBus.on("chat-change", () => {
+  messageId.value = chatStore.getTitleId;
+  if (documentId.value != chatStore.getDocumentId) {
+    documentId.value = chatStore.getDocumentId;
+    refreshChatContnet();
+  }
+});
+const refreshChatContnet = () => {
+  chatListInterface(documentId.value).then((res) => {
+    if (res.code === 200) {
+      markdownContentList.value = res.data;
+    }
+  });
+};
+onUnmounted(() => {
+  chatChageEvent();
+});
 const previewImages = ref<ImageItem[]>([]);
 const handleUploadSuccess = (files: any[]) => {
   console.log("上传成功", files);

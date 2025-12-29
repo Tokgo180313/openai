@@ -57,7 +57,7 @@
         @mouseenter="mouseenterItemEvent(item)"
         @mouseleave="mouseleaveItemEvent"
         @click="selectedEvent(item)"
-        v-for="item in contentList"
+        v-for="item in titleList"
         :key="item.id"
         :class="{ 'content-selected': selectedRow == item.id }"
       >
@@ -137,7 +137,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
@@ -150,16 +150,31 @@ const isEnter = ref(false);
 const showIcon = ref("icon-gpt");
 const showContentItemIcon = ref(null);
 let showLoginOutDialog = ref(false);
-const contentList = reactive([
-  {
-    title: "标题1",
-    id: "1",
-  },
-  {
-    id: "2",
-    title: "标题2",
-  },
-]);
+import apiList from "@/api/apiList";
+import { useEventsBus } from "../stores/event-bus";
+import { useChatStore } from "../stores/chatStore";
+import { nanoid } from "nanoid";
+const {chatTitleListInterface} = apiList;
+interface titleInfo {
+  id:string;
+  title:string;
+  createAt:number;
+  updateAt:number;
+}
+const titleList = ref<titleInfo[]>([]);
+const eventBus = useEventsBus()
+const chatStore = useChatStore()
+onMounted(()=>{
+  chatTitleListInterface().then(res=>{
+    if(res.code ===200){
+      titleList.value = res.data||[]
+    }else{
+      titleList.value = []
+    }
+  }).catch(()=>{
+    titleList.value = []
+  })
+})
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
   emit("collapsedChange", isCollapsed.value);
@@ -187,9 +202,16 @@ const mouseleaveItemEvent = function (item) {
 };
 const selectedEvent = function (item) {
   selectedRow.value = item.id;
+  chatStore.updateDocument(item.documentId)
+  chatStore.updateTitleId(item.id)
+  eventBus.emit("chat-change")
 };
 const newChatEvent = function () {
+  let documentId = nanoid();
   selectedRow.value = null;
+  chatStore.updateDocument(documentId)
+  chatStore.updateTitleId(null)
+  eventBus.emit("chat-change")
 };
 const loginOutEvent = function () {
   showLoginOutDialog.value = true;

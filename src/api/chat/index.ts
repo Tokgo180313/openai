@@ -7,6 +7,21 @@ const chatDeepSeekInterface = function(param){
         data:param
     })
 }
+const chatTitleListInterface = function(param){
+    return request({
+        url:"/chat/titleList",
+        method:"get",
+        data:param
+    })
+}
+const chatListInterface = function(param){
+    return request({
+        url:`chat/chatList/${param}`,
+        method:"get"
+    })
+}
 export default{
     chatDeepSeekInterface,
+    chatTitleListInterface,
+    chatListInterface
 }
