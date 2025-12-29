@@ -6,6 +6,8 @@ import { Type } from 'class-transformer';
 export class MessageDto {
   @IsString()
   id: string;
+  @IsString()
+  titleId:string;
   @IsObject()
   @Type(()=>QuestionDto)
   question:QuestionDto;

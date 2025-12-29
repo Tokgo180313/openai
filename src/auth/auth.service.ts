@@ -60,7 +60,6 @@ export class AuthService {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET || 'my-secret-key',
       });
-      console.log("payload",payload)
       const now = Math.floor(Date.now() / 1000);
       if (payload.exp && payload.exp < now) {
         throw new Error('Token 已过期');

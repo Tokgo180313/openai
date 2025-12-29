@@ -22,12 +22,14 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('/deepseek')
-  async chatByDeepSeek(@Body() messageDto: MessageDto) {
+  async chatByDeepSeek(@Body() messageDto: MessageDto,@Token() token:string) {
     if (messageDto) {
       return await this.chatService.completionFunction(
         messageDto.id,
+        messageDto.titleId,
         messageDto.question,
         messageDto.list,
+        token,
       );
     } else {
       return null;
@@ -42,7 +44,7 @@ export class ChatController {
     return null;
   }
 
-  @Post('/chatList/:id')
+  @Get('/chatList/:id')
   async chatList(@Param("id") id:string) {
     return this.chatService.chatList(id);
   }

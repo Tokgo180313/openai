@@ -32,8 +32,10 @@ export class ChatService {
 
   public async completionFunction(
     id: string,
+    titleId:string,
     question: QuestionDto,
     list: OpenAI.ChatCompletionMessageParam[],
+    token:string
   ) {
     try {
       const questionEntity: ContentEntity = {
@@ -44,7 +46,7 @@ export class ChatService {
         role: question.role,
         content: question.content,
       };
-      console.log(questionEntity, list);
+      // console.log(questionEntity, list);
 
       const questionInfo = new this.contentSchema(questionEntity);
       await questionInfo.save();
@@ -65,9 +67,14 @@ export class ChatService {
         role: response.choices[0].message.role,
         content: response.choices[0].message.content,
       };
-      console.log(contentEntity);
+      // console.log(contentEntity);
       const responseInfo = new this.contentSchema(contentEntity);
       await responseInfo.save();
+      if(titleId){
+        this.updateChatTitle(titleId)
+      }else{
+        this.addChatTitle({documentId:id,keywordText:question.content},token)
+      }
       return contentEntity;
       //   return contentEntity;
     } catch (error) {
@@ -89,8 +96,8 @@ export class ChatService {
     let chatEntity = new ChatEntity({
       id: uuid(),
       userId: payload.sub,
-      documentId: chatDto.documentId,
-      title: chatDto.keywordText,
+      documentId: chatDto.documentId||'',
+      title: chatDto.keywordText||'',
     });
     return await new this.chatTitleSchema(chatEntity).save();
   }
