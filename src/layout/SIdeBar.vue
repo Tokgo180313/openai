@@ -154,27 +154,35 @@ import apiList from "@/api/apiList";
 import { useEventsBus } from "../stores/event-bus";
 import { useChatStore } from "../stores/chatStore";
 import { nanoid } from "nanoid";
-const {chatTitleListInterface} = apiList;
+const { chatTitleListInterface } = apiList;
 interface titleInfo {
-  id:string;
-  title:string;
-  createAt:number;
-  updateAt:number;
+  id: string;
+  title: string;
+  createAt: number;
+  updateAt: number;
 }
 const titleList = ref<titleInfo[]>([]);
-const eventBus = useEventsBus()
-const chatStore = useChatStore()
-onMounted(()=>{
-  chatTitleListInterface().then(res=>{
-    if(res.code ===200){
-      titleList.value = res.data||[]
-    }else{
-      titleList.value = []
-    }
-  }).catch(()=>{
-    titleList.value = []
-  })
-})
+const eventBus = useEventsBus();
+const chatStore = useChatStore();
+onMounted(() => {
+  chatTitleListInterface()
+    .then((res) => {
+      if (res.code === 200) {
+        titleList.value = res.data || [];
+      } else {
+        titleList.value = [];
+      }
+    })
+    .then(() => {
+      if (chatStore.getDocumentId) {
+        selectedRow.value = chatStore.getTitleId;
+        eventBus.emit("chat-change");
+      }
+    })
+    .catch(() => {
+      titleList.value = [];
+    });
+});
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
   emit("collapsedChange", isCollapsed.value);
@@ -202,16 +210,16 @@ const mouseleaveItemEvent = function (item) {
 };
 const selectedEvent = function (item) {
   selectedRow.value = item.id;
-  chatStore.updateDocument(item.documentId)
-  chatStore.updateTitleId(item.id)
-  eventBus.emit("chat-change")
+  chatStore.updateDocument(item.documentId);
+  chatStore.updateTitleId(item.id);
+  eventBus.emit("chat-change");
 };
 const newChatEvent = function () {
   let documentId = nanoid();
   selectedRow.value = null;
-  chatStore.updateDocument(documentId)
-  chatStore.updateTitleId(null)
-  eventBus.emit("chat-change")
+  chatStore.updateDocument(documentId);
+  chatStore.updateTitleId(null);
+  eventBus.emit("chat-change");
 };
 const loginOutEvent = function () {
   showLoginOutDialog.value = true;

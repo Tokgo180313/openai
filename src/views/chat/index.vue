@@ -1,10 +1,16 @@
 <template>
   <div class="main">
-    <div class="content">
+    <div class="content" ref="scrollRef">
       <div v-for="content in markdownContentList" :key="content.id">
         <MarkdownViewer
           :content="content.content"
           :role="content.role"
+        ></MarkdownViewer>
+      </div>
+      <div class="current-content">
+        <MarkdownViewer
+          :content="markdownContent"
+          role="assistant"
         ></MarkdownViewer>
       </div>
       <!-- 预览组件 -->
@@ -81,13 +87,17 @@ import { FileImageOutlined, FileAddOutlined } from "@ant-design/icons-vue";
 import MarkdownViewer from "../../components/MarkdownViewer.vue";
 import FileUpload from "../../components/FileUpload.vue";
 import ImagePreview from "../../components/ImagePreview.vue";
-import { ref, onMounted, onUnmounted, useModel } from "vue";
+import { ref, onMounted, onUnmounted, useModel, watch, nextTick } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { nanoid } from "nanoid";
 import { MessageItem } from "../../types/messageItem.type";
 let messageItemList = ref<MessageItem[]>([]);
-const { chatDeepSeekInterface, chatListInterface } = api;
+const {
+  chatDeepSeekInterface,
+  chatListInterface,
+  streamSaveResponseInterface,
+} = api;
 const markdownContent = ref("");
 const markdownContentList = ref([]);
 interface PatseOptions {
@@ -122,7 +132,7 @@ const submitEvent = function (event) {
   if (code === "Enter") {
     if (!shiftKey) {
       // enter 事件
-      handleEnterEvent();
+      sendMessageEvent();
     }
   }
 };
@@ -140,19 +150,75 @@ const sendMessageEvent = () => {
   const content = document.querySelector("[contenteditable]")?.innerText;
   const param = {
     role: "user",
-    content: content || "",
+    content: content,
   };
   markdownContentList.value.push(param);
   clearInputData();
-  chatDeepSeekInterface({
+  streamChat({
     id: documentId.value,
     titleId: messageId.value,
     question: { ...param, useModel: requestStore.getQuestionType },
     list: [param],
+  });
+};
+const streamChat = async (param) => {
+  const response = await fetch(
+    `${import.meta.env.VITE_APP_BASIC_URL}/stream/deepseek`,
+    {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "text/event-stream",
+        Authorization: `Bearer ${sessionStorage.getItem("access_token")}`,
+      },
+      body: JSON.stringify(param),
+    }
+  );
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader?.read();
+    if (done) {
+      break;
+    }
+    const chunk = decoder.decode(value);
+    const lines = chunk.split("\n\n").filter((line) => line.trim());
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const data = line.slice(6);
+        if (data === "[DONE]") {
+          break;
+        }
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.content) {
+            markdownContent.value += parsed.content;
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+  }
+  console.log(markdownContent.value)
+  nextTick(() => {
+    saveResponse();
+  });
+};
+const saveResponse = (value: string) => {
+  streamSaveResponseInterface({
+    documentId: documentId.value,
+    useModel: requestStore.getQuestionType,
+    role: "assistant",
+    content: markdownContent.value,
   }).then((res) => {
-    if (res.code === 201) {
-      message.success(res.message);
-      refreshChatContnet()
+    if (res.code == 201) {
+      markdownContentList.value.push({
+        role: "assistant",
+        content: markdownContent.value,
+      });
+      markdownContent.value = "";
     }
   });
 };
@@ -268,6 +334,22 @@ const handleRemovePreviewImage = (image: ImageItem) => {
 const handleImageClick = (image: ImageItem) => {
   console.log("点击图片", image);
 };
+const scrollRef = ref < HTMLDivElement || null > null;
+const isAtBottom = () => {
+  if (!scrollRef.value) return false;
+  const el = scrollRef.value;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 10;
+};
+watch(
+  () => markdownContentList.value.length,
+  async () => {
+    await nextTick();
+    console.log(isAtBottom());
+    if (scrollRef.value && isAtBottom()) {
+      scrollRef.value.scrollTop = scrollRef.value.scrollHeight;
+    }
+  }
+);
 </script>
 
 <style scoped lang="scss">
@@ -280,8 +362,11 @@ const handleImageClick = (image: ImageItem) => {
 
 .content {
   overflow: auto;
-  text-align: left;
-  margin: 1em 10em;
+  text-align: center;
+  margin: auto;
+  padding: 0 1em;
+  width: 62.8%;
+  overflow-anchor: auto;
 }
 .footer {
   text-align: right;
@@ -356,5 +441,8 @@ const handleImageClick = (image: ImageItem) => {
 
 .actions button:hover {
   background: #0056b3;
+}
+.send-btn {
+  text-align: right;
 }
 </style>

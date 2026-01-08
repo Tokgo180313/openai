@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ 'is-user': role == 'user' }">
+  <div :class="{ 'is-user': role == 'user' ,'is-assistant':role=='assistant'}">
     <div class="markdown-body" v-html="compiledMarkdown"></div>
   </div>
 </template>
@@ -23,5 +23,8 @@ const compiledMarkdown = computed(() => {
 <style scoped lang="scss">
 .is-user {
   text-align: right;
+}
+.is-assistant{
+  text-align: left;
 }
 </style>
