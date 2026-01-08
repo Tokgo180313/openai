@@ -16,7 +16,11 @@ interface MarkdownTypes {
 }
 const props = defineProps<MarkdownTypes>();
 const compiledMarkdown = computed(() => {
-  return markdownRenderer.render(DOMPurify.sanitize(props.content));
+  let content = props.content
+  if(props.role =="user"){
+    content = `<span style="background:rgba(211,211,211,0.3);padding:0.5em 1em;border-radius:0.5em;">${content}</span>`
+  }
+  return markdownRenderer.render(DOMPurify.sanitize(content));
 });
 </script>
 

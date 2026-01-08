@@ -31,6 +31,7 @@ declare module 'vue' {
     LoginOoutDialog: typeof import('./src/components/LoginOoutDialog.vue')['default']
     LoginOutDialog: typeof import('./src/components/LoginOutDialog.vue')['default']
     MarkdownFile: typeof import('./src/components/MarkdownFile.vue')['default']
+    MarkdownView: typeof import('./src/components/MarkdownView.vue')['default']
     MarkdownViewer: typeof import('./src/components/MarkdownViewer.vue')['default']
     RemoveChatDialog: typeof import('./src/components/RemoveChatDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
