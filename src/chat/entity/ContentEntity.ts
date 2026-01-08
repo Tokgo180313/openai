@@ -10,9 +10,6 @@ export class ContentEntity{
     @IsString()
     content:string | null;
 
-    @IsNumber()
-    created:Number;
-
     @IsString()
     role:string | null;
 

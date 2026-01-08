@@ -11,13 +11,16 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
+import { StreamModule } from './stream/stream.module';
 @Module({
   imports: [ConfigModule.forRoot({isGlobal:true}),
     MongooseModule.forRoot("mongodb://127.0.0.1:27017/nest"),
     ChatModule,
     UserModule,
     FileModule,
-    AuthModule],
+    AuthModule,
+    StreamModule,
+  ],
   controllers: [AppController],
   providers: [
     {

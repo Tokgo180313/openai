@@ -16,9 +16,6 @@ export class Content extends Document{
     content:string;
 
     @Prop({required:true})
-    created:number;
-
-    @Prop({required:true})
     role:string;
 
     @Prop({required:true})

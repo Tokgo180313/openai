@@ -42,7 +42,6 @@ export class ChatService {
         id: uuid(),
         documentId: id,
         useModel: 'deepseek-chat',
-        created: new Date().getTime(),
         role: question.role,
         content: question.content,
       };
@@ -63,7 +62,6 @@ export class ChatService {
         id: uuid(),
         documentId: id,
         useModel: response.model,
-        created: response.created,
         role: response.choices[0].message.role,
         content: response.choices[0].message.content,
       };
