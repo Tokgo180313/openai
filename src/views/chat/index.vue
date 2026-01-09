@@ -2,16 +2,16 @@
   <div class="main">
     <div class="content" ref="scrollRef">
       <div v-for="content in markdownContentList" :key="content.id">
-        <MarkdownViewer
+        <MarkdownRenderer
           :content="content.content"
           :role="content.role"
-        ></MarkdownViewer>
+        />
       </div>
       <div class="current-content">
-        <MarkdownViewer
+        <MarkdownRenderer
           :content="markdownContent"
           role="assistant"
-        ></MarkdownViewer>
+        ></MarkdownRenderer>
       </div>
       <!-- 预览组件 -->
     </div>
@@ -87,6 +87,7 @@ import { FileImageOutlined, FileAddOutlined } from "@ant-design/icons-vue";
 import MarkdownViewer from "../../components/MarkdownViewer.vue";
 import FileUpload from "../../components/FileUpload.vue";
 import ImagePreview from "../../components/ImagePreview.vue";
+import MarkdownRenderer from "../../components/MarkdownRenderer.vue";
 import { ref, onMounted, onUnmounted, useModel, watch, nextTick } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
@@ -201,7 +202,7 @@ const streamChat = async (param) => {
       }
     }
   }
-  console.log(markdownContent.value)
+  console.log(markdownContent.value);
   nextTick(() => {
     saveResponse();
   });

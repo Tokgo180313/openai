@@ -61,7 +61,21 @@
         :key="item.id"
         :class="{ 'content-selected': selectedRow == item.id }"
       >
-        <div class="content-text">{{ item.title }}</div>
+        <div class="content-text">
+          <span v-if="item.title.length<=12">
+
+            {{ item.title.slice(0, 10) }}
+          </span>
+
+          <a-tooltip placement="topLeft" v-else>
+            <template #title>
+              <div style="max-width: 220px;">
+                {{ item.title }}
+              </div>
+            </template>
+            <span>{{ item.title.slice(0,10) }}...</span>
+          </a-tooltip>
+        </div>
         <div v-show="currentRow == item.id || showContentItemIcon == item.id">
           <a-popover
             placement="right"
