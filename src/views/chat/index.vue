@@ -2,10 +2,7 @@
   <div class="main">
     <div class="content" ref="scrollRef">
       <div v-for="content in markdownContentList" :key="content.id">
-        <MarkdownRenderer
-          :content="content.content"
-          :role="content.role"
-        />
+        <MarkdownRenderer :content="content.content" :role="content.role" />
       </div>
       <div class="current-content">
         <MarkdownRenderer
@@ -98,6 +95,7 @@ const {
   chatDeepSeekInterface,
   chatListInterface,
   streamSaveResponseInterface,
+  chatGeminiInterface,
 } = api;
 const markdownContent = ref("");
 const markdownContentList = ref([]);
@@ -114,7 +112,7 @@ let textContent: HTMLTextAreaElement | null = null;
 onMounted(() => {
   try {
     textContent = document.getElementById(
-      "markdown-content"
+      "markdown-content",
     ) as HTMLTextAreaElement;
     if (textContent) {
       textContent.addEventListener("paste", patseImageEvent);
@@ -155,12 +153,36 @@ const sendMessageEvent = () => {
   };
   markdownContentList.value.push(param);
   clearInputData();
-  streamChat({
-    id: documentId.value,
-    titleId: messageId.value,
-    question: { ...param, useModel: requestStore.getQuestionType },
-    list: [param],
-  });
+  console.log(requestStore.getQuestionType);
+  if (requestStore.getQuestionType == "deepseek") {
+    streamChat({
+      id: documentId.value,
+      titleId: messageId.value,
+      question: { ...param, useModel: requestStore.getQuestionType },
+      list: [param],
+    });
+  } else if (requestStore.getQuestionType == "gemini") {
+    geminichat({
+      id: documentId.value,
+      titleId: messageId.value,
+      question: { ...param, useModel: requestStore.getQuestionType },
+      list: [param],
+    });
+  }
+};
+const geminichat = async (param) => {
+  chatGeminiInterface(param)
+    .then((res) => {
+      if (res.code == 200) {
+        markdownContentList.value.push({
+          role: "assistant",
+          content: res.data.answer,
+        });
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+    });
 };
 const streamChat = async (param) => {
   const response = await fetch(
@@ -173,7 +195,7 @@ const streamChat = async (param) => {
         Authorization: `Bearer ${sessionStorage.getItem("access_token")}`,
       },
       body: JSON.stringify(param),
-    }
+    },
   );
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
@@ -236,7 +258,7 @@ const patseImageEvent = function (event: ClipboardEvent) {
 };
 const handlePatse = function (
   event: ClipboardEvent,
-  options: PatseOptions = {}
+  options: PatseOptions = {},
 ): string | null {
   const clipboardData = event.clipboardData;
   if (!clipboardData) {
@@ -349,7 +371,7 @@ watch(
     if (scrollRef.value && isAtBottom()) {
       scrollRef.value.scrollTop = scrollRef.value.scrollHeight;
     }
-  }
+  },
 );
 </script>
 

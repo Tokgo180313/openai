@@ -22,6 +22,14 @@
             <div class="item-text">ChatGpt</div>
           </div>
         </a-select-option>
+        <a-select-option value="gemini" title="Gemini">
+          <div class="option-item">
+            <div class="item-icon">
+              <i class="iconfont icon-gemini-line"></i>
+            </div>
+            <div class="item-text">Geimin</div>
+          </div>
+        </a-select-option>
       </a-select>
     </div>
     <div class="system-operation">

@@ -7,6 +7,13 @@ const chatDeepSeekInterface = function (param) {
     data: param,
   });
 };
+const chatGeminiInterface = function (param) {
+  return request({
+    url: "/chat/gemini",
+    method: "post",
+    data: param,
+  });
+};
 const chatTitleListInterface = function (param) {
   return request({
     url: "/chat/titleList",
@@ -36,6 +43,7 @@ const streamSaveResponseInterface = function(param){
 }
 export default {
   chatDeepSeekInterface,
+  chatGeminiInterface,
   chatTitleListInterface,
   chatListInterface,
   streamDeepSeekInterface,
