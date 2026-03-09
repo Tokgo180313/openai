@@ -1,10 +1,16 @@
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule,DocumentBuilder } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptors';
 import { HttpExecptionFilter } from './common/filters/http-exception.filter';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // 请确保这里的地址与你本地代理软件（如 Clash, v2ray 等）的 HTTP 端口一致
+  const proxyUrl = 'http://127.0.0.1:7890'; 
+  const dispatcher = new ProxyAgent(proxyUrl);
+  setGlobalDispatcher(dispatcher);
   // swagger
   const config = new DocumentBuilder()
                   .setTitle("接口文档")

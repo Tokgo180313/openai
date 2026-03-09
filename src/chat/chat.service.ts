@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import OpenAI from 'openai';
 import { Model, now } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -20,8 +24,11 @@ import {
 } from 'src/schemas/chat/chat.schema';
 import { ChatEntity } from './entity/Chat.entity';
 import { JwtService } from '@nestjs/jwt';
+import { GoogleGenAI } from '@google/genai';
 @Injectable()
 export class ChatService {
+  private genAI: any;
+  private readonly modelName = 'gemini-3-flash-preview'; // 或 gemini
   constructor(
     @InjectModel(Content.name) private contentSchema: Model<ContentDocument>,
     @InjectModel(ChatTitle.name)
@@ -29,13 +36,20 @@ export class ChatService {
     private configService: ConfigService,
     private jwtService: JwtService,
   ) {}
-
+  onModuleInit() {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    // 初始化 SDK
+    this.genAI = new GoogleGenAI({ apiKey ,httpOptions: {
+    // 确保连接池配置合理
+    timeout: 30000, // 设置为 30 秒，单位通常是 ms
+  }});
+  }
   public async completionFunction(
     id: string,
-    titleId:string,
+    titleId: string,
     question: QuestionDto,
     list: OpenAI.ChatCompletionMessageParam[],
-    token:string
+    token: string,
   ) {
     try {
       const questionEntity: ContentEntity = {
@@ -68,10 +82,13 @@ export class ChatService {
       // console.log(contentEntity);
       const responseInfo = new this.contentSchema(contentEntity);
       await responseInfo.save();
-      if(titleId){
-        this.updateChatTitle(titleId)
-      }else{
-        this.addChatTitle({documentId:id,keywordText:question.content},token)
+      if (titleId) {
+        this.updateChatTitle(titleId);
+      } else {
+        this.addChatTitle(
+          { documentId: id, keywordText: question.content },
+          token,
+        );
       }
       return contentEntity;
       //   return contentEntity;
@@ -81,21 +98,54 @@ export class ChatService {
       throw new Error(error.messages);
     }
   }
+  public async chatByChatgpt(messageDto: Array<MessageDto>) {
+    if (messageDto) {
+      console.log(messageDto);
+    }
+    return null;
+  }
+  public async chatByGemini(messageDto: MessageDto, token: string) {
+    return await this.generateText(messageDto?.question.content);
+  }
+  /**
+   * 基础文本生成
+   * @param prompt 用户输入的提示词
+   */
+  async generateText(prompt: string): Promise<string> {
+    try {
+      const response = await this.genAI.models.generateContent({
+        model: this.modelName,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        // Gemini 3 特有配置：思维层级 (Thinking Level)
+        // 选项: 'minimal', 'low', 'medium', 'high'
+        config: {
+          thinkingConfig: {
+            thinkingLevel: 'low',
+          },
+        },
+      });
+
+      return response.text;
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw new Error('Failed to generate content from Gemini');
+    }
+  }
   /**
    * 新增聊天主题
    * @param chatDto
    * @param userId
    * @returns
    */
-  public async addChatTitle(chatDto: ChatDto,token:string) {
+  public async addChatTitle(chatDto: ChatDto, token: string) {
     const payload = await this.jwtService.verifyAsync(token, {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
     let chatEntity = new ChatEntity({
       id: uuid(),
       userId: payload.sub,
-      documentId: chatDto.documentId||'',
-      title: chatDto.keywordText||'',
+      documentId: chatDto.documentId || '',
+      title: chatDto.keywordText || '',
     });
     return await new this.chatTitleSchema(chatEntity).save();
   }
@@ -137,21 +187,21 @@ export class ChatService {
   }
   /**
    * 获取title列表
-   * @param token 
-   * @returns 
+   * @param token
+   * @returns
    */
-  public async chatTitleList(token:string){
+  public async chatTitleList(token: string) {
     const payload = await this.jwtService.verifyAsync(token, {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
-    return await this.chatTitleSchema.find({userId:payload.sub}).exec()
+    return await this.chatTitleSchema.find({ userId: payload.sub }).exec();
   }
   /**
    * 查找聊天列表
    * @param chatDto
    */
-  public async chatList(id:string) {
-    return await this.contentSchema.find({documentId:id}).exec()
+  public async chatList(id: string) {
+    return await this.contentSchema.find({ documentId: id }).exec();
   }
 
   /**

@@ -22,7 +22,7 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('/deepseek')
-  async chatByDeepSeek(@Body() messageDto: MessageDto,@Token() token:string) {
+  async chatByDeepSeek(@Body() messageDto: MessageDto, @Token() token: string) {
     if (messageDto) {
       return await this.chatService.completionFunction(
         messageDto.id,
@@ -43,20 +43,25 @@ export class ChatController {
     }
     return null;
   }
+  @Post('/gemini')
+  async chatByGemini(@Body() messageDto: MessageDto,@Token() token: string) {
+    const message = await this.chatService.generateText(messageDto?.question.content);
+    return { success: true, data: message };
+  }
 
   @Get('/chatList/:id')
-  async chatList(@Param("id") id:string) {
+  async chatList(@Param('id') id: string) {
     return this.chatService.chatList(id);
   }
 
   @Get('/titleList')
-  async chatTitleList(@Token() token:string) {
+  async chatTitleList(@Token() token: string) {
     return await this.chatService.chatTitleList(token);
   }
 
-  @Post("/addChatTitle")
-  async addChatTitle(@Body() chatDto:ChatDto,@Token() token:string){
-    return await this.chatService.addChatTitle(chatDto,token)
+  @Post('/addChatTitle')
+  async addChatTitle(@Body() chatDto: ChatDto, @Token() token: string) {
+    return await this.chatService.addChatTitle(chatDto, token);
   }
 
   @Get('/info')
