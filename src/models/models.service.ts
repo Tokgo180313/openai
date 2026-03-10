@@ -4,17 +4,25 @@ import { ModelsEntity } from "./entity/models.entity";
 import { Models, ModelDocument } from "src/schemas/models/models.schema";
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
+import { Record, RecordDocument } from "src/schemas/record/record.schema";
 @Injectable()
 export class ModelService {
 
     constructor(
         @InjectModel(Models.name) private modelSchema: Model<ModelDocument>,
+        @InjectModel(Record.name) private recordSchema: Model<RecordDocument>
       ) {}
     
       //添加
       async createModel(modelDto: ModelsEntity ): Promise<Models> {
         const createModel = new this.modelSchema(modelDto);
-        return await createModel.save();
+        console.log("Creating model with data:", modelDto);
+        createModel.save().then((res) => {
+          console.log("Model created successfully:", res);
+        }).catch((err) => {
+          console.error("Error creating model:", err);
+        });
+        return createModel;
       }
       //查询
       async findModelList(modelDto:ModelsDto): Promise<Models[]> {

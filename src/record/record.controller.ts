@@ -9,11 +9,6 @@ import { RecordEntity } from './entity/record.entity';
 export class RecordController {
     constructor(private readonly recordService: RecordService){}
 
-    @Post("/add")
-    async addRecord(@Body() recordDto:RecordEntity){
-        return await this.recordService.createRecord(recordDto)
-    }
-
     @Post("/findRecordList")
     async findRecordList(@Body() recordDto:RecordDto){
         return await this.recordService.findRecordList(recordDto)
