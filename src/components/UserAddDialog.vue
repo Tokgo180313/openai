@@ -22,6 +22,13 @@
           <a-input v-model:value="submitForm.account" allowClear></a-input>
         </a-form-item>
         <a-form-item
+          label="昵称"
+          name="nickName"
+          :rules="[{ required: true, message: 'please input your nickName' }]"
+        >
+          <a-input v-model:value="submitForm.nickName" allowClear></a-input>
+        </a-form-item>
+        <a-form-item
           label="角色"
           name="roleId"
           :rules="[{ required: true, message: 'please select your role' }]"
@@ -55,6 +62,7 @@ const props = defineProps<Props>();
 let submitForm = ref<UserInfoDtoType>({
   account: "",
   roleId: "2",
+  nickName: "",
 });
 const emits = defineEmits(["close-modal"]);
 let openModal = computed(() => props.visible);
