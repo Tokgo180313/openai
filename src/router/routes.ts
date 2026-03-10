@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from "vue-router";
 import AppLayout from "../layout/AppLayout.vue";
+import ManageLayout from "../layout/ManageLayout.vue";
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
@@ -16,7 +17,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: "首页",
       requiredAuth: true,
-      roleId:['2']
+      roleId: ["2"],
     },
   },
   {
@@ -30,14 +31,46 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
-    path: "/user",
-    name: "/user",
-    title: "用户管理",
-    component: () => import("@/views/user/index.vue"),
+    path: "/manage",
+    name: "/manage",
+    title: "管理",
+    component: ManageLayout,
+    children: [
+      {
+        path: "/user",
+        name: "/user",
+        title: "用户管理",
+        component: () => import("@/views/user/index.vue"),
+        meta: {
+          title: "用户管理",
+          icon:"iconfont icon-yonghuguanli",
+        },
+      },
+      {
+        path: "/model",
+        name: "/model",
+        title: "模型管理",
+        component: () => import("@/views/model/index.vue"),
+        meta: {
+          title: "模型管理",
+          icon:"iconfont icon-shujumoxingguanli",
+        },
+      },
+      {
+        path: "/api-key",
+        name: "/api-key",
+        title: "API Key 管理",
+        component: () => import("@/views/apiKey/index.vue"),
+        meta: {
+          title: "API Key 管理",
+          icon:"iconfont icon-keyguanli",
+        },
+      }
+    ],
     meta: {
       title: "用户管理",
       requiredAuth: true,
-      roleId:['1','0']
+      roleId: ["1", "0"],
     },
   },
 ];
