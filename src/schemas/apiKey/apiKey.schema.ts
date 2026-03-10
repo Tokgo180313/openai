@@ -5,19 +5,7 @@ export type ApiKeyDocument = ApiKey & Document;
 
 @Schema({
     timestamps: true,
-    toJSON: {
-        transform: function (doc, ret) {
-            if (ret.createdAt) {
-                ret.createdAt = ret.createdAt.toISOString();
-            }
-            if (ret.updatedAt) {
-                ret.updatedAt = ret.updatedAt.toISOString();
-            }
-            return ret;
-        },
-    },
 })  
-
 export class ApiKey extends Document {
     modelName: string;
     modelClassify: string;
@@ -25,6 +13,8 @@ export class ApiKey extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export const ApiKeySchema = SchemaFactory.createForClass(ApiKey);
 
 ApiKeySchema.methods.toJSON = function() {
     const ret = {...this._doc};
@@ -37,4 +27,3 @@ ApiKeySchema.methods.toJSON = function() {
     return ret;
 }
 
-export const ApiKeySchema = SchemaFactory.createForClass(ApiKey);

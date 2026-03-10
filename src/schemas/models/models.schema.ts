@@ -1,23 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-export type ModelDocument = Model & Document;
+export type ModelDocument = Models & Document;
 
 @Schema({
     timestamps: true,
-    toJSON: {
-        transform: function (doc, ret) {
-            if (ret.createdAt) {
-                ret.createdAt = ret.createdAt.toISOString();
-            }
-            if (ret.updatedAt) {
-                ret.updatedAt = ret.updatedAt.toISOString();
-            }
-            return ret;
-        },
-    },
 }) 
-export class Model extends Document{
+export class Models extends Document{
 
     @Prop({required:true})
     modelName:string;
@@ -30,7 +19,7 @@ export class Model extends Document{
 
 }
 
-export const ModelSchema = SchemaFactory.createForClass(Model);
+export const ModelSchema = SchemaFactory.createForClass(Models);
 
 // 添加实例方法
 ModelSchema.methods.toJSON = function() {

@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Post, Put, Query } from "@nestjs/common";
-import { ModelService } from "./model.service";
-import { ModelDto } from "./dto/ModelDto";
+import { ModelService } from "./models.service";
+import { ModelsDto } from "./dto/models.dto";
 import { ApiTags } from "@nestjs/swagger";
-import { ModelEntity } from "./entity/model.entity";
+import { ModelsEntity } from "./entity/models.entity";
 
 @ApiTags("model")
 @Controller("/model")
@@ -10,12 +10,12 @@ export class ModelController {
     constructor(private readonly modelService: ModelService){}
 
     @Put("/add")
-    async addModel(@Body() modelDto:ModelEntity){
+    async addModel(@Body() modelDto:ModelsEntity){
         return await this.modelService.createModel(modelDto)
     }
 
     @Post("/findModellist")
-    async findModelList(@Body() modelDto:ModelDto){
+    async findModelList(@Body() modelDto:ModelsDto){
         return await this.modelService.findModelList(modelDto)
     }
     

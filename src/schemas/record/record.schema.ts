@@ -6,17 +6,6 @@ export type RecordDocument = Record & Document;
 
 @Schema({
     timestamps: true,
-    toJSON: {
-        transform: function (doc, ret) {
-            if (ret.createdAt) {
-                ret.createdAt = ret.createdAt.toISOString();
-            }
-            if (ret.updatedAt) {
-                ret.updatedAt = ret.updatedAt.toISOString();
-            }
-            return ret;
-        },
-    },
 })
 export class Record extends Document {
     userId: string;
@@ -26,6 +15,7 @@ export class Record extends Document {
     classify: string;
     recordType: string;
 }
+export const RecordSchema = SchemaFactory.createForClass(Record);  
 
 RecordSchema.methods.toJSON = function() {
     const ret = {...this._doc};
@@ -38,4 +28,3 @@ RecordSchema.methods.toJSON = function() {
     return ret;
 }
 
-export const RecordSchema = SchemaFactory.createForClass(Record);  

@@ -3,6 +3,7 @@ import { ApiKeyService } from "./apiKey.service";
 import { ApiKeyDto } from "./dto/apiKey.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { ApiKeyEntity } from "./entity/apiKey.entity";
+import { ApiKey } from "src/schemas/apiKey/apiKey.schema";
 
 @ApiTags("apiKey")
 @Controller("/apiKey")
@@ -11,7 +12,7 @@ export class ApiKeyController {
 
     // 添加API Key
     @Put("/add")
-    async addApiKey(apiKeyDto: ApiKeyDto) {
+    async addApiKey(apiKeyDto: ApiKeyEntity) {
         return await this.apiKeyService.createApiKey(apiKeyDto);
     }
 
