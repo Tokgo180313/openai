@@ -1,6 +1,8 @@
+import { Injectable } from "@nestjs/common";
 import { ModelDto } from "./dto/model.dto";
 import { ModelEntity } from "./entity/model.entity";
-
+import { Model, ModelDocument } from "src/schemas/model/model.schema";
+@Injectable()
 export class ModelService {
 
     constructor(
