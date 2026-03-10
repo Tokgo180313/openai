@@ -9,4 +9,4 @@ import { Models,ModelSchema } from 'src/schemas/models/models.schema';
   providers: [ModelService],
   exports: [ModelService],
 })
-export class ModelModule {}
+export class ModelsModule {}
