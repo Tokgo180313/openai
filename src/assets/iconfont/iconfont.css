@@ -2,9 +2,9 @@
   font-family: "iconfont"; /* Project id 5052105 */
   /* Color fonts */
   src: 
-       url('iconfont.woff2?t=1772786908745') format('woff2'),
-       url('iconfont.woff?t=1772786908745') format('woff'),
-       url('iconfont.ttf?t=1772786908745') format('truetype');
+       url('iconfont.woff2?t=1773063854073') format('woff2'),
+       url('iconfont.woff?t=1773063854073') format('woff'),
+       url('iconfont.ttf?t=1773063854073') format('truetype');
 }
 
 .iconfont {
@@ -13,6 +13,18 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-yonghuguanli:before {
+  content: "\e604";
+}
+
+.icon-shujumoxingguanli:before {
+  content: "\e605";
+}
+
+.icon-keyguanli:before {
+  content: "\e67b";
 }
 
 .icon-Claude:before {
