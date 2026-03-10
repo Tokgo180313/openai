@@ -18,43 +18,56 @@
     </a-popover>
     <login-out-dialog
       :visible="showLoginOutDialog"
-      @close-modal="closeModalEvent"
+      @close-modal="closeLoginOutModalEvent"
     ></login-out-dialog>
     <update-password-dialog
-      :visible="showUpdatePasswordValue"
+      :visible="showUpdatePasswordVisible"
       @close-modal="closeUpdatePasswordModalEvent"
     ></update-password-dialog>
+    <personal-data-dialog
+      :visible="showPersonalVisible"
+      @close-modal="closePersonalDataModalEvent"
+    ></personal-data-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import UpdatePasswordDialog from "@/components/UpdatePasswordDialog.vue";
+import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { ref } from "vue";
 const router = useRouter();
 const userStore = useAuthStore();
 const showLoginOutDialog = ref<boolean>(false);
-const avatarValue = "管";
+const showPersonalVisible = ref<boolean>(false);
+const avatarValue = userStore.nickName ? userStore.nickName.slice(0, 1) : "";
 const color = "#f56a00";
 const gap = 4;
 const showPersonalEvent = () => {
   console.log("个人信息");
+  showPersonalVisible.value = true;
 };
-const showUpdatePasswordValue = ref<boolean>(false);
+const showUpdatePasswordVisible = ref<boolean>(false);
 const showUpdatePasswordEvent = () => {
   console.log("修改密码");
-  showUpdatePasswordValue.value = true;
+  showUpdatePasswordVisible.value = true;
 };
 const showLogoutEvent = () => {
     showLoginOutDialog.value = true;
 };
-const closeModalEvent = function () {
+const closeLoginOutModalEvent = function () {
   showLoginOutDialog.value = false;
 };
 const closeUpdatePasswordModalEvent = function () {
-  showUpdatePasswordValue.value = false;
+  showUpdatePasswordVisible.value = false;
+};
+const closePersonalDataModalEvent = function (nickName?:string) {
+  showPersonalVisible.value = false;
+  if(nickName){
+    userStore.setNickName(nickName);
+  }
 };
 </script>
 

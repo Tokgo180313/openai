@@ -59,10 +59,10 @@ const onFinish = (values: any) => {
   loginInterface(submitForm).then((res) => {
     if (res.code == 200) {
       message.success("登录成功");
-      sessionStorage.setItem("access_token", res.data.access_token);
-      sessionStorage.setItem("account", res.data.user.account);
-      sessionStorage.setItem("role_id", res.data.user.roleId);
+      userStore.setNickName(res.data.user.nickName);
       userStore.setToken(res.data.access_token);
+      userStore.setAccount(res.data.user.account);
+      userStore.setRoleId(res.data.user.roleId);
       if (res.data.user.roleId === "1") {
         router.push("/user");
       } else {

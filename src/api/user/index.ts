@@ -41,11 +41,19 @@ const updatePasswordInterface = function(param){
         data:param,
     })
  }
+ const updateNickNameInterface = function(param){
+    return request({
+        url:"/user/updateNickName",
+        method:"post",
+        data:param,
+    })
+ }
 export default {
     addUserInfoInterface,
     updateUserInfoInterface,
     findAllUserInfoInterface,
     removeUserInfoInterface,
     resetUserInfoInterface,
-    updatePasswordInterface
+    updatePasswordInterface,
+    updateNickNameInterface
 }

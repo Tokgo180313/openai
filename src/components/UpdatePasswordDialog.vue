@@ -1,14 +1,14 @@
 <template>
  <div>
-    <a-modal v-model:open="open" title="Basic Modal" @ok="handleOk" @cancel="emit('close-modal')">
+    <a-modal v-model:open="open" title="修改密码" @ok="handleOk" @cancel="emit('close-modal')" cancelText="取消" okText="确认">
       <a-form :model="submitForm" :rules="formRules">
-        <a-form-item label="Old Password" name="oldPassword">
+        <a-form-item label="旧密码" name="oldPassword">
           <a-input v-model:value="submitForm.oldPassword" />
         </a-form-item>
-        <a-form-item label="New Password" name="newPassword">
+        <a-form-item label="新密码" name="newPassword">
           <a-input v-model:value="submitForm.newPassword" />
         </a-form-item>
-        <a-form-item label="Confirm Password" name="confirmPassword">
+        <a-form-item label="确认密码" name="confirmPassword">
           <a-input v-model:value="submitForm.confirmPassword" />
         </a-form-item>
       </a-form>
