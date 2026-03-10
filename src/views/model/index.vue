@@ -25,8 +25,8 @@
           <a-range-picker v-model:value="searchForm.createTime" />
         </a-form-item>
         <a-form-item>
-          <a-button type="primary">查询</a-button>
-          <a-button @click="handleAdd" type="success">新增</a-button>
+          <a-button type="primary" @click="handleSearch">查询</a-button>
+          <a-button @click="handleAdd">新增</a-button>
         </a-form-item>
       </a-form>
     </div>
@@ -52,7 +52,7 @@
         :total="pagination.total"
       ></a-pagination>
     </div>
-    <add-model-dialog :visible="showAddVisible" @close="showAddVisible = false" />
+    <add-model-dialog :visible="showAddVisible" @close="handleSuccess" />
   </div>
 </template>
 
@@ -87,6 +87,9 @@ interface modelType {
 
 const modelList = ref<modelType[]>();
 const columnsList = ref(columns);
+const handleSearch = () => {
+  getModelList();
+};
 const getModelList = async () => {
   const res = await findModelListInterface();
   if (res.code === 201) {
@@ -125,6 +128,10 @@ const showAddVisible = ref(false);
 const handleAdd = () => {
   showAddVisible.value = true;
 };
+const handleSuccess = () => {
+  showAddVisible.value = false;
+  getModelList();
+};  
 </script>
 
 <style scoped lang="scss"></style>
