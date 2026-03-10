@@ -5,6 +5,7 @@ import { SwaggerModule,DocumentBuilder } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptors';
 import { HttpExecptionFilter } from './common/filters/http-exception.filter';
 import { setGlobalDispatcher, ProxyAgent } from 'undici';
+import { MongooseSerializerInterceptor } from './common/interceptors/mongoose-serializer.interceptor';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   // 请确保这里的地址与你本地代理软件（如 Clash, v2ray 等）的 HTTP 端口一致
@@ -45,6 +46,8 @@ async function bootstrap() {
   });
   // 异常过滤器
   app.useGlobalFilters(new HttpExecptionFilter())
+  // 应用全局拦截器
+  app.useGlobalInterceptors(new MongooseSerializerInterceptor());
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

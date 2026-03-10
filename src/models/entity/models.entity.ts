@@ -1,3 +1,5 @@
+import { Expose, Transform } from "class-transformer";
+
 export class ModelsEntity {
     id:string;
     modelName:string;
