@@ -20,11 +20,16 @@
       :visible="showLoginOutDialog"
       @close-modal="closeModalEvent"
     ></login-out-dialog>
+    <update-password-dialog
+      :visible="showUpdatePasswordValue"
+      @close-modal="closeUpdatePasswordModalEvent"
+    ></update-password-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
+import UpdatePasswordDialog from "@/components/UpdatePasswordDialog.vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { ref } from "vue";
@@ -37,14 +42,19 @@ const gap = 4;
 const showPersonalEvent = () => {
   console.log("个人信息");
 };
+const showUpdatePasswordValue = ref<boolean>(false);
 const showUpdatePasswordEvent = () => {
   console.log("修改密码");
+  showUpdatePasswordValue.value = true;
 };
 const showLogoutEvent = () => {
     showLoginOutDialog.value = true;
 };
 const closeModalEvent = function () {
   showLoginOutDialog.value = false;
+};
+const closeUpdatePasswordModalEvent = function () {
+  showUpdatePasswordValue.value = false;
 };
 </script>
 

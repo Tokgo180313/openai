@@ -15,7 +15,7 @@
         >
       </div>
     </div>
-    <a-table :dataSource="dataSource" :columns="columns" :pagination="false">
+    <a-table :dataSource="dataSource" :columns="columns" :pagination="false" size="small" bordered height="500px">
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex == 'roleId'">
           <span v-if="record.roleId == '0'"> 超级管理员 </span>
@@ -164,12 +164,12 @@ const closeModalEvent = function (value) {
   .search-item {
     line-height: 2rem;
     height: 2rem;
-    margin: 0 1rem;
+    margin: 0 0.5em;
   }
   padding: 1em 0;
 }
 .pagination {
   text-align: right;
-  margin: 0.3em 1em;
+  margin: 0.3em 0.5em;
 }
 </style>

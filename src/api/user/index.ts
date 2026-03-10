@@ -34,10 +34,18 @@ const findAllUserInfoInterface = function(param){
         params:param,
     })
  }
+const updatePasswordInterface = function(param){
+    return request({
+        url:"/user/updatePassword",
+        method:"post",
+        data:param,
+    })
+ }
 export default {
     addUserInfoInterface,
     updateUserInfoInterface,
     findAllUserInfoInterface,
     removeUserInfoInterface,
     resetUserInfoInterface,
+    updatePasswordInterface
 }
