@@ -15,9 +15,9 @@ const addModelInterface = function(param){
 }
 const deleteModelInterface = function(param){
     return request({
-        url:"/model/delete",
+        url:"/model/deleteById",
         method:"delete",
-        data:param
+        params:param
     })
 }
 const findModelClassifyListInterface = function(param){

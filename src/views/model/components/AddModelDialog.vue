@@ -50,10 +50,18 @@ const handleSubmit = () => {
     if (res.code === 200) {
       handleClose();
       message.success("添加成功");
+      resetForm();
     } else {
       message.error(res.message || "添加失败");
     }
   });
+};
+const resetForm = () => {
+  submitForm.value = {
+    modelName: null,
+    modelClassify: null,
+    apiKey: null,
+  };
 };
 </script>
 <style scoped lang="scss"></style>

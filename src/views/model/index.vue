@@ -115,7 +115,7 @@ const handleDelete = (record: modelType) => {
     okText: "确认",
     cancelText: "取消",
     onOk() {
-      deleteModelInterface(record.id).then((res) => {
+      deleteModelInterface({id: record.id}).then((res) => {
         if (res.code === 200) {
           getModelList();
           message.success("删除成功");
