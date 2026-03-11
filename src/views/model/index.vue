@@ -25,8 +25,8 @@
           <a-range-picker v-model:value="searchForm.createTime" />
         </a-form-item>
         <a-form-item>
-          <a-button type="primary" @click="handleSearch">查询</a-button>
-          <a-button @click="handleAdd">新增</a-button>
+          <a-button type="primary" @click="handleSearch" size="small">查询</a-button>
+          <a-button @click="handleAdd" type="primary" size="small" style="margin-left: 10px">新增</a-button>
         </a-form-item>
       </a-form>
     </div>

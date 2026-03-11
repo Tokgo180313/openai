@@ -57,16 +57,6 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: "/api-key",
-        name: "/api-key",
-        title: "API Key 管理",
-        component: () => import("@/views/apiKey/index.vue"),
-        meta: {
-          title: "API Key 管理",
-          icon: "iconfont icon-keyguanli",
-        },
-      },
-      {
         path: "/record",
         name: "/record",
         title: "操作日志",
@@ -83,7 +73,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/role/index.vue"),
         meta: {
           title: "角色管理",
-          icon: "iconfont icon-roleguanli",
+          icon: "iconfont icon-icon-role",
         },
       },
     ],

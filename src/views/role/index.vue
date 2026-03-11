@@ -21,8 +21,10 @@
           </a-select>
         </a-form-item>
         <a-form-item>
-          <a-button type="primary" @click="handleSearch">查询</a-button>
+          <a-button type="primary" @click="handleSearch" size="small">查询</a-button>
           <a-button
+            size="small"
+            style="margin-left: 10px"
             type="primary"
             @click="handleAddRole"
             @close-modal="closeAddRoleModalEvent"
@@ -45,7 +47,7 @@
               record.status === "1" ? "启用" : "禁用"
             }}</a-tag>
           </template>
-          <template v-if="column.key === 'action'">
+          <template v-if="column.key === 'action' && record.roleId != '0'">
             <a-button
               type="primary"
               danger
@@ -127,7 +129,7 @@ const handleStop = (record: RoleType) => {
     cancelText: "取消",
     onOk() {
       stopRoleInterface({ id: record.id }).then((res) => {
-        if (res.code === 200) {
+        if (res.code === 201) {
           message.success(res.message);
           handleSearch();
         }
@@ -146,7 +148,7 @@ const handleStart = (record: RoleType) => {
     cancelText: "取消",
     onOk() {
       startRoleInterface({ id: record.id }).then((res) => {
-        if (res.code === 200) {
+        if (res.code === 201) {
           message.success(res.message);
           handleSearch();
         }
