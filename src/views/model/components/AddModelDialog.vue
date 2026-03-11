@@ -12,14 +12,14 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineEmits, defineProps, reactive, ref } from "vue";
+import { computed, defineProps, reactive, ref } from "vue";
 import api from "@/api/apiList";
 let { addModelInterface } = api;
 import { message } from "ant-design-vue";
 
-const defineEmits = defineEmits(["close"]);
+const emits = defineEmits(["close"]);
 const handleClose = () => {
-  defineEmits("close");
+  emits("close");
 };
 interface PropsType {
   visible: boolean;

@@ -43,7 +43,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/user/index.vue"),
         meta: {
           title: "用户管理",
-          icon:"iconfont icon-yonghuguanli",
+          icon: "iconfont icon-yonghuguanli",
         },
       },
       {
@@ -53,7 +53,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/model/index.vue"),
         meta: {
           title: "模型管理",
-          icon:"iconfont icon-shujumoxingguanli",
+          icon: "iconfont icon-shujumoxingguanli",
         },
       },
       {
@@ -63,7 +63,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/apiKey/index.vue"),
         meta: {
           title: "API Key 管理",
-          icon:"iconfont icon-keyguanli",
+          icon: "iconfont icon-keyguanli",
         },
       },
       {
@@ -73,9 +73,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/record/index.vue"),
         meta: {
           title: "操作日志",
-          icon:"iconfont icon-keyguanli",
+          icon: "iconfont icon-keyguanli",
         },
-      }
+      },
+      {
+        path: "/role",
+        name: "/role",
+        title: "角色管理",
+        component: () => import("@/views/role/index.vue"),
+        meta: {
+          title: "角色管理",
+          icon: "iconfont icon-roleguanli",
+        },
+      },
     ],
     meta: {
       title: "用户管理",
