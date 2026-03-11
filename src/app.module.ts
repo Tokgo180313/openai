@@ -15,7 +15,7 @@ import { StreamModule } from './stream/stream.module';
 import { ApiKeyModule } from './apiKey/apiKey.module';
 import { ModelsModule } from './models/models.module';  
 import { RecordModule } from './record/record.module';
-
+import { RoleModule } from './role/role.module';
 @Module({
   imports: [ConfigModule.forRoot({isGlobal:true}),
     MongooseModule.forRoot("mongodb://127.0.0.1:27017/nest"),
@@ -27,6 +27,7 @@ import { RecordModule } from './record/record.module';
     ApiKeyModule,
     ModelsModule,
     RecordModule,
+    RoleModule,
   ],
   controllers: [AppController],
   providers: [

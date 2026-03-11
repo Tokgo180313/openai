@@ -19,13 +19,6 @@ export class ModelService {
         console.log("Creating model with data:", modelDto);
         createModel.save().then((res) => {
           console.log("Model created successfully:", res);
-          const recordData = {
-            action: 'create',
-            modelId: res._id,
-            modelName: res.modelName,
-            timestamp: new Date(),
-          };
-          this.recordService.createRecord(recordData);
         }).catch((err) => {
           console.error("Error creating model:", err);
         });
