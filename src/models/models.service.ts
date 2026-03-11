@@ -4,13 +4,13 @@ import { ModelsEntity } from "./entity/models.entity";
 import { Models, ModelDocument } from "src/schemas/models/models.schema";
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
-import { Record, RecordDocument } from "src/schemas/record/record.schema";
+import { RecordService } from "src/record/record.service";
 @Injectable()
 export class ModelService {
 
     constructor(
         @InjectModel(Models.name) private modelSchema: Model<ModelDocument>,
-        @InjectModel(Record.name) private recordSchema: Model<RecordDocument>
+        private recordService: RecordService
       ) {}
     
       //添加
@@ -19,6 +19,13 @@ export class ModelService {
         console.log("Creating model with data:", modelDto);
         createModel.save().then((res) => {
           console.log("Model created successfully:", res);
+          const recordData = {
+            action: 'create',
+            modelId: res._id,
+            modelName: res.modelName,
+            timestamp: new Date(),
+          };
+          this.recordService.createRecord(recordData);
         }).catch((err) => {
           console.error("Error creating model:", err);
         });
