@@ -13,13 +13,25 @@ export class MongooseSerializerInterceptor implements NestInterceptor {
         );
     }
     private transform(data: any): any {
+        if(!data || typeof data !== 'object'){
+            return data;
+        }
+
         if(Array.isArray(data)){
             return data.map(item => this.transform(item));
         }
         if(data && typeof data === 'object'){
             const obj = data.toObject ? data.toObject() : data;
             if(obj._id){
-                obj.id = obj._id.toString();
+                if(obj._id.buffer&& Buffer.isBuffer(obj._id.buffer)){
+                    obj.id = obj._id.buffer.toString('hex');
+                }else if(Buffer.isBuffer(obj._id)){
+                    obj.id = obj._id.toString('hex');
+                }else if(typeof obj._id.toHexString === 'function'){
+                    obj.id = obj._id.toHexString();
+                }else{
+                    obj.id = String(obj._id);
+                }
                 delete obj._id;
             }
             if(obj.__v !== undefined){

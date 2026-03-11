@@ -12,12 +12,16 @@ import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
 import { StreamModule } from './stream/stream.module';
-import { ModelsModule } from './models/models.module';  
+import { ModelsModule } from './models/models.module';
 import { RecordModule } from './record/record.module';
 import { RoleModule } from './role/role.module';
+import { CommonModule } from './common/common.module';
 @Module({
-  imports: [ConfigModule.forRoot({isGlobal:true}),
-    MongooseModule.forRoot("mongodb://127.0.0.1:27017/nest"),
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    MongooseModule.forRoot('mongodb://127.0.0.1:27017/nest', {
+      autoIndex: true,
+    }),
     ChatModule,
     UserModule,
     FileModule,
@@ -26,18 +30,19 @@ import { RoleModule } from './role/role.module';
     ModelsModule,
     RecordModule,
     RoleModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [
     {
-      provide:APP_INTERCEPTOR,
-      useClass:ResponseInterceptor
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
     },
     {
-      provide:APP_FILTER,
-      useClass:HttpExecptionFilter
+      provide: APP_FILTER,
+      useClass: HttpExecptionFilter,
     },
-    AppService],
+    AppService,
+  ],
 })
 export class AppModule {}
-

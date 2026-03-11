@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-
+import { Exclude, Expose } from 'class-transformer';
 export type ModelDocument = Models & Document;
 
 @Schema({
@@ -11,6 +11,7 @@ export class Models extends Document{
     @Prop({required:true})
     modelName:string;
 
+    @Exclude()
     @Prop({required:true})
     apiKey:string;
 
@@ -19,6 +20,11 @@ export class Models extends Document{
 
     @Prop()
     description:string;
+
+    @Expose()
+    get isApiKeySet():boolean{
+        return !!this.apiKey;
+    }
 
 }
 
