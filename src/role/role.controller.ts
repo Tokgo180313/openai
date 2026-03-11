@@ -4,7 +4,6 @@ import { ApiTags } from "@nestjs/swagger";
 import { RoleDto } from "./dto/role.dto";
 import { Role } from "src/schemas/role/role.schema";
 import { Body, Delete, Post, Put ,Query} from "@nestjs/common";
-import { RoleEntity } from "./entity/role.entity";
 
 @ApiTags('role')
 @Controller('/role')

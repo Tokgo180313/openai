@@ -12,6 +12,9 @@ export class Models extends Document{
     modelName:string;
 
     @Prop({required:true})
+    apiKey:string;
+
+    @Prop({required:true})
     modelClassify:string;
 
     @Prop()

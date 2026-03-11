@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { ModelsDto } from "./dto/models.dto";
-import { ModelsEntity } from "./entity/models.entity";
 import { Models, ModelDocument } from "src/schemas/models/models.schema";
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
@@ -14,7 +13,7 @@ export class ModelService {
       ) {}
     
       //添加
-      async createModel(modelDto: ModelsEntity ): Promise<Models> {
+      async createModel(modelDto: Models ): Promise<Models> {
         const createModel = new this.modelSchema(modelDto);
         console.log("Creating model with data:", modelDto);
         createModel.save().then((res) => {

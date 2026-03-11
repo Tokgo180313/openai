@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role, RoleDocument } from '../schemas/role/role.schema';
 import { RoleDto } from './dto/role.dto';
-import { RoleEntity } from './entity/role.entity';
 import { FilterQuery } from 'mongoose';
 @Injectable()
 export class RoleService {

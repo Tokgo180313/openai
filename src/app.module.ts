@@ -12,7 +12,6 @@ import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
 import { StreamModule } from './stream/stream.module';
-import { ApiKeyModule } from './apiKey/apiKey.module';
 import { ModelsModule } from './models/models.module';  
 import { RecordModule } from './record/record.module';
 import { RoleModule } from './role/role.module';
@@ -24,7 +23,6 @@ import { RoleModule } from './role/role.module';
     FileModule,
     AuthModule,
     StreamModule,
-    ApiKeyModule,
     ModelsModule,
     RecordModule,
     RoleModule,
