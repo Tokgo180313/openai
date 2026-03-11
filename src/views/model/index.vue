@@ -61,6 +61,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import AddModelDialog from "./components/AddModelDialog.vue";
 import api from "@/api/apiList";
 let { findModelListInterface, deleteModelInterface} = api;
+import { Modal } from "ant-design-vue";
 import config from "./config";
 const { columns } = config;
 import { useModelStore } from "@/stores/modelStore";
@@ -108,9 +109,11 @@ const pagination = reactive({
   total: 0,
 });
 const handleDelete = (record: modelType) => {
-  confirm({
+  Modal.confirm({
     title: "删除模型",
     content: "确定要删除该模型吗？",
+    okText: "确认",
+    cancelText: "取消",
     onOk() {
       deleteModelInterface(record.id).then((res) => {
         if (res.code === 200) {

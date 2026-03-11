@@ -16,12 +16,14 @@ const columns = [
     },
     {
         title:"角色状态",
-        dataIndex:"name",
-        key:"name"
+        dataIndex:"status",
+        key:"status"
     },
+    
     {
         title:"操作",
-        dataIndex:"operation"
+        dataIndex:"action",
+        key:"action"
     }
 ]
 export default {

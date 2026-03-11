@@ -2,7 +2,7 @@ import request from "../reuquest";
 
 const getRoleListInterface = function(param){
     return request({
-        url:"/role/getList",
+        url:"/role/findRoleList",
         method:"post",
         data:param
     })
@@ -10,19 +10,27 @@ const getRoleListInterface = function(param){
 const addRoleInterface = function(param){
     return request({
         url:"/role/add",
-        method:"post",
+        method:"put",
         data:param
     })
 }
-const deleteRoleInterface = function(param){
+const stopRoleInterface = function(param){
     return request({
-        url:"/role/delete",
+        url:"/role/stop",
         method:"post",
-        data:param
+        params:param
+    })
+}
+const startRoleInterface = function(param){
+    return request({
+        url:"/role/start",
+        method:"post",
+        params:param
     })
 }
 export default{
     getRoleListInterface,
     addRoleInterface,
-    deleteRoleInterface
+    stopRoleInterface,
+    startRoleInterface
 }

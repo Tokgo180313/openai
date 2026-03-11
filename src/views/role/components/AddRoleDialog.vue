@@ -1,25 +1,26 @@
 <template>
   <a-modal
-    :open="true"
+    v-model:open="open"
     title="添加角色"
     @cancel="handleCancel"
+    @ok="handleOk"
     ok-text="确认"
     cancel-text="取消"
-    :mask-closable="false"
   >
-    <a-form :model="submitForm" :rules="rules">
+    <a-form :model="submitForm" :rules="rules" label-col="{ span: 4 }" wrapper-col="{ span: 14 }">
       <a-form-item label="角色ID" name="roleId">
         <a-input-number
           v-model:value="submitForm.roleId"
           placeholder="请输入角色ID"
           :min="1"
+          style="width: 100%"
         />
       </a-form-item>
       <a-form-item label="角色名称" name="name">
-        <a-input v-model:value="submitForm.name" placeholder="请输入角色名称" />
+        <a-input v-model:value="submitForm.name" placeholder="请输入角色名称" style="width: 100%" />
       </a-form-item>
       <a-form-item label="状态" name="status">
-        <a-select v-model:value="submitForm.status" placeholder="请选择状态">
+        <a-select v-model:value="submitForm.status" placeholder="请选择状态" style="width: 100%">
           <a-select-option value="1">启用</a-select-option>
           <a-select-option value="0">禁用</a-select-option>
         </a-select>
@@ -61,7 +62,7 @@ const handleCancel = () => {
 const handleOk = async () => {
   addRoleInterface(submitForm.value)
     .then((res) => {
-      if (res.code === 201) {
+      if (res.code === 200) {
         emit("close-modal");
         message.success("添加角色成功")
       }
