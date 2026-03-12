@@ -30,6 +30,7 @@
         bordered
         striped
         size="small"
+        :pagination="false"
       ></a-table>
     </div>
     <div class="pagination">
@@ -95,7 +96,7 @@ const getRecordList = async () => {
     pageSize: pagination.pageSize,
   };
   const res = await findRecordListInterface(param);
-  if (res.code === 200) {
+  if (res.code === 201) {
     recordList.value = res.data.list;
     pagination.total = res.data.total;
   }

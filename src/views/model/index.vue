@@ -37,6 +37,7 @@
         bordered
         striped
         size="small"
+        :pagination="false"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
@@ -137,4 +138,8 @@ const handleSuccess = () => {
 };  
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.pagination {
+  text-align: right;
+}
+</style>

@@ -67,6 +67,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: "/usage",
+        name: "/usage",
+        title: "使用日志",
+        component: () => import("@/views/usage/index.vue"),
+        meta: {
+          title: "使用日志",
+          icon: "iconfont icon-yongliang",
+        },
+      },
+      {
         path: "/role",
         name: "/role",
         title: "角色管理",
