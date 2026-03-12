@@ -4,6 +4,8 @@ import { Model } from 'mongoose';
 import { Role, RoleDocument } from '../schemas/role/role.schema';
 import { RoleDto } from './dto/role.dto';
 import { FilterQuery } from 'mongoose';
+import { NotFoundException, ConflictException } from '@nestjs/common';
+
 @Injectable()
 export class RoleService {
   constructor(
@@ -25,9 +27,19 @@ export class RoleService {
     }
     return await this.roleSchema.find(query).exec();
   }
+  async findRoleById(id: string): Promise<Role | null> {
+    return await this.roleSchema.findById(id).exec();
+  }
  
   //停止
   async stopRole(id: string): Promise<void> {
+    let role = await this.findRoleById(id);
+    if(!role){
+      throw new NotFoundException('角色不存在');
+    }
+    if(role.roleId === '0'){
+      throw new ConflictException('超级管理员不能停止');
+    }
     await this.roleSchema
       .updateOne({ _id: id }, { $set: { status: "0" } })
       .exec();

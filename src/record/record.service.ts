@@ -18,7 +18,7 @@ export class RecordService {
       }
       //查询
       async findRecordList(recordDto:RecordDto): Promise<Record[]> {
-        return await this.recordSchema.find(recordDto).exec();
+        return await this.recordSchema.find(recordDto).lean().exec();
       }
       //删除
       async deleteRecord(id: string): Promise<void> {

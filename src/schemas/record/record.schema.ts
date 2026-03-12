@@ -14,6 +14,9 @@ export class Record extends Document {
     modelName: string;
     classify: string;
     recordType: string;
+    promptTokens:number;
+    completionTokens:number;
+    totalTokens:number;
 }
 export const RecordSchema = SchemaFactory.createForClass(Record);  
 

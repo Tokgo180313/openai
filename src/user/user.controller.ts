@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Post, Put, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Param, Post, Put, Query, UseGuards, UseInterceptors,Request } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { UserDto } from "./dto/UserDto";
 import { ApiTags } from "@nestjs/swagger";
@@ -38,4 +38,9 @@ export class UserController{
         return this.userService.deleteById(id);
     }
 
+    @Post("/updateNickName")
+    @UseGuards(JwtAuthGuard)
+    async updateNickName(@Body() userDto:UserDto, @Request() req:any){  
+        return this.userService.updateNickName(req.user.id,userDto.nickName|'');
+    }
 }

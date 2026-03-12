@@ -23,16 +23,12 @@ export class MongooseSerializerInterceptor implements NestInterceptor {
         if(data && typeof data === 'object'){
             const obj = data.toObject ? data.toObject() : data;
             if(obj._id){
-                if(obj._id.buffer&& Buffer.isBuffer(obj._id.buffer)){
-                    obj.id = obj._id.buffer.toString('hex');
-                }else if(Buffer.isBuffer(obj._id)){
-                    obj.id = obj._id.toString('hex');
-                }else if(typeof obj._id.toHexString === 'function'){
-                    obj.id = obj._id.toHexString();
-                }else{
-                    obj.id = String(obj._id);
-                }
+                obj.id = obj._id.toString();
                 delete obj._id;
+            }
+            if(obj.apiKey){
+                obj.isApiKeySet = true;
+                delete obj.apiKey;
             }
             if(obj.__v !== undefined){
                 delete obj.__v;

@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -11,6 +12,8 @@ import { UserEntity } from './entity/UserEntity';
 import { PasswordUtil } from 'src/common/utils/password.utils';
 import { PaginationDto } from './dto/PaginationDto';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
+import { RoleService } from 'src/role/role.service';
+
 @Injectable()
 export class UserService {
   constructor(
@@ -19,17 +22,23 @@ export class UserService {
 
   //添加
   async create(userDto: UserDto): Promise<User> {
-    const existingUser = await this.userSchema.findOne({
-      $or: [{ account: userDto.account }],
-    });
-    if (existingUser) {
-      if (existingUser.account === userDto.account) {
-        throw new ConflictException('账号已存在');
+    try {
+      userDto.password = process.env.INITIAL_PASSWORD || '123456!';
+      userDto.passwordType = '0';
+      const existingUser = await this.userSchema.findOne({
+        $or: [{ account: userDto.account }],
+      });
+      if (existingUser) {
+        if (existingUser.account === userDto.account) {
+          throw new ConflictException('账号已存在');
+        }
       }
+      const createUser = new this.userSchema(userDto);
+      return await createUser.save();
+    } catch (error) {
+      throw new BadRequestException(error.message);
     }
-    userDto.password = process.env.INITIAL_PASSWORD || '123456!';
-    const createUser = new this.userSchema(userDto);
-    return await createUser.save();
+  
   }
   //查询
   async findAll(pagination: PaginationDto): Promise<PaginationResponse<User>> {
@@ -68,11 +77,14 @@ export class UserService {
   }
   //删除
   async deleteById(id: string): Promise<void> {
-    const deleteUser = await this.userSchema.findByIdAndDelete(id).exec();
-    console.log('id', id);
-    if (!deleteUser) {
+    let user = await this.findById(id);
+    if(!user){
       throw new NotFoundException('用户不存在');
     }
+    if(user.roleId === "0") {
+      throw new ConflictException('超级管理员不能删除');
+    }
+    await this.userSchema.findByIdAndDelete(id).exec();
   }
 
   async updatePassword(id: string, newPassword: string): Promise<void> {
@@ -122,5 +134,15 @@ export class UserService {
       return user;
     }
     return null;
+  }
+
+  async updateNickName(id:string, nickName:string): Promise<User> {
+    const updateUser = await this.userSchema
+      .findByIdAndUpdate(id, { nickName: nickName }, { new: true })
+      .exec();
+    if (!updateUser) {
+      throw new NotFoundException('用户不存在');
+    }
+    return updateUser;
   }
 }
