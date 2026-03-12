@@ -1,10 +1,5 @@
 const columns = [
   {
-    title: "用户ID",
-    dataIndex: "userId",
-    key: "userId",
-  },
-  {
     title: "用户昵称",
     dataIndex: "userName",
     key: "userName",
@@ -15,19 +10,34 @@ const columns = [
     key: "account",
   },
   {
-    title: "模型名称",
+    title: "角色名称",
+    dataIndex: "roleName",
+    key: "roleName",
+  },
+  {
+    title: "模型类型",
     dataIndex: "modelName",
     key: "modelName",
   },
   {
     title: "分类",
-    dataIndex: "classify",
-    key: "classify",
+    dataIndex: "modelClassify",
+    key: "modelClassify",
   },
   {
-    title: "操作类型",
-    dataIndex: "recordType",
-    key: "recordType",
+    title: "输入Tokens",
+    dataIndex: "promptTokens",
+    key: "promptTokens",
+  },
+  {
+    title: "输出Tokens",
+    dataIndex: "completionTokens",
+    key: "completionTokens",
+  },
+  {
+    title: "总Tokens",
+    dataIndex: "totalTokens",
+    key: "totalTokens",
   },
   {
     title: "操作时间",
@@ -35,4 +45,4 @@ const columns = [
     key: "createTime",
   },
 ];
-export  default{ columns };
+export default { columns };

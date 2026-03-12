@@ -15,7 +15,14 @@ export const useAuthStore =  defineStore("auth",{
         },
         getNickName(){
             return this.nickName;
-        }
+        },
+        getRoleId(){
+            return this.roleId;
+        },
+        getAccount(){
+            return this.account;
+        },
+        
     },
 
     actions:{

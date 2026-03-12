@@ -42,7 +42,7 @@ const router = useRouter();
 const userStore = useAuthStore();
 const showLoginOutDialog = ref<boolean>(false);
 const showPersonalVisible = ref<boolean>(false);
-const avatarValue = userStore.nickName ? userStore.nickName.slice(0, 1) : "";
+const avatarValue = ref<string>(userStore.getNickName ? userStore.getNickName.slice(0, 1) : "");
 const color = "#f56a00";
 const gap = 4;
 const showPersonalEvent = () => {
@@ -67,6 +67,7 @@ const closePersonalDataModalEvent = function (nickName?:string) {
   showPersonalVisible.value = false;
   if(nickName){
     userStore.setNickName(nickName);
+    avatarValue.value = nickName.slice(0, 1);
   }
 };
 </script>

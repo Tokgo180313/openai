@@ -34,8 +34,7 @@
           :rules="[{ required: true, message: 'please select your role' }]"
         >
           <a-select v-model:value="submitForm.roleId" @change="roleChangeEvent">
-            <a-select-option value="1">管理员</a-select-option>
-            <a-select-option value="2">普通用户</a-select-option>
+            <a-select-option v-for="item in roleList" :key="item.value">{{ item.label }}</a-select-option>
           </a-select>
         </a-form-item>
       </a-form>
@@ -49,6 +48,10 @@ import api from "@/api/apiList";
 import { message } from "ant-design-vue";
 import { UserPropsType } from "../types/props.ts";
 let { addUserInfoInterface } = api;
+import { useModelStore } from "../stores/modelStore";
+const modelStore = useModelStore();
+const roleList = computed(() => modelStore.getRoleList);
+console.log(roleList.value);
 interface Props {
   visible: boolean;
 }
@@ -72,7 +75,8 @@ const confirmAddEvent = function () {
       if (res.code === 200) {
         message.success(res.message);
         emits("close-modal", true);
-      }
+        resetForm();
+      } 
     });
   }
 };
@@ -87,6 +91,13 @@ const onFinish = function () {
 };
 
 const onFinishFailed = function () {};
+const resetForm = function () {
+  submitForm.value = {
+    account: "",
+    roleId: "2",
+    nickName: "",
+  };
+};
 </script>
 
 <style scoped lang="scss"></style>

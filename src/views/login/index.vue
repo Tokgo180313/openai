@@ -49,7 +49,9 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 import { message } from "ant-design-vue";
 import { useAuthStore } from "../../stores/authStore.ts";
+import { useModelStore } from "../../stores/modelStore.ts";
 const userStore = useAuthStore();
+const modelStore = useModelStore();
 let { loginInterface } = api;
 let submitForm = reactive<FormState>({
   account: "",
@@ -63,8 +65,14 @@ const onFinish = (values: any) => {
       userStore.setToken(res.data.access_token);
       userStore.setAccount(res.data.user.account);
       userStore.setRoleId(res.data.user.roleId);
-      if (res.data.user.roleId === "1") {
+      if (res.data.user.roleId === "1"|| res.data.user.roleId === "0") {
         router.push("/user");
+        // 获取角色列表
+        modelStore.fetchRoleList({});
+        // 获取模型列表
+        modelStore.fetchModelList({});
+        // 获取模型分类列表
+        modelStore.fetchModelClassifyList({});
       } else {
         router.push("/chat");
       }
