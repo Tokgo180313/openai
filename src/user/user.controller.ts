@@ -41,6 +41,6 @@ export class UserController{
     @Post("/updateNickName")
     @UseGuards(JwtAuthGuard)
     async updateNickName(@Body() userDto:UserDto, @Request() req:any){  
-        return this.userService.updateNickName(req.user.id,userDto.nickName|'');
+        return this.userService.updateNickName(req.user.id,userDto.nickName||'');
     }
 }

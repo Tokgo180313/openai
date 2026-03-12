@@ -78,6 +78,7 @@ export class UserService {
   //删除
   async deleteById(id: string): Promise<void> {
     let user = await this.findById(id);
+    console.log(id,user);
     if(!user){
       throw new NotFoundException('用户不存在');
     }
@@ -137,6 +138,7 @@ export class UserService {
   }
 
   async updateNickName(id:string, nickName:string): Promise<User> {
+    console.log(id, nickName);
     const updateUser = await this.userSchema
       .findByIdAndUpdate(id, { nickName: nickName }, { new: true })
       .exec();

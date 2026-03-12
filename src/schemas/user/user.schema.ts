@@ -27,7 +27,8 @@ export class User extends Document{
     @Prop({required:true})
     passwordType:string
 
-    nickName:string
+    @Prop()
+    nickName?:string
 
     validaterPassword:(password:string)=>Promise<boolean>
 
