@@ -1,10 +1,9 @@
-export class RecordDto {
+export class UsageDto {
     page: number;
     pageSize: number;
     account?: string;
     modelName?: string;
-    classify?: string;
-    recordType?: string;
+    modelClassify?: string;
     startTime?: Date;
     endTime?: Date;
     get skip():number{

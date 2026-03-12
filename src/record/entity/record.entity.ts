@@ -1,10 +1,5 @@
-export class RecordEntity{
-    id: string;
-    userId: string;
-    userName: string;
+export interface RecordEntity{
+    nickName: string;
     account: string;
-    modelName: string;
-    classify: string;
-    recordType: string;
-    createTime: Date;
+    description?:string;
 }

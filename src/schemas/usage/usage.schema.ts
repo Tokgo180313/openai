@@ -2,23 +2,34 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-export type RecordDocument = Record & Document;
+export type UsageDocument = Usage & Document;
 
 @Schema({
     timestamps: true,
 })
-export class Record extends Document {
+export class Usage extends Document {
     @Prop()
     nickName: string;
     @Prop({required:true})
     account: string;
     @Prop()
+    modelName?: string;
+    @Prop()
+    modelClassify?: string;
+    @Prop()
+    promptTokens?:number;
+    @Prop()
+    completionTokens?:number;
+    @Prop()
+    totalTokens?:number;
+    @Prop()
     description?:string;
-
+    @Prop()
+    status:string;
 }
-export const RecordSchema = SchemaFactory.createForClass(Record);  
+export const UsageSchema = SchemaFactory.createForClass(Usage);  
 
-RecordSchema.methods.toJSON = function() {
+UsageSchema.methods.toJSON = function() {
     const ret = {...this._doc};
     if(ret.createdAt){
         ret.createdAt = ret.createdAt.toISOString();

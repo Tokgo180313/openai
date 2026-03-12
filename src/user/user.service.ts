@@ -8,20 +8,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from 'src/schemas/user/user.schema';
 import { UserDto } from './dto/UserDto';
-import { UserEntity } from './entity/UserEntity';
 import { PasswordUtil } from 'src/common/utils/password.utils';
 import { PaginationDto } from './dto/PaginationDto';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
-import { RoleService } from 'src/role/role.service';
-
+import { RecordService } from 'src/record/record.service';
+import { Record } from 'src/schemas/record/record.schema';
+import { RecordEntity } from 'src/record/entity/record.entity';
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private userSchema: Model<UserDocument>,
+    private recordService: RecordService,
   ) {}
 
   //添加
-  async create(userDto: UserDto): Promise<User> {
+  async create(userDto: UserDto, id?: string | undefined): Promise<User> {
     try {
       userDto.password = process.env.INITIAL_PASSWORD || '123456!';
       userDto.passwordType = '0';
@@ -34,11 +35,14 @@ export class UserService {
         }
       }
       const createUser = new this.userSchema(userDto);
-      return await createUser.save();
+      const savedUser = await createUser.save();
+      if (id) {
+        this.addRecord(savedUser.account, '用户添加', id);
+      }
+      return savedUser;
     } catch (error) {
       throw new BadRequestException(error.message);
     }
-  
   }
   //查询
   async findAll(pagination: PaginationDto): Promise<PaginationResponse<User>> {
@@ -54,7 +58,7 @@ export class UserService {
       .limit(limit)
       .exec();
     return {
-      list:data,
+      list: data,
       total,
       currentPage: skip / limit + 1,
       totalPages: Math.ceil(total / limit),
@@ -76,19 +80,23 @@ export class UserService {
     return await this.userSchema.findById(id).exec();
   }
   //删除
-  async deleteById(id: string): Promise<void> {
+  async deleteById(id: string, userId: string): Promise<void> {
     let user = await this.findById(id);
-    console.log(id,user);
-    if(!user){
+    if (!user) {
       throw new NotFoundException('用户不存在');
     }
-    if(user.roleId === "0") {
+    if (user.roleId === '0') {
       throw new ConflictException('超级管理员不能删除');
     }
     await this.userSchema.findByIdAndDelete(id).exec();
+    this.addRecord(user.account, '用户删除', userId, );
   }
 
-  async updatePassword(id: string, newPassword: string): Promise<void> {
+  async updatePassword(
+    id: string,
+    newPassword: string,
+    userId: string,
+  ): Promise<void> {
     const hashPassword = await PasswordUtil.hash(newPassword);
     const result = await this.userSchema
       .findByIdAndUpdate(
@@ -102,8 +110,9 @@ export class UserService {
     if (!result) {
       throw new NotFoundException('用户不存在');
     }
+    this.addRecord(result.account, '密码修改', userId);
   }
-  async updateUser(userDto: UserDto): Promise<User> {
+  async updateUser(userDto: UserDto, id: string): Promise<User> {
     if (userDto.password) {
       userDto.password = await PasswordUtil.hash(userDto.password);
       userDto.passwordType = '1';
@@ -114,6 +123,7 @@ export class UserService {
     if (!updateUser) {
       throw new NotFoundException('用户不存在');
     }
+    this.addRecord(updateUser.account, '用户修改', id);
     return updateUser;
   }
   async resetUser(userDto: UserDto): Promise<User> {
@@ -137,8 +147,7 @@ export class UserService {
     return null;
   }
 
-  async updateNickName(id:string, nickName:string): Promise<User> {
-    console.log(id, nickName);
+  async updateNickName(id: string, nickName: string): Promise<User> {
     const updateUser = await this.userSchema
       .findByIdAndUpdate(id, { nickName: nickName }, { new: true })
       .exec();
@@ -146,5 +155,26 @@ export class UserService {
       throw new NotFoundException('用户不存在');
     }
     return updateUser;
+  }
+
+  async addRecord(
+    account: string,
+    description: string,
+    id: string,
+  ): Promise<void> {
+    try {
+      const user = await this.findById(id);
+      if (!user) {
+        throw new NotFoundException('记录失败，操作用户不存在');
+      }
+      const recordData: RecordEntity = {
+        nickName: user.nickName,
+        account: user.account,
+        description: description + `:${account}`,
+      };
+      await this.recordService.createRecord(recordData);
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 }

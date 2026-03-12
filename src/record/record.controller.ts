@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Post, Query } from '@nestjs/common';
 import { RecordService } from './record.service';
 import { RecordDto } from './dto/record.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { RecordEntity } from './entity/record.entity';
 
 @ApiTags('record')
 @Controller('/record')
