@@ -2,9 +2,9 @@
   font-family: "iconfont"; /* Project id 5052105 */
   /* Color fonts */
   src: 
-       url('iconfont.woff2?t=1773199230005') format('woff2'),
-       url('iconfont.woff?t=1773199230005') format('woff'),
-       url('iconfont.ttf?t=1773199230005') format('truetype');
+       url('iconfont.woff2?t=1773300543656') format('woff2'),
+       url('iconfont.woff?t=1773300543656') format('woff'),
+       url('iconfont.ttf?t=1773300543656') format('truetype');
 }
 
 .iconfont {
@@ -13,6 +13,14 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-shouye:before {
+  content: "\e608";
+}
+
+.icon-role:before {
+  content: "\e607";
 }
 
 .icon-rizhi:before {

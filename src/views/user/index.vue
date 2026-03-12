@@ -109,15 +109,15 @@ onMounted(() => {
   findAllUserInfoImpl();
 });
 const resetEvent = function (row: UserType) {
-  resetUserInfoInterface({ id: row._id }).then((res) => {
+  resetUserInfoInterface({ id: row.id }).then((res) => {
     if (res.code === 201) {
       message.success(res.message);
     }
   });
 };
 const removeEvent = function (row: UserType) {
-  console.log({ id: row._id });
-  removeUserInfoInterface({ id: row._id }).then((res) => {
+  console.log({ id: row.id });
+  removeUserInfoInterface({ id: row.id }).then((res) => {
     if (res.code === 200) {
       message.success(res.message);
       findAllUserInfoImpl();

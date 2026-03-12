@@ -73,7 +73,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/role/index.vue"),
         meta: {
           title: "角色管理",
-          icon: "iconfont icon-icon-role",
+          icon: "iconfont icon-role",
         },
       },
     ],

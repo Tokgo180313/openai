@@ -1,21 +1,30 @@
 <template>
   <div class="header">
-    <a-popover placement="bottomRight" trigger="click">
-      <template #content>
-        <div class="set-content">
-          <p @click="showPersonalEvent">个人信息</p>
-          <p @click="showUpdatePasswordEvent">修改密码</p>
-          <p @click="showLogoutEvent">退出登录</p>
-        </div>
-      </template>
-      <a-avatar
-        size="large"
-        :style="{ backgroundColor: color, verticalAlign: 'middle' }"
-        :gap="gap"
-      >
-        {{ avatarValue }}
-      </a-avatar>
-    </a-popover>
+    <div class="back-home-btn">
+      <a-tooltip title="返回首页" placement="bottom">
+        <span class="back-home-btn-icon" @click="backHomeEvent">
+          <i class="iconfont icon-shouye"></i>
+        </span>
+      </a-tooltip>
+    </div>
+    <div>
+      <a-popover placement="bottomRight" trigger="click">
+        <template #content>
+          <div class="set-content">
+            <p @click="showPersonalEvent">个人信息</p>
+            <p @click="showUpdatePasswordEvent">修改密码</p>
+            <p @click="showLogoutEvent">退出登录</p>
+          </div>
+        </template>
+        <a-avatar
+          size="large"
+          :style="{ backgroundColor: color, verticalAlign: 'middle' }"
+          :gap="gap"
+        >
+          {{ avatarValue }}
+        </a-avatar>
+      </a-popover>
+    </div>
     <login-out-dialog
       :visible="showLoginOutDialog"
       @close-modal="closeLoginOutModalEvent"
@@ -42,20 +51,22 @@ const router = useRouter();
 const userStore = useAuthStore();
 const showLoginOutDialog = ref<boolean>(false);
 const showPersonalVisible = ref<boolean>(false);
-const avatarValue = ref<string>(userStore.getNickName ? userStore.getNickName.slice(0, 1) : "");
+const avatarValue = ref<string>(
+  userStore.getNickName ? userStore.getNickName.slice(0, 1) : "",
+);
 const color = "#f56a00";
 const gap = 4;
 const showPersonalEvent = () => {
-  console.log("个人信息");
+  // console.log("个人信息");
   showPersonalVisible.value = true;
 };
 const showUpdatePasswordVisible = ref<boolean>(false);
 const showUpdatePasswordEvent = () => {
-  console.log("修改密码");
+  // console.log("修改密码");
   showUpdatePasswordVisible.value = true;
 };
 const showLogoutEvent = () => {
-    showLoginOutDialog.value = true;
+  showLoginOutDialog.value = true;
 };
 const closeLoginOutModalEvent = function () {
   showLoginOutDialog.value = false;
@@ -63,12 +74,15 @@ const closeLoginOutModalEvent = function () {
 const closeUpdatePasswordModalEvent = function () {
   showUpdatePasswordVisible.value = false;
 };
-const closePersonalDataModalEvent = function (nickName?:string) {
+const closePersonalDataModalEvent = function (nickName?: string) {
   showPersonalVisible.value = false;
-  if(nickName){
+  if (nickName) {
     userStore.setNickName(nickName);
     avatarValue.value = nickName.slice(0, 1);
   }
+};
+const backHomeEvent = function () {
+  router.push("/");
 };
 </script>
 
@@ -80,7 +94,9 @@ const closePersonalDataModalEvent = function (nickName?:string) {
   padding: 0 20px;
   font-size: 18px;
   font-weight: bold;
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 .ant-avatar {
   cursor: pointer;
@@ -95,6 +111,15 @@ const closePersonalDataModalEvent = function (nickName?:string) {
     &:hover {
       background-color: #f0f0f0;
     }
+  }
+}
+.back-home-btn-icon {
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #666;
+  margin-right: 1rem;
+  &:hover {
+    color: #000;
   }
 }
 </style>
