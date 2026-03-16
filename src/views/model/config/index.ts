@@ -1,5 +1,4 @@
 const columns = [
-  { title: "模型ID", dataIndex: "id", key: "id" },
   { title: "模型名称", dataIndex: "modelName", key: "modelName" },
   { title: "模型类型", dataIndex: "modelClassify", key: "modelClassify" },
   { title: "创建时间", dataIndex: "createdAt", key: "createdAt" },

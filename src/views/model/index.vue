@@ -27,6 +27,7 @@
         <a-form-item>
           <a-button type="primary" @click="handleSearch" size="small">查询</a-button>
           <a-button @click="handleAdd" type="primary" size="small" style="margin-left: 10px">新增</a-button>
+          <a-button @click="handleUpdateApiKey" type="primary" size="small" style="margin-left: 10px">更新ApiKey</a-button>
         </a-form-item>
       </a-form>
     </div>
@@ -54,12 +55,14 @@
       ></a-pagination>
     </div>
     <add-model-dialog :visible="showAddVisible" @close="handleSuccess" />
+    <update-api-key-dialog :visible="showUpdateApiKeyVisible" @close="handleUpdateApiKeySuccess" />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import AddModelDialog from "./components/AddModelDialog.vue";
+import UpdateApiKeyDialog from "./components/UpdateApiKeyDialog.vue";
 import api from "@/api/apiList";
 let { findModelListInterface, deleteModelInterface} = api;
 import { Modal } from "ant-design-vue";
@@ -136,6 +139,14 @@ const handleSuccess = () => {
   showAddVisible.value = false;
   getModelList();
 };  
+const showUpdateApiKeyVisible = ref(false);
+const handleUpdateApiKey = () => {
+  showUpdateApiKeyVisible.value = true;
+};
+const handleUpdateApiKeySuccess = () => {
+  showUpdateApiKeyVisible.value = false;
+  getModelList();
+};
 </script>
 
 <style scoped lang="scss">
