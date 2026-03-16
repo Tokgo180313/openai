@@ -1,10 +1,5 @@
 const columns = [
   {
-    title: "用户昵称",
-    dataIndex: "nickName",
-    key: "nickName",
-  },
-  {
     title: "用户账号",
     dataIndex: "account",
     key: "account",
@@ -30,6 +25,11 @@ const columns = [
     key: "completionTokens",
   },
   {
+    title:"思考Tokens",
+    dataIndex:"thoughtTokens",
+    key:"thoughtTokens",
+  },
+  {
     title: "总Tokens",
     dataIndex: "totalTokens",
     key: "totalTokens",
@@ -44,13 +44,13 @@ const columns = [
     dataIndex:"status",
     key:"status",
     customRender: ({ record }) => {
-      if(record.status === "success" || record.status === "1"){
-        return <a-tag color="green">成功</a-tag>;
+      if(record.status === "success" || record.status === "0"){
+        return "成功";
       }
-      if(record.status === "failed" || record.status === "0"){
-        return <a-tag color="red">失败</a-tag>;
+      if(record.status === "failed" || record.status === "1"){
+        return "失败";
       }
-      return <a-tag color="orange">处理中</a-tag>;
+      return "处理中";
     },
   },
   {
