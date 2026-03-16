@@ -11,13 +11,17 @@ import { MessageDto } from 'src/chat/dto/MessageDto';
 import { ContentEntity } from 'src/chat/entity/ContentEntity';
 import { v4 as uuid } from 'uuid';
 import { ChatService } from 'src/chat/chat.service';
+import { UsageService } from 'src/usage/usage.service';
+import { UsageEntity } from 'src/usage/entity/usage.entity';
+
 @Injectable()
 export class StreamService {
   constructor(
     @InjectModel(Content.name) private contentSchema: Model<ContentDocument>,
     @InjectModel(ChatTitle.name) private chatTitle: Model<ChatTitleDocument>,
     private configService:ConfigService,
-    private chatService:ChatService
+    private chatService:ChatService,
+    private usageService:UsageService
   ) {}
 
   public async completionStreamFunction(
@@ -39,8 +43,12 @@ export class StreamService {
       messages: dto.list,
       model: 'deepseek-chat',
       stream:true,
+      stream_options:{
+        include_usage:true,
+      }
     })) as Stream<OpenAI.ChatCompletionChunk>;
   }
+
 
   public async saveQuestion(dto: QuestionDto) {
     return new this.contentSchema(dto).save();

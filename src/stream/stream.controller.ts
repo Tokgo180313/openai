@@ -14,18 +14,22 @@ import type { Response } from 'express';
 import { ContentEntity } from 'src/chat/entity/ContentEntity';
 import { v4 as uuid } from 'uuid';
 import { Token } from 'src/common/decorators/token.decorator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UsageEntity } from 'src/usage/entity/usage.entity';
+import { UsageService } from 'src/usage/usage.service';
 @ApiTags('stream')
 @Controller('/stream')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access_token')
 export class StreamController {
-  constructor(private readonly streamService: StreamService) {}
+  constructor(private readonly streamService: StreamService, private readonly usageService: UsageService) {}
 
   @Post('/deepseek')
   public async deepseekStream(
     @Body() messageDto: MessageDto,
     @Res() res: Response,
-    @Token() token:string
+    @Token() token:string,
+    @CurrentUser('id') userId:string
   ) {
     if (!messageDto) {
       throw new Error('messageDto is required!');
@@ -45,11 +49,27 @@ export class StreamController {
         if (content) {
           res.write(`data: ${JSON.stringify({ content })}\n\n`);
         }
+        if(chunk.usage){
+          const usageEntity: UsageEntity = {
+            modelName: "deepseek-chat",
+            modelClassify: "deepseek",
+            promptTokens: chunk.usage.prompt_tokens,
+            completionTokens: chunk.usage.completion_tokens,
+            totalTokens: chunk.usage.total_tokens,
+          }
+          const usage = await this.usageService.addUsage(usageEntity,userId);
+        }
       }
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
-      console.error(error);
+      const usageEntity: UsageEntity = {
+        modelName: "deepseek-chat",
+        modelClassify: "deepseek",
+        status:"1",
+        description:error.message
+      }
+      const usage = await this.usageService.addUsage(usageEntity,userId);
       throw error;
     }
   }

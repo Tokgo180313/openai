@@ -25,6 +25,8 @@ import {
 import { ChatEntity } from './entity/Chat.entity';
 import { JwtService } from '@nestjs/jwt';
 import { GoogleGenAI } from '@google/genai';
+import { UsageService } from 'src/usage/usage.service';
+import { GeminiUsageEntity } from 'src/usage/entity/gemini.usage.entity';
 @Injectable()
 export class ChatService {
   private genAI: any;
@@ -35,14 +37,18 @@ export class ChatService {
     private chatTitleSchema: Model<ChatTitleDocument>,
     private configService: ConfigService,
     private jwtService: JwtService,
+    private usageService: UsageService,
   ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     // 初始化 SDK
-    this.genAI = new GoogleGenAI({ apiKey ,httpOptions: {
-    // 确保连接池配置合理
-    timeout: 30000, // 设置为 30 秒，单位通常是 ms
-  }});
+    this.genAI = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        // 确保连接池配置合理
+        timeout: 30000, // 设置为 30 秒，单位通常是 ms
+      },
+    });
   }
   public async completionFunction(
     id: string,
@@ -104,14 +110,14 @@ export class ChatService {
     }
     return null;
   }
-  public async chatByGemini(messageDto: MessageDto, token: string) {
-    return await this.generateText(messageDto?.question.content);
+  public async chatByGemini(messageDto: MessageDto, token: string,userId:string) {
+    return await this.generateText(messageDto?.question.content,userId);
   }
   /**
    * 基础文本生成
    * @param prompt 用户输入的提示词
    */
-  async generateText(prompt: string): Promise<string> {
+  async generateText(prompt: string ,userId:string): Promise<string> {
     try {
       const response = await this.genAI.models.generateContent({
         model: this.modelName,
@@ -124,10 +130,11 @@ export class ChatService {
           },
         },
       });
-
+      this.usageService.addUsageByGemini(response.usageMetadata,userId,"gemini-3.5-flash","0");
       return response.text;
     } catch (error) {
       console.error('Gemini API Error:', error);
+      this.usageService.addUsageByGemini({} as GeminiUsageEntity,userId,"gemini-3.5-flash","1");
       throw new Error('Failed to generate content from Gemini');
     }
   }

@@ -9,6 +9,8 @@ import { NotFoundException } from "@nestjs/common";
 import { UsageEntity } from "./entity/usage.entity";
 import { RecordEntity } from "src/record/entity/record.entity";
 import { InjectModel } from "@nestjs/mongoose";
+import { GeminiUsageEntity } from "./entity/gemini.usage.entity";
+
 @Injectable()
 export class UsageService { 
     constructor(@InjectModel(Usage.name) private usageSchema: Model<UsageDocument>, private readonly recordService: RecordService, private readonly userService: UserService){}
@@ -78,5 +80,23 @@ export class UsageService {
             throw new NotFoundException('usage not found');
         }
         return usage;
+    }
+    async addUsageByGemini(usageDto: GeminiUsageEntity,id:string,modelName:string,status:string): Promise<Usage> {
+        const user = await this.userService.findById(id);
+        if (!user) {
+            throw new NotFoundException('user not found');
+        }
+        const usage: UsageEntity = {
+            nickName: user.nickName,
+            account: user.account,
+            modelName: modelName,
+            modelClassify: "Gemini",
+            promptTokens: usageDto ? usageDto.promptTokenCount : undefined,
+            completionTokens: usageDto ? usageDto.candidatesTokenCount : undefined,
+            totalTokens: usageDto ? usageDto.totalTokenCount : undefined,
+            thoughtsTokens: usageDto ? usageDto.thoughtsTokenCount : undefined,
+            status,
+        }
+        return await this.usageSchema.create(usage);
     }
 }

@@ -26,6 +26,8 @@ export class Usage extends Document {
     description?:string;
     @Prop()
     status:string;
+    @Prop()
+    thoughtsTokens?:number;
 }
 export const UsageSchema = SchemaFactory.createForClass(Usage);  
 

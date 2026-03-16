@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ChatDto } from './dto/chat.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Token } from 'src/common/decorators/token.decorator';
-
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 @ApiTags('chat')
 @Controller('/chat')
 @UseGuards(JwtAuthGuard)
@@ -44,8 +44,8 @@ export class ChatController {
     return null;
   }
   @Post('/gemini')
-  async chatByGemini(@Body() messageDto: MessageDto,@Token() token: string) {
-    const message = await this.chatService.generateText(messageDto?.question.content);
+  async chatByGemini(@Body() messageDto: MessageDto,@Token() token: string,@CurrentUser('id') userId:string) {
+    const message = await this.chatService.generateText(messageDto?.question.content,userId);
     return { success: true, data: message };
   }
 
