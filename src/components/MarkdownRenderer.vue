@@ -228,12 +228,11 @@ onMounted(() => {
 .markdown-container {
   max-width: 100%;
   word-wrap: break-word;
-  line-height: 1.6;
+  line-height: 1.2;
 
   &.role-user {
     text-align: right;
     margin-left: auto;
-
     .message-role {
       display: inline-block;
       background-color: #f0f0f0;
@@ -241,17 +240,23 @@ onMounted(() => {
       font-size: 12px;
       padding: 2px 8px;
       border-radius: 4px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      max-width: 100%;
+      word-break: break-all;
+      white-space: normal;
     }
 
     .markdown-content {
       background-color: #f7f7f7;
-      padding: 0.5em 1em;
+      padding: 0em 1em;
       border-radius: 8px;
       display: inline-block;
       max-width: 85%;
       text-align: left;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      line-height: 1.4;
+      word-break: break-all; // 纯文本连续字符自动换行
+      white-space: normal; // 按正常规则换行显示
     }
   }
 

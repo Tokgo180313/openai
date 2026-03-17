@@ -420,8 +420,8 @@ watch(markdownContent, () => {
   }
 }
 .markdown-content {
-  min-height: 10vh;
-  max-height: 30vh;
+  // min-height: 10vh;
+  // max-height: 30vh;
   padding: 0.5rem;
   text-align: left;
 }
