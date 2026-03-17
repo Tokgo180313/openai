@@ -12,7 +12,6 @@ import { MessageDto } from 'src/chat/dto/MessageDto';
 import { StreamService } from './stream.service';
 import type { Response } from 'express';
 import { ContentEntity } from 'src/chat/entity/ContentEntity';
-import { v4 as uuid } from 'uuid';
 import { Token } from 'src/common/decorators/token.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
@@ -51,11 +50,12 @@ export class StreamController {
         }
         if(chunk.usage){
           const usageEntity: UsageEntity = {
-            modelName: "deepseek-chat",
-            modelClassify: "deepseek",
+            modelName: messageDto.question.useModel,
+            modelClassify: messageDto.question.modelClassify,
             promptTokens: chunk.usage.prompt_tokens,
             completionTokens: chunk.usage.completion_tokens,
             totalTokens: chunk.usage.total_tokens,
+            status:"0",
           }
           const usage = await this.usageService.addUsage(usageEntity,userId);
         }
@@ -64,12 +64,13 @@ export class StreamController {
       res.end();
     } catch (error) {
       const usageEntity: UsageEntity = {
-        modelName: "deepseek-chat",
-        modelClassify: "deepseek",
+        modelName: messageDto.question.useModel,
+        modelClassify: messageDto.question.modelClassify,
         status:"1",
         description:error.message
       }
       const usage = await this.usageService.addUsage(usageEntity,userId);
+      console.error("error",error);
       throw error;
     }
   }
@@ -78,7 +79,6 @@ export class StreamController {
 
   @Post('/saveResponse')
   public async saveContent(@Body() dto: ContentEntity) {
-    dto.id = uuid();
     return await this.streamService.saveResponse(dto);
   }
 }

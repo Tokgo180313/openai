@@ -6,6 +6,8 @@ import {
   Query,
   Get,
   UseGuards,
+  Delete,
+  BadRequestException,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { MessageDto } from './dto/MessageDto';
@@ -67,5 +69,14 @@ export class ChatController {
   @Get('/info')
   async chatInfo(@Query('id') id: string) {
     return await this.chatService.chatInfo(id);
+  }
+
+  @Delete('/deleteChatTitle')
+  async deleteChatTitle(@Query('titleId') titleId: string,@CurrentUser('id') userId:string) {
+    try {
+      return await this.chatService.deleteChatTitleById(titleId,userId);
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 }

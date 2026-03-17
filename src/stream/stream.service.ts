@@ -9,7 +9,6 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { MessageDto } from 'src/chat/dto/MessageDto';
 import { ContentEntity } from 'src/chat/entity/ContentEntity';
-import { v4 as uuid } from 'uuid';
 import { ChatService } from 'src/chat/chat.service';
 import { UsageService } from 'src/usage/usage.service';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
@@ -19,20 +18,20 @@ export class StreamService {
   constructor(
     @InjectModel(Content.name) private contentSchema: Model<ContentDocument>,
     @InjectModel(ChatTitle.name) private chatTitle: Model<ChatTitleDocument>,
-    private configService:ConfigService,
-    private chatService:ChatService,
-    private usageService:UsageService
+    private configService: ConfigService,
+    private chatService: ChatService,
+    private usageService: UsageService,
   ) {}
 
   public async completionStreamFunction(
-    dto:MessageDto
-  ) :Promise<Stream<OpenAI.ChatCompletionChunk>>{
+    dto: MessageDto,
+  ): Promise<Stream<OpenAI.ChatCompletionChunk>> {
     const questionEntity = {
-      id: uuid(),
       documentId: dto.id,
-      useModel: 'deepseek-chat',
+      useModel: dto.question.useModel,
       role: dto.question.role,
       content: dto.question.content,
+      modelClassify: dto.question.modelClassify,
     };
     await this.saveQuestion(questionEntity);
     const openai = new OpenAI({
@@ -41,30 +40,43 @@ export class StreamService {
     });
     return (await openai.chat.completions.create({
       messages: dto.list,
-      model: 'deepseek-chat',
-      stream:true,
-      stream_options:{
-        include_usage:true,
-      }
+      model: dto.question.useModel,
+      stream: true,
+      stream_options: {
+        include_usage: true,
+      },
     })) as Stream<OpenAI.ChatCompletionChunk>;
   }
 
-
   public async saveQuestion(dto: QuestionDto) {
-    return new this.contentSchema(dto).save();
+    try {
+      console.log('dto', dto);
+      return new this.contentSchema(dto).save();
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
-  public async saveResponse(dto:ContentEntity){
-    return new this.contentSchema(dto).save();
+  public async saveResponse(dto: ContentEntity) {
+    try {
+      const result = await new this.contentSchema(dto).save();
+      return result;
+    } catch (error) {
+      console.error('error', error);
+      throw error;
+    }
   }
-  public async updateTitle(dto:MessageDto,token:string){
-    if(dto.titleId){
-        this.chatService.updateChatTitle(dto.titleId)
-    }else{
-        this.chatService.addChatTitle({
-            documentId:dto.id,
-            keywordText:dto.question.content,
-            
-        },token)
+  public async updateTitle(dto: MessageDto, token: string) {
+    if (dto.titleId) {
+      this.chatService.updateChatTitle(dto.titleId);
+    } else {
+      this.chatService.addChatTitle(
+        {
+          documentId: dto.id,
+          keywordText: dto.question.content,
+        },
+        token,
+      );
     }
   }
 }

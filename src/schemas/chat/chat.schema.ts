@@ -6,8 +6,6 @@ export type ChatTitleDocument = ChatTitle & Document;
     timestamps:true
 })
 export class ChatTitle extends Document{
-    @Prop({required:true,unique:true})
-    declare id:string
 
     @Prop({required:true})
     title:string

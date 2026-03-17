@@ -2,6 +2,8 @@ import {
   Injectable,
   OnModuleInit,
   InternalServerErrorException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import { Model, now } from 'mongoose';
@@ -15,7 +17,6 @@ import {
 } from 'src/schemas/content/content.schema';
 import { MessageDto } from './dto/MessageDto';
 import { QuestionDto } from './dto/question.dto';
-import { v4 as uuid } from 'uuid';
 import { ChatDto } from './dto/chat.dto';
 import {
   ChatTitle,
@@ -59,7 +60,6 @@ export class ChatService {
   ) {
     try {
       const questionEntity: ContentEntity = {
-        id: uuid(),
         documentId: id,
         useModel: 'deepseek-chat',
         role: question.role,
@@ -79,7 +79,6 @@ export class ChatService {
           model: 'deepseek-chat',
         });
       let contentEntity: ContentEntity = {
-        id: uuid(),
         documentId: id,
         useModel: response.model,
         role: response.choices[0].message.role,
@@ -149,7 +148,6 @@ export class ChatService {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
     let chatEntity = new ChatEntity({
-      id: uuid(),
       userId: payload.sub,
       documentId: chatDto.documentId || '',
       title: chatDto.keywordText || '',
@@ -172,7 +170,7 @@ export class ChatService {
    */
   public async updateChatTitle(id) {
     return await this.chatTitleSchema
-      .updateOne({ id: id }, { $set: { updateAt: new Date() } })
+      .updateOne({ _id: id }, { $set: { updatedAt: new Date() } })
       .exec();
   }
 
@@ -218,5 +216,19 @@ export class ChatService {
    */
   public async chatInfo(id: string) {
     return await this.contentSchema.findById(id).exec();
+  }
+
+  public async deleteChatTitleById(id: string,userId:string) {
+    try {
+      const chatInfo = await this.findOneChat(id);
+      if (chatInfo && chatInfo.userId === userId) {
+        await this.contentSchema.deleteMany({ documentId: chatInfo.documentId });
+        const result = await this.chatTitleSchema.findByIdAndDelete(id).exec();
+        return result;
+      }
+      throw new NotFoundException('chat title not found');
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 }

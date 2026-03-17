@@ -3,7 +3,7 @@ import { IsNumber, IsString } from "class-validator";
 export class ContentEntity{
 
     @IsString()
-    id:string;
+    userId?:string;
 
     @IsString()
     documentId:string;

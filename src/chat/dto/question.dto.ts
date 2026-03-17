@@ -7,4 +7,6 @@ export class QuestionDto{
     content:string;
     @IsString()
     useModel:string;
+    @IsString()
+    modelClassify:string;
 }
