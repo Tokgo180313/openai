@@ -62,7 +62,7 @@
         :class="{ 'content-selected': selectedRow == item.id }"
       >
         <div class="content-text">
-          <span v-if="item.title.length<=12">
+          <span v-if="item.title.length<=8">
 
             {{ item.title.slice(0, 8) }}
           </span>
@@ -96,7 +96,7 @@
                   ></span>
                   <span class="item-text">重命名</span>
                 </p>
-                <p class="item">
+                <p class="item" @click="RemoveChatEvent(item)">
                   <span class="item-icon"
                     ><i class="iconfont icon-shanchu"></i
                   ></span>
@@ -147,12 +147,19 @@
       :visible="showLoginOutDialog"
       @close-modal="closeModalEvent"
     ></login-out-dialog>
+    <RemoveChatDialog
+      :visible="showRemoveChatVisible"
+      :titleId="removeChatTitleId"
+      @close-modal="closeRemoveChatEvent"
+      @update-list="updateListEvent"
+    ></RemoveChatDialog>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
+import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
 const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
 });
@@ -179,6 +186,17 @@ const titleList = ref<titleInfo[]>([]);
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
 onMounted(() => {
+  chatTitleImpl();
+  eventBus.on("update-chat-list", () => {
+    chatTitleImpl();
+    newChatEvent();
+  });
+});
+onUnmounted(() => {
+  eventBus.off("update-chat-list");
+});
+
+const chatTitleImpl = function () {
   chatTitleListInterface()
     .then((res) => {
       if (res.code === 200) {
@@ -196,7 +214,7 @@ onMounted(() => {
     .catch(() => {
       titleList.value = [];
     });
-});
+}
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
   emit("collapsedChange", isCollapsed.value);
@@ -256,6 +274,20 @@ const handleOpenChange = function (value) {
   } else {
     showContentItemIcon.value = currentRow.value;
   }
+};
+const showRemoveChatVisible = ref(false);
+const removeChatTitleId = ref(null);
+const RemoveChatEvent = function (item) {
+  showRemoveChatVisible.value = true;
+  removeChatTitleId.value = item.id;
+};
+const closeRemoveChatEvent = function () {
+  showRemoveChatVisible.value = false;
+  removeChatTitleId.value = null;
+};
+const updateListEvent = function () {
+  chatTitleImpl();
+  newChatEvent();
 };
 </script>
 <style scoped lang="scss">

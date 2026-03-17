@@ -34,8 +34,9 @@
   </div>
   <RemoveChatDialog
     :visible="showRemoveDialog"
-    :id="id"
-    @update-modal="handleUpdateModal"
+    :titleId="removeChatTitleId"
+    @close-modal="handleCloseModal"
+    @update-list="handleUpdateList"
   ></RemoveChatDialog>
 </template>
 
@@ -46,7 +47,10 @@ import RemoveChatDialog from "../components/RemoveChatDialog.vue";
 import { storeToRefs } from "pinia";
 import {useModelStore} from "@/stores/modelStore";
 const modelStore = useModelStore();
-
+import { useChatStore } from "@/stores/chatStore";
+import { useEventsBus } from "@/stores/event-bus";
+const eventBus = useEventsBus();
+const chatStore = useChatStore();
 const questionType = ref(modelStore.getCurrentModel|| null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
@@ -59,11 +63,18 @@ const handleQuestionTypeChange = function () {
   let model = modelList.value.find(item=>item.modelName === questionType.value);
   modelStore.setCurrentModelClassify(model.modelClassify);
 };
+const removeChatTitleId = ref(null);
 const showRemoveEvent = function () {
   showRemoveDialog.value = true;
+  removeChatTitleId.value = chatStore.getTitleId;
 };
-const handleUpdateModal = function (value) {
-  showRemoveDialog.value = value;
+const handleCloseModal = function () {
+  showRemoveDialog.value = false;
+  removeChatTitleId.value = null;
+};
+const handleUpdateList = function () {
+  chatStore.updateTitleId(null);
+  eventBus.emit("update-chat-list");
 };
 </script>
 

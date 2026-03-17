@@ -159,14 +159,14 @@ const sendMessageEvent = () => {
     streamChat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: modelStore.getCurrentModel },
+      question: { ...param, useModel: modelStore.getCurrentModel,modelClassify:modelStore.getCurrentModelClassify },
       list: [param],
     });
   } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
     geminichat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: modelStore.getCurrentModel },
+      question: { ...param, useModel: modelStore.getCurrentModel,modelClassify:modelStore.getCurrentModelClassify },
       list: [param],
     });
   }

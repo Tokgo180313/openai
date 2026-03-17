@@ -12,17 +12,29 @@
 </template>
 <script lang="ts" setup>
 import { computed } from "vue";
+import apiList from "@/api/apiList";
+import { message } from "ant-design-vue";
+const { removeChatInterface } = apiList;
 interface Props {
   visible:boolean,
+  titleId:string,
 }
 const props = defineProps<Props>();
 const openModal = computed(() => props.visible);
-const emit = defineEmits(["update-modal"]);
+const emit = defineEmits(["close-modal"]);
 const closeModelEvent = function () {
-  emit("update-modal", false);
+  emit("close-modal");
 };
 const confirmRemoveEvent = function () {
-  emit("update-modal", false);
+  removeChatInterface({ titleId: props.titleId }).then((res:any) => {
+    if (res.code === 200) {
+      message.success(res.message);
+      closeModelEvent();
+      emit("update-list");
+    } else {
+      message.error(res.message);
+    }
+  });
 };
 </script>
 

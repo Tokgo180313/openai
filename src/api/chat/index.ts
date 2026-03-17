@@ -41,11 +41,19 @@ const streamSaveResponseInterface = function(param){
         data:param,
     })
 }
+const removeChatInterface = function(param){
+    return request({
+        url:"/chat/deleteChatTitle",
+        method:"delete",
+        params:param,
+    });
+}
 export default {
   chatDeepSeekInterface,
   chatGeminiInterface,
   chatTitleListInterface,
   chatListInterface,
   streamDeepSeekInterface,
-  streamSaveResponseInterface
+  streamSaveResponseInterface,
+  removeChatInterface
 };
