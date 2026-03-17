@@ -324,6 +324,7 @@ const refreshChatContnet = () => {
   chatListInterface(documentId.value).then((res) => {
     if (res.code === 200) {
       markdownContentList.value = res.data;
+      scrollToBottom();
     }
   });
 };
@@ -370,11 +371,24 @@ const handleImageClick = (image: ImageItem) => {
   console.log("点击图片", image);
 };
 const scrollRef = ref<HTMLDivElement | null>(null);
-  const isAtBottom = () => {
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (scrollRef.value) {
+      scrollRef.value.scrollTop = scrollRef.value.scrollHeight;
+    }
+  });
+};
+const isAtBottom = () => {
   if (!scrollRef.value) return false;
   const el = scrollRef.value;
   return el.scrollHeight - el.scrollTop - el.clientHeight < 10;
 };
+onMounted(() => {
+  scrollToBottom();
+});
+watch(markdownContent, () => {
+  scrollToBottom();
+});
 const handleInputEvent = (event: Event) => {
   const content = event.target.innerText;
   markdownContent.value = content;
