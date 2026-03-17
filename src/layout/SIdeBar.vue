@@ -64,7 +64,7 @@
         <div class="content-text">
           <span v-if="item.title.length<=12">
 
-            {{ item.title.slice(0, 10) }}
+            {{ item.title.slice(0, 8) }}
           </span>
 
           <a-tooltip placement="topLeft" v-else>
@@ -73,7 +73,7 @@
                 {{ item.title }}
               </div>
             </template>
-            <span>{{ item.title.slice(0,10) }}...</span>
+            <span>{{ item.title.slice(0,8) }}...</span>
           </a-tooltip>
         </div>
         <div v-show="currentRow == item.id || showContentItemIcon == item.id">
@@ -315,6 +315,7 @@ const handleOpenChange = function (value) {
 }
 .sider-content {
   overflow: auto;
+  max-height: calc(100vh - 13rem);
   .content-item {
     text-align: left;
     line-height: 2rem;
@@ -338,6 +339,7 @@ const handleOpenChange = function (value) {
 .sider-footer {
   position: fixed;
   bottom: 0;
+  background-color: #fff;
   .footer-item {
     line-height: 3rem;
     height: 3rem;

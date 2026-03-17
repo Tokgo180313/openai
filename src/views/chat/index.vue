@@ -43,6 +43,7 @@
         contenteditable="true"
         placeholder="请输入内容"
         @keydown="submitEvent"
+        @input="handleInputEvent"
       ></div>
       <div class="operate-bar">
         <!-- <div class="upload-file">
@@ -138,7 +139,7 @@ const submitEvent = function (event) {
   }
 };
 const handleEnterEvent = function () {
-  const content = document.querySelector("[contenteditable]")?.innerHTML;
+  const content = document.querySelector("[contenteditable]")?.innerText;
   markdownContent.value = content || "";
 };
 import { useRequestStore } from "../../stores/requestStore";
@@ -266,6 +267,7 @@ const handlePatse = function (
     return null;
   }
   try {
+    // 优先处理图片粘贴
     for (let i = 0; i < clipboardData.items.length; i++) {
       const item = clipboardData.items[i];
       if (item.type.indexOf("image") !== -1) {
@@ -274,9 +276,18 @@ const handlePatse = function (
         event.preventDefault();
       }
     }
+    // 粘贴文本时只保留纯文本，去除富文本样式和换行符
+    const text = clipboardData
+      .getData("text/plain")
+      .replace(/\r\n|\r|\n/g, "");
+    if (text) {
+      event.preventDefault();
+      document.execCommand("insertText", false, text);
+    }
   } catch (error) {
     console.error(error);
   }
+  return null;
 };
 const handlePastedImage = function (file) {
   if (!file) {
@@ -364,16 +375,11 @@ const scrollRef = ref<HTMLDivElement | null>(null);
   const el = scrollRef.value;
   return el.scrollHeight - el.scrollTop - el.clientHeight < 10;
 };
-watch(
-  () => markdownContentList.value.length,
-  async () => {
-    await nextTick();
-    console.log(isAtBottom());
-    if (scrollRef.value && isAtBottom()) {
-      scrollRef.value.scrollTop = scrollRef.value.scrollHeight;
-    }
-  },
-);
+const handleInputEvent = (event: Event) => {
+  const content = event.target.innerText;
+  markdownContent.value = content;
+  console.log("输入事件", content);
+};
 </script>
 
 <style scoped lang="scss">
