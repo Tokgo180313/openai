@@ -358,8 +358,8 @@ const handleRemovePreviewImage = (image: ImageItem) => {
 const handleImageClick = (image: ImageItem) => {
   console.log("点击图片", image);
 };
-const scrollRef = ref < HTMLDivElement || null > null;
-const isAtBottom = () => {
+const scrollRef = ref<HTMLDivElement | null>(null);
+  const isAtBottom = () => {
   if (!scrollRef.value) return false;
   const el = scrollRef.value;
   return el.scrollHeight - el.scrollTop - el.clientHeight < 10;

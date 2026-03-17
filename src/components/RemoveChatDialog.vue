@@ -10,12 +10,10 @@
     <p>删除后，该对话将永久不再恢复，确认删除吗？</p>
   </a-modal>
 </template>
-
 <script lang="ts" setup>
 import { computed } from "vue";
 interface Props {
   visible:boolean,
-  id:string,
 }
 const props = defineProps<Props>();
 const openModal = computed(() => props.visible);
@@ -24,7 +22,6 @@ const closeModelEvent = function () {
   emit("update-modal", false);
 };
 const confirmRemoveEvent = function () {
-  console.log(props.id);
   emit("update-modal", false);
 };
 </script>
