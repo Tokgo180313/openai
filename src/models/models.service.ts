@@ -37,5 +37,12 @@ export class ModelService {
       async findClassifyList(): Promise<string[]> {
         return await this.modelSchema.distinct('modelClassify').exec();
       }
-     
+      //更新apiKey
+      async updateApiKey(modelDto:ModelsDto): Promise<Models> {
+        const models = await this.findModelList(modelDto); 
+        if(models.length > 0){
+          return await this.modelSchema.findByIdAndUpdate(models[0]._id, {apiKey:this.encryptionService.encrypt(modelDto.apiKey)}).exec();
+        }
+        return null;
+      }
 }

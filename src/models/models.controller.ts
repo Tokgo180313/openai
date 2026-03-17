@@ -32,5 +32,10 @@ export class ModelController {
     async findClassifyList(){
         return await this.modelService.findClassifyList()
     }
+
+    @Post("/updateApiKey")
+    async updateApiKey(@Body() modelDto:ModelsDto){
+        return await this.modelService.updateApiKey(modelDto)
+    }
     
 }
