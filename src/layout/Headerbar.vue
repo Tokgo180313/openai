@@ -5,30 +5,14 @@
         v-model:value="questionType"
         :bordered="false"
         @change="handleQuestionTypeChange"
+        style="min-width: 300px"
       >
-        <a-select-option value="deepseek" title="DeepSeek">
-          <div class="option-item">
-            <div class="item-icon">
-              <i class="iconfont icon-deepseek"></i>
-            </div>
-            <div class="item-text">DeepSeek</div>
-          </div>
-        </a-select-option>
-        <a-select-option value="chatgpt" title="ChatGpt">
-          <div class="option-item">
-            <div class="item-icon">
-              <i class="iconfont icon-chatgpt"></i>
-            </div>
-            <div class="item-text">ChatGpt</div>
-          </div>
-        </a-select-option>
-        <a-select-option value="gemini" title="Gemini">
-          <div class="option-item">
-            <div class="item-icon">
-              <i class="iconfont icon-gemini-line"></i>
-            </div>
-            <div class="item-text">Geimin</div>
-          </div>
+        <a-select-option
+          v-for="item in modelList"
+          :key="item.id"
+          :title="item.modelName"
+          :value="item.modelName"
+        >
         </a-select-option>
       </a-select>
     </div>
@@ -48,11 +32,15 @@
       </a-tooltip>
     </div>
   </div>
-  <RemoveChatDialog :visible="showRemoveDialog" :id="id" @update-modal="handleUpdateModal"></RemoveChatDialog>
+  <RemoveChatDialog
+    :visible="showRemoveDialog"
+    :id="id"
+    @update-modal="handleUpdateModal"
+  ></RemoveChatDialog>
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRequestStore } from "../stores/requestStore";
 import RemoveChatDialog from "../components/RemoveChatDialog.vue";
 import { storeToRefs } from "pinia";
@@ -60,6 +48,10 @@ const questionType = ref("deepseek");
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
 const { id } = storeToRefs(store);
+import { useModelStore } from "@/stores/modelStore";
+const modelStore = useModelStore();
+const modelList = computed(() => modelStore.modelList);
+console.log(modelList.value);
 const handleQuestionTypeChange = function () {
   useRequestStore().updateQuestionTye(questionType.value);
 };

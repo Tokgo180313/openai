@@ -65,14 +65,14 @@ const onFinish = (values: any) => {
       userStore.setToken(res.data.access_token);
       userStore.setAccount(res.data.user.account);
       userStore.setRoleId(res.data.user.roleId);
+      // 获取模型列表
+      modelStore.fetchModelList({});
+      // 获取模型分类列表
+      modelStore.fetchModelClassifyList({});
       if (res.data.user.roleId === "1"|| res.data.user.roleId === "0") {
         router.push("/user");
         // 获取角色列表
         modelStore.fetchRoleList({});
-        // 获取模型列表
-        modelStore.fetchModelList({});
-        // 获取模型分类列表
-        modelStore.fetchModelClassifyList({});
       } else {
         router.push("/chat");
       }
