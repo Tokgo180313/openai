@@ -6,6 +6,8 @@ export const useModelStore = defineStore("model", {
     modelList: [],
     modelClassifyList: [],
     roleList: [],
+    currentModel: null,
+    currentModelClassify: null,
   }),
   persist: true,
   getters: {
@@ -18,10 +20,23 @@ export const useModelStore = defineStore("model", {
     getRoleList() {
       return this.roleList.map(item=>({label:item.name,value:item.roleId}));
     },
+    getCurrentModel() {
+      return this.currentModel;
+    },
+    getCurrentModelClassify() {
+      return this.currentModelClassify;
+    },
   },
   actions: {
     setModelList(modelList) {
+      this.setCurrentModel(modelList[0].modelName);
       this.modelList = modelList;
+    },
+    setCurrentModel(model) {
+      this.currentModel = model;
+    },
+    setCurrentModelClassify(modelClassify) {
+      this.currentModelClassify = modelClassify;
     },
     setRoleList(roleList) {
       this.roleList = roleList;

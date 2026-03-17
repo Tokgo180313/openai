@@ -3,7 +3,7 @@
     <div class="system-setting">
       <a-select
         v-model:value="questionType"
-        :bordered="false"
+        :bordered="true"
         @change="handleQuestionTypeChange"
         style="min-width: 300px"
       >
@@ -44,16 +44,20 @@ import { ref, computed } from "vue";
 import { useRequestStore } from "../stores/requestStore";
 import RemoveChatDialog from "../components/RemoveChatDialog.vue";
 import { storeToRefs } from "pinia";
-const questionType = ref("deepseek");
+import {useModelStore} from "@/stores/modelStore";
+const modelStore = useModelStore();
+
+const questionType = ref(modelStore.getCurrentModel|| null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
 const { id } = storeToRefs(store);
-import { useModelStore } from "@/stores/modelStore";
-const modelStore = useModelStore();
 const modelList = computed(() => modelStore.modelList);
 console.log(modelList.value);
 const handleQuestionTypeChange = function () {
   useRequestStore().updateQuestionTye(questionType.value);
+  modelStore.setCurrentModel(questionType.value);
+  let model = modelList.value.find(item=>item.modelName === questionType.value);
+  modelStore.setCurrentModelClassify(model.modelClassify);
 };
 const showRemoveEvent = function () {
   showRemoveDialog.value = true;
