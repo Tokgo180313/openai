@@ -3,7 +3,6 @@ import { ModelService } from "./models.service";
 import { ModelsDto } from "./dto/models.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { Models } from "src/schemas/models/models.schema";
-
 @ApiTags("model")
 @Controller("/model")
 export class ModelController {
@@ -34,7 +33,7 @@ export class ModelController {
     }
 
     @Post("/updateApiKey")
-    async updateApiKey(@Body() modelDto:ModelsDto){
+    async updateApiKey(@Body() modelDto:Models){
         return await this.modelService.updateApiKey(modelDto)
     }
     

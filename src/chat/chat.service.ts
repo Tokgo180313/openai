@@ -201,7 +201,7 @@ export class ChatService {
     const payload = await this.jwtService.verifyAsync(token, {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
-    return await this.chatTitleSchema.find({ userId: payload.sub }).exec();
+    return await this.chatTitleSchema.find({ userId: payload.sub }).sort({ updateAt: -1 }).exec();
   }
   /**
    * 查找聊天列表
