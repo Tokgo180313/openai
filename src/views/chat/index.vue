@@ -91,6 +91,8 @@ import api from "@/api/apiList";
 import { nanoid } from "nanoid";
 import { MessageItem } from "../../types/messageItem.type";
 let messageItemList = ref<MessageItem[]>([]);
+import { useModelStore } from "@/stores/modelStore";
+const modelStore = useModelStore();
 const {
   chatDeepSeekInterface,
   chatListInterface,
@@ -153,19 +155,18 @@ const sendMessageEvent = () => {
   };
   markdownContentList.value.push(param);
   clearInputData();
-  console.log(requestStore.getQuestionType);
-  if (requestStore.getQuestionType == "deepseek") {
+  if (modelStore.getCurrentModelClassify.toLowerCase() == "deepseek") {
     streamChat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: requestStore.getQuestionType },
+      question: { ...param, useModel: modelStore.getCurrentModel },
       list: [param],
     });
-  } else if (requestStore.getQuestionType == "gemini") {
+  } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
     geminichat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: requestStore.getQuestionType },
+      question: { ...param, useModel: modelStore.getCurrentModel },
       list: [param],
     });
   }
@@ -232,7 +233,7 @@ const streamChat = async (param) => {
 const saveResponse = (value: string) => {
   streamSaveResponseInterface({
     documentId: documentId.value,
-    useModel: requestStore.getQuestionType,
+    useModel: modelStore.getCurrentModel,
     role: "assistant",
     content: markdownContent.value,
   }).then((res) => {
