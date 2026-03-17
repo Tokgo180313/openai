@@ -27,9 +27,17 @@ const findModelClassifyListInterface = function(param){
         data:param
     })
 }
+const updateApiKeyInterface = function(param){
+    return request({
+        url:"/model/updateApiKey",
+        method:"post",
+        data:param
+    })
+}
 export default{
     findModelListInterface,
     addModelInterface,
     deleteModelInterface,
-    findModelClassifyListInterface
+    findModelClassifyListInterface,
+    updateApiKeyInterface,
 }

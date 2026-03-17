@@ -26,6 +26,9 @@ export const useModelStore = defineStore("model", {
     setRoleList(roleList) {
       this.roleList = roleList;
     },
+    setModelClassifyList(modelClassifyList) {
+      this.modelClassifyList = modelClassifyList;
+    },
     fetchRoleList(param) {
       return getRoleListInterface(param)
         .then((res) => {
