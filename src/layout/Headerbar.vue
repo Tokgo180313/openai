@@ -3,7 +3,7 @@
     <div class="system-setting">
       <a-select
         v-model:value="questionType"
-        :bordered="true"
+        :bordered="false"
         @change="handleQuestionTypeChange"
         style="min-width: 300px"
       >

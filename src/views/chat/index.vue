@@ -43,7 +43,6 @@
         contenteditable="true"
         placeholder="请输入内容"
         @keydown="submitEvent"
-        @input="handleInputEvent"
       ></div>
       <div class="operate-bar">
         <!-- <div class="upload-file">
@@ -389,11 +388,6 @@ onMounted(() => {
 watch(markdownContent, () => {
   scrollToBottom();
 });
-const handleInputEvent = (event: Event) => {
-  const content = event.target.innerText;
-  markdownContent.value = content;
-  console.log("输入事件", content);
-};
 </script>
 
 <style scoped lang="scss">
