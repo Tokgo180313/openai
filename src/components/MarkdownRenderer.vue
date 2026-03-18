@@ -1,6 +1,6 @@
 <template>
   <div class="markdown-container" :class="roleClass">
-    <div class="markdown-content" v-html="processedContent"></div>
+    <div class="markdown-content"  v-html="processedContent"></div>
   </div>
 </template>
 
@@ -84,7 +84,7 @@ const md = new MarkdownIt({
 md.renderer.rules.code_block = (tokens, idx) => {
   const token = tokens[idx];
   return `<pre><code class="hljs">${md.utils.escapeHtml(
-    token.content
+    token.content,
   )}</code></pre>`;
 };
 
@@ -126,7 +126,7 @@ md.renderer.rules.fence = (tokens, idx) => {
 md.renderer.rules.code_inline = (tokens, idx) => {
   const token = tokens[idx];
   return `<code class="inline-code">${md.utils.escapeHtml(
-    token.content
+    token.content,
   )}</code>`;
 };
 
@@ -166,12 +166,12 @@ const processContent = () => {
                           `<div class="code-line">
                         <span class="line-number">${index + 1}</span>
                         <span class="line-content">${line || " "}</span>
-                      </div>`
+                      </div>`,
                       )
                       .join("")}
                   </div>
                 </div>`;
-      }
+      },
     );
 
     processedContent.value = rendered;
@@ -191,7 +191,7 @@ const addCopyFunction = () => {
         if (codeContent) {
           // 提取纯文本内容（去掉行号）
           const lines = Array.from(
-            codeContent.querySelectorAll(".line-content")
+            codeContent.querySelectorAll(".line-content"),
           );
           const text = lines.map((line) => line.textContent || "").join("\n");
 
@@ -203,7 +203,7 @@ const addCopyFunction = () => {
               message.success("代码已复制到剪贴板");
 
               // setTimeout(() => {
-                // element.textContent = originalText;
+              // element.textContent = originalText;
               // }, 2000);
             })
             .catch((err) => {
@@ -257,6 +257,7 @@ onMounted(() => {
       line-height: 1.4;
       word-break: break-all; // 纯文本连续字符自动换行
       white-space: normal; // 按正常规则换行显示
+      margin: 10px 0;
     }
   }
 
@@ -277,6 +278,7 @@ onMounted(() => {
 
 .markdown-content {
   :deep() {
+    line-height: 25px;
     h1,
     h2,
     h3,
@@ -308,7 +310,7 @@ onMounted(() => {
 
     ul,
     ol {
-      padding-left: 2em;
+      padding-left: 1em;
       margin: 1em 0;
     }
 
@@ -375,8 +377,9 @@ onMounted(() => {
       }
 
       .code-content {
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
-          Courier, monospace;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
+          monospace;
         font-size: 14px;
         line-height: 1.5;
         overflow-x: auto;
