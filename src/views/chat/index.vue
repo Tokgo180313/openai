@@ -32,25 +32,13 @@
       </div> -->
     </div>
     <div class="footer">
-      <!-- <ImagePreview
-        :images="previewImages"
-        @remove="handleRemovePreviewImage"
-        @image-click="handleImageClick"
-      ></ImagePreview> -->
-      <div
-        id="markdown-content"
-        class="markdown-content"
-        contenteditable="true"
-        placeholder="请输入内容"
-        @keydown="submitEvent"
-      ></div>
-      <div class="operate-bar">
-        <!-- <div class="upload-file">
+      <div class="operate-bar" :class="{ 'multi-line': isMultiLine }">
+        <div class="upload-file">
           <a-popover placement="topLeft" trigger="hover">
             <template #content>
               <p class="is-button">
                 <a-upload
-                  v-model:file-list="imageList"
+                  v-model:file-list="fileList"
                   :action="baseUrl"
                   list-type="picture"
                   @preview="previewEvent"
@@ -58,21 +46,39 @@
                   <span class="is-icon">
                     <FileImageOutlined />
                   </span>
-                  上传图片
+                  上传图片和文件
                 </a-upload>
               </p>
-              <p class="is-button">
-                <span class="is-icon">
-                  <FileAddOutlined />
-                </span>
-                上传文件
-              </p>
             </template>
-            <i class="iconfont icon-jiahao"></i>
+            <i class="iconfont icon-jiahao-copy"></i>
           </a-popover>
-        </div> -->
+        </div>
+        <div class="chat-textbox">
+          <!-- <ImagePreview
+          :images="previewImages"
+          @remove="handleRemovePreviewImage"
+          @image-click="handleImageClick"
+        ></ImagePreview> -->
+          <div
+            id="markdown-content"
+            :class="['markdown-content', { 'is-empty': isInputEmpty }]"
+            contenteditable="true"
+            placeholder="请输入内容"
+            @keydown="submitEvent"
+            @input="handleInputEvent"
+          ></div>
+        </div>
         <div class="send-btn">
-          <a-button type="primary" @click="sendMessageEvent">发送</a-button>
+          <div
+            @click="sendMessageEvent"
+            :class="{ disabled: disabledSendBtn }"
+            class="send-btn-icon"
+          >
+            <i
+              class="iconfont icon-xiangshangjiantouquan-copy"
+              style="font-size: 2.5em"
+            ></i>
+          </div>
         </div>
       </div>
     </div>
@@ -85,7 +91,15 @@ import MarkdownViewer from "../../components/MarkdownViewer.vue";
 import FileUpload from "../../components/FileUpload.vue";
 import ImagePreview from "../../components/ImagePreview.vue";
 import MarkdownRenderer from "../../components/MarkdownRenderer.vue";
-import { ref, onMounted, onUnmounted, useModel, watch, nextTick } from "vue";
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  useModel,
+  watch,
+  nextTick,
+  computed,
+} from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { nanoid } from "nanoid";
@@ -100,7 +114,15 @@ const {
   chatGeminiInterface,
 } = api;
 const markdownContent = ref("");
+const markdownInputContent = ref("");
+const isMultiLine = ref(false);
+const disabledSendBtn = computed(() => {
+  return markdownInputContent.value.length === 0;
+});
+// 只要输入框里存在任何字符（包括换行符）就隐藏 placeholder
+const isInputEmpty = computed(() => markdownInputContent.value.length === 0);
 const markdownContentList = ref([]);
+const fileList = ref([]);
 interface PatseOptions {
   stripFormatting?: boolean;
   convertToMarkdown?: boolean;
@@ -141,13 +163,65 @@ const handleEnterEvent = function () {
   const content = document.querySelector("[contenteditable]")?.innerText;
   markdownContent.value = content || "";
 };
+const handleInputEvent = function (event: Event) {
+  const el = event.target as HTMLElement | null;
+  if (!el) {
+    markdownInputContent.value = "";
+    isMultiLine.value = false;
+    return;
+  }
+
+  // contenteditable 在“空内容”时，浏览器常会自动保留一个 <br> 作为光标占位，
+  // 这会导致 innerText 变成 "\n"。这里统一把这种情况视为真正的空字符串，并移除占位 <br>。
+  const rawText = el.innerText || "";
+  const normalizedText = rawText.replace(/\u200B/g, "").replace(/\r\n/g, "\n");
+  const isEffectivelyEmpty = normalizedText.replace(/\n/g, "").trim().length === 0;
+  if (isEffectivelyEmpty) {
+    const html = (el.innerHTML || "").trim().toLowerCase();
+    if (
+      html === "<br>" ||
+      html === "<div><br></div>" ||
+      html === "<p><br></p>" ||
+      html === ""
+    ) {
+      el.innerHTML = "";
+    }
+    markdownInputContent.value = "";
+    isMultiLine.value = false;
+    return;
+  }
+
+  markdownInputContent.value = normalizedText;
+
+  // 自动换行：按渲染后的高度估算可见行数（视觉换行也算换行）
+  const style = window.getComputedStyle(el);
+  const lineHeight = Number.parseFloat(style.lineHeight) || 30;
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+
+  const contentHeight = Math.max(
+    0,
+    el.scrollHeight - paddingTop - paddingBottom,
+  );
+  const visualLines =
+    lineHeight > 0 ? Math.max(1, Math.round(contentHeight / lineHeight)) : 1;
+  isMultiLine.value = visualLines >= 2;
+};
 import { useRequestStore } from "../../stores/requestStore";
 const requestStore = useRequestStore();
 const clearInputData = () => {
   const inputEl = document.querySelector("[contenteditable]");
-  inputEl.textContent = "";
+  if (inputEl) {
+    // 用 innerHTML 清空，避免浏览器残留 <br> 导致 innerText 为 "\n"
+    (inputEl as HTMLElement).innerHTML = "";
+  }
+  markdownInputContent.value = "";
+  isMultiLine.value = false;
 };
 const sendMessageEvent = () => {
+  if (disabledSendBtn.value) {
+    return;
+  }
   const content = document.querySelector("[contenteditable]")?.innerText;
   const param = {
     role: "user",
@@ -159,14 +233,22 @@ const sendMessageEvent = () => {
     streamChat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: modelStore.getCurrentModel,modelClassify:modelStore.getCurrentModelClassify },
+      question: {
+        ...param,
+        useModel: modelStore.getCurrentModel,
+        modelClassify: modelStore.getCurrentModelClassify,
+      },
       list: [param],
     });
   } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
     geminichat({
       id: documentId.value,
       titleId: messageId.value,
-      question: { ...param, useModel: modelStore.getCurrentModel,modelClassify:modelStore.getCurrentModelClassify },
+      question: {
+        ...param,
+        useModel: modelStore.getCurrentModel,
+        modelClassify: modelStore.getCurrentModelClassify,
+      },
       list: [param],
     });
   }
@@ -225,7 +307,6 @@ const streamChat = async (param) => {
       }
     }
   }
-  console.log(markdownContent.value);
   nextTick(() => {
     saveResponse();
   });
@@ -276,9 +357,7 @@ const handlePatse = function (
       }
     }
     // 粘贴文本时只保留纯文本，去除富文本样式和换行符
-    const text = clipboardData
-      .getData("text/plain")
-      .replace(/\r\n|\r|\n/g, "");
+    const text = clipboardData.getData("text/plain").replace(/\r\n|\r|\n/g, "");
     if (text) {
       event.preventDefault();
       document.execCommand("insertText", false, text);
@@ -402,37 +481,48 @@ watch(markdownContent, () => {
   overflow: auto;
   text-align: center;
   margin: auto;
-  padding: 0 1em;
-  width: 62.8%;
+  padding: 0 2em;
+  // width: 62.8%;
+  width: 90%;
   overflow-anchor: auto;
 }
 .footer {
-  text-align: right;
   bottom: 0;
   background: #fff;
   margin: 0 auto;
-  width: 62.8%;
+  // width: 62.8%;
   //   height: 120px;
   border: 1px solid lightgray;
-  border-radius: 0.5em;
+  border-radius: 2em;
   button {
     margin: 0 0.3em 0.3em 0;
   }
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  padding: 0.5em;
 }
 .markdown-content {
-  // min-height: 10vh;
-  // max-height: 30vh;
-  padding: 0.5rem;
+  width: 100%;
+  font-size: 1rem;
+  padding: 5px;
+  align-items: center;
   text-align: left;
+  position: relative;
+  line-height: 30px;
 }
-.markdown-content:empty:before {
+.markdown-content.is-empty:before {
   content: attr(placeholder);
   color: #999;
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  pointer-events: none;
 }
 .markdown-content:focus {
   outline: none;
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+  border: none;
+  // box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 .set-btn {
   display: flex;
@@ -440,13 +530,27 @@ watch(markdownContent, () => {
 }
 .operate-bar {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 1em;
+  flex-wrap: nowrap;
+}
+.operate-bar.multi-line {
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 .upload-file {
   cursor: pointer;
-  padding: 0.5em 1em;
-  border: 1px solid lightgray;
-  border-radius: 30%;
+  padding: 1em;
+  border-radius: 50%;
+  // font-size:3em;
+  font-weight: 700;
+  text-align: center;
+  align-items: center;
+}
+.upload-file:hover {
+  background-color: #f0f0f0;
 }
 .is-button {
   cursor: pointer;
@@ -482,5 +586,33 @@ watch(markdownContent, () => {
 }
 .send-btn {
   text-align: right;
+}
+.send-btn-icon {
+  cursor: pointer;
+}
+.send-btn-icon.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.chat-textbox {
+  width: 100%;
+  flex: 1 1 auto;
+  border: none;
+  outline: none;
+  white-space: pre-wrap;
+  line-height: 30px;
+  align-items: center;
+}
+.operate-bar.multi-line .chat-textbox {
+  flex: 1 0 100%;
+  order: 1;
+  margin-bottom: 0.5em;
+}
+.operate-bar.multi-line .upload-file {
+  order: 2;
+}
+.operate-bar.multi-line .send-btn {
+  order: 3;
+  margin-left: auto;
 }
 </style>
