@@ -82,7 +82,7 @@ export class ChatService {
         documentId: id,
         useModel: response.model,
         role: response.choices[0].message.role,
-        content: response.choices[0].message.content,
+        content: response.choices[0].message.content||"",
       };
       // console.log(contentEntity);
       const responseInfo = new this.contentSchema(contentEntity);

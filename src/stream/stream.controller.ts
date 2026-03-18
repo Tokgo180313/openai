@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpException,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, HttpException, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { MessageDto } from 'src/chat/dto/MessageDto';
@@ -70,7 +63,6 @@ export class StreamController {
         description:error.message
       }
       const usage = await this.usageService.addUsage(usageEntity,userId);
-      console.error("error",error);
       throw error;
     }
   }
@@ -79,6 +71,10 @@ export class StreamController {
 
   @Post('/saveResponse')
   public async saveContent(@Body() dto: ContentEntity) {
+    const content = String(dto?.content ?? '').trim();
+    if (!content) {
+      throw new BadRequestException('content is required');
+    }
     return await this.streamService.saveResponse(dto);
   }
 }

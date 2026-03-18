@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import OpenAI from 'openai';
 import { Stream } from 'openai/streaming';
@@ -26,20 +26,40 @@ export class StreamService {
   public async completionStreamFunction(
     dto: MessageDto,
   ): Promise<Stream<OpenAI.ChatCompletionChunk>> {
+    const questionContent = String(dto?.question?.content ?? '').trim();
+    if (!questionContent) {
+      throw new BadRequestException('question.content is required');
+    }
     const questionEntity = {
       documentId: dto.id,
       useModel: dto.question.useModel,
       role: dto.question.role,
-      content: dto.question.content,
+      content: questionContent,
       modelClassify: dto.question.modelClassify,
     };
     await this.saveQuestion(questionEntity);
+    const messages = await this.chatService.chatList(dto.id);
+    const messagesList: OpenAI.ChatCompletionMessageParam[] = messages.map(
+      (item): OpenAI.ChatCompletionMessageParam => {
+        const content = String(item?.content ?? '');
+        const role = String(item?.role ?? '').toLowerCase();
+
+        // openai@5 的 ChatCompletionMessageParam 是按 role 区分的联合类型；
+        // 我们这里只发送纯文本消息，统一约束到常用的 3 种 role，避免落入 'function'/'tool' 分支导致额外字段必填。
+        if (role === 'system') return { role: 'system', content };
+        if (role === 'assistant') return { role: 'assistant', content };
+        return { role: 'user', content };
+      },
+    );
+    if(messagesList.length === 0){
+      throw new Error('messagesList is empty');
+    }
     const openai = new OpenAI({
       baseURL: 'https://api.deepseek.com',
       apiKey: this.configService.get('VUE_APP_API_KEY'),
     });
     return (await openai.chat.completions.create({
-      messages: dto.list,
+      messages: messagesList,
       model: dto.question.useModel,
       stream: true,
       stream_options: {
@@ -50,7 +70,6 @@ export class StreamService {
 
   public async saveQuestion(dto: QuestionDto) {
     try {
-      console.log('dto', dto);
       return new this.contentSchema(dto).save();
     } catch (error) {
       console.error('error', error);

@@ -8,10 +8,10 @@ export class ContentEntity{
     @IsString()
     documentId:string;
     @IsString()
-    content:string | null;
+    content:string;
 
     @IsString()
-    role:string | null;
+    role:string;
 
     @IsString()
     useModel:string;
