@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import OpenAI from 'openai';
 import { Stream } from 'openai/streaming';
@@ -12,9 +16,12 @@ import { ContentEntity } from 'src/chat/entity/ContentEntity';
 import { ChatService } from 'src/chat/chat.service';
 import { UsageService } from 'src/usage/usage.service';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
-
+import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
+import { Observable } from 'rxjs';
 @Injectable()
 export class StreamService {
+  private genAI: GoogleGenerativeAI;
+  private model: GenerativeModel;
   constructor(
     @InjectModel(Content.name) private contentSchema: Model<ContentDocument>,
     @InjectModel(ChatTitle.name) private chatTitle: Model<ChatTitleDocument>,
@@ -22,9 +29,19 @@ export class StreamService {
     private chatService: ChatService,
     private usageService: UsageService,
   ) {}
+  onModuleInit() {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    if(!apiKey){
+      throw new Error('GEMINI_API_KEY is not set');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  }
 
   public async completionStreamFunction(
     dto: MessageDto,
+    apiKey: string,
+    baseURL: string,
   ): Promise<Stream<OpenAI.ChatCompletionChunk>> {
     const questionContent = String(dto?.question?.content ?? '').trim();
     if (!questionContent) {
@@ -51,12 +68,12 @@ export class StreamService {
         return { role: 'user', content };
       },
     );
-    if(messagesList.length === 0){
+    if (messagesList.length === 0) {
       throw new Error('messagesList is empty');
     }
     const openai = new OpenAI({
-      baseURL: 'https://api.deepseek.com',
-      apiKey: this.configService.get('VUE_APP_API_KEY'),
+      baseURL: baseURL,
+      apiKey: apiKey,
     });
     return (await openai.chat.completions.create({
       messages: messagesList,
@@ -67,7 +84,18 @@ export class StreamService {
       },
     })) as Stream<OpenAI.ChatCompletionChunk>;
   }
-
+  public async *streamGenerateContent(prompt: string): AsyncGenerator<string> {
+    const result = await this.model.generateContentStream(prompt);
+    for await (const chunk of result.stream) {
+      yield chunk.text();
+    }
+  }
+  public async *streamGenerateContentByChatgpt(prompt: string): AsyncGenerator<string> {
+    const result = await this.chatService.streamGenerateContent(prompt);
+    for await (const chunk of result) {
+      yield chunk.choices[0]?.delta?.content;
+    }
+  }
   public async saveQuestion(dto: QuestionDto) {
     try {
       return new this.contentSchema(dto).save();

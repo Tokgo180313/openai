@@ -21,6 +21,9 @@ export class Models extends Document{
     @Prop()
     description:string;
 
+    @Prop()
+    baseURL:string;
+
     @Expose()
     get isApiKeySet():boolean{
         return !!this.apiKey;

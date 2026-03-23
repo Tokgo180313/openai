@@ -53,4 +53,8 @@ export class ModelService {
       return '更新失败';
     }
   }
+  //查询模型名称和分类
+  async findModelByModelNameAndModelClassify(modelName: string, modelClassify: string): Promise<Models | null> {
+    return await this.modelSchema.findOne({ modelName, modelClassify }).exec();
+  }
 }

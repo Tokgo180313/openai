@@ -8,12 +8,14 @@ import { StreamService } from './stream.service';
 import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from 'src/chat/chat.module';
 import { UsageModule } from 'src/usage/usage.module';
+import { ModelsModule } from 'src/models/models.module';
 @Module({
   imports: [
     ConfigModule,
     JwtModule,
     ChatModule,
     UsageModule,
+    ModelsModule,
     MongooseModule.forFeature([
       { name: Content.name, schema: ContentSchema },
       { name: ChatTitle.name, schema: ChatTitleSchema },

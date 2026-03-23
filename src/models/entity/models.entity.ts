@@ -4,4 +4,5 @@ export class ModelsEntity {
     apiKey: string;
     modelClassify: string;
     description: string;
+    baseURL: string;
 }

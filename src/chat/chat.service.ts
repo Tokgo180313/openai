@@ -26,6 +26,7 @@ import {
 import { ChatEntity } from './entity/Chat.entity';
 import { JwtService } from '@nestjs/jwt';
 import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { UsageService } from 'src/usage/usage.service';
 import { GeminiUsageEntity } from 'src/usage/entity/gemini.usage.entity';
 @Injectable()
@@ -43,13 +44,10 @@ export class ChatService {
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     // 初始化 SDK
-    this.genAI = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        // 确保连接池配置合理
-        timeout: 30000, // 设置为 30 秒，单位通常是 ms
-      },
-    });
+    if(!apiKey){
+      throw new Error('GEMINI_API_KEY is not set');
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey);
   }
   public async completionFunction(
     id: string,
@@ -82,7 +80,7 @@ export class ChatService {
         documentId: id,
         useModel: response.model,
         role: response.choices[0].message.role,
-        content: response.choices[0].message.content||"",
+        content: response.choices[0].message.content || '',
       };
       // console.log(contentEntity);
       const responseInfo = new this.contentSchema(contentEntity);
@@ -109,17 +107,20 @@ export class ChatService {
     }
     return null;
   }
-  public async chatByGemini(messageDto: MessageDto, token: string,userId:string) {
-    return await this.generateText(messageDto?.question.content,userId);
+  public async chatByGemini(
+    messageDto: MessageDto,
+    token: string,
+    userId: string,
+  ) {
+    return await this.generateText(messageDto?.question.content, userId);
   }
   /**
    * 基础文本生成
    * @param prompt 用户输入的提示词
    */
-  async generateText(prompt: string ,userId:string): Promise<string> {
+  async generateText(prompt: string, userId: string): Promise<string> {
     try {
-      const response = await this.genAI.models.generateContent({
-        model: this.modelName,
+      const response = await this.genAI.getGenerativeModel({ model: this.modelName }).generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         // Gemini 3 特有配置：思维层级 (Thinking Level)
         // 选项: 'minimal', 'low', 'medium', 'high'
@@ -129,11 +130,21 @@ export class ChatService {
           },
         },
       });
-      this.usageService.addUsageByGemini(response.usageMetadata,userId,"gemini-3.5-flash","0");
+      this.usageService.addUsageByGemini(
+        response.usageMetadata,
+        userId,
+        'gemini-3.5-flash',
+        '0',
+      );
       return response.text;
     } catch (error) {
       console.error('Gemini API Error:', error);
-      this.usageService.addUsageByGemini({} as GeminiUsageEntity,userId,"gemini-3.5-flash","1");
+      this.usageService.addUsageByGemini(
+        {} as GeminiUsageEntity,
+        userId,
+        'gemini-3.5-flash',
+        '1',
+      );
       throw new Error('Failed to generate content from Gemini');
     }
   }
@@ -199,7 +210,10 @@ export class ChatService {
     const payload = await this.jwtService.verifyAsync(token, {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
-    return await this.chatTitleSchema.find({ userId: payload.sub }).sort({ updatedAt: -1 }).exec();
+    return await this.chatTitleSchema
+      .find({ userId: payload.sub })
+      .sort({ updatedAt: -1 })
+      .exec();
   }
   /**
    * 查找聊天列表
@@ -218,11 +232,13 @@ export class ChatService {
     return await this.contentSchema.findById(id).exec();
   }
 
-  public async deleteChatTitleById(id: string,userId:string) {
+  public async deleteChatTitleById(id: string, userId: string) {
     try {
       const chatInfo = await this.findOneChat(id);
       if (chatInfo && chatInfo.userId === userId) {
-        await this.contentSchema.deleteMany({ documentId: chatInfo.documentId });
+        await this.contentSchema.deleteMany({
+          documentId: chatInfo.documentId,
+        });
         const result = await this.chatTitleSchema.findByIdAndDelete(id).exec();
         return result;
       }
