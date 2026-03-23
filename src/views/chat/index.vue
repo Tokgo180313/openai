@@ -112,6 +112,7 @@ const {
   chatListInterface,
   streamSaveResponseInterface,
   chatGeminiInterface,
+  streamGeminiInterface,
 } = api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
@@ -254,7 +255,7 @@ const sendMessageEvent = () => {
   }
 };
 const geminichat = async (param) => {
-  chatGeminiInterface(param)
+  streamGeminiInterface(param)
     .then((res) => {
       if (res.code == 200) {
         markdownContentList.value.push({
