@@ -39,11 +39,11 @@ export class ChatController {
   }
 
   @Post('/chatgpt')
-  async chatByChatgpt(@Body() messageDto: Array<MessageDto>) {
-    if (messageDto) {
-      console.log('chatgpt.com');
-    }
-    return null;
+  async chatByChatgpt(
+    @Body() messageDto: Array<MessageDto>,
+    @Token() token: string,
+  ) {
+    return await this.chatService.chatByChatgpt(messageDto, token);
   }
   @Post('/gemini')
   async chatByGemini(@Body() messageDto: MessageDto,@Token() token: string,@CurrentUser('id') userId:string) {

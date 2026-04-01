@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptors';
+import { MongooseSerializerInterceptor } from './common/interceptors/mongoose-serializer.interceptor';
 import { HttpExecptionFilter } from './common/filters/http-exception.filter';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
@@ -39,6 +40,10 @@ import { UsageModule } from './usage/usage.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MongooseSerializerInterceptor,
     },
     {
       provide: APP_FILTER,

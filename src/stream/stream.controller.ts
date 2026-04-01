@@ -128,6 +128,7 @@ export class StreamController {
       res.status(500).end();
     }
   }
+  @Post('/chatgpt')
   public async chatgptStream(
     @Body() messageDto: MessageDto,
     @Res() res: Response,
@@ -135,5 +136,9 @@ export class StreamController {
     @CurrentUser('id') userId: string,
   ) {
     const stream = this.streamService.streamGenerateContentByChatgpt(messageDto.question.content);
+    for await (const chunk of stream) {
+      res.write(chunk);
+    }
+    res.end();
   }
 }

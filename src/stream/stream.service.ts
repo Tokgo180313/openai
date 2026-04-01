@@ -18,6 +18,21 @@ import { UsageService } from 'src/usage/usage.service';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
 import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import { Observable } from 'rxjs';
+
+/** OpenAI SDK 会在 baseURL 后拼接 `/chat/completions`；若 OPENAI_BASE_URL 已含该路径会导致 404。 */
+function normalizeOpenAIBaseURL(raw: string | undefined): string | undefined {
+  if (raw == null || typeof raw !== 'string') return undefined;
+  let u = raw.trim();
+  if (!u) return undefined;
+  while (/\/chat\/completions\/?$/i.test(u)) {
+    u = u.replace(/\/chat\/completions\/?$/i, '');
+  }
+  u = u.replace(/\/+$/, '');
+  return u || undefined;
+}
+
+const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+
 @Injectable()
 export class StreamService {
   private genAI: GoogleGenerativeAI;
@@ -31,7 +46,7 @@ export class StreamService {
   ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if(!apiKey){
+    if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not set');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
@@ -90,10 +105,46 @@ export class StreamService {
       yield chunk.text();
     }
   }
-  public async *streamGenerateContentByChatgpt(prompt: string): AsyncGenerator<string> {
-    const result = await this.chatService.streamGenerateContent(prompt);
-    for await (const chunk of result) {
-      yield chunk.choices[0]?.delta?.content;
+  /**
+   * 使用 OpenAI Chat Completions 流式接口。
+   * OPENAI_BASE_URL 应只写到版本前缀，例如 `https://api.openai.com/v1` 或 `https://网关/v1`，不要带 `/chat/completions`。
+   */
+  public async *streamGenerateContentByChatgpt(
+    prompt: string,
+    options?: { model?: string },
+  ): AsyncGenerator<string> {
+    try {
+      const text = String(prompt ?? '').trim();
+      if (!text) {
+        throw new BadRequestException('prompt is required');
+      }
+      const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+      if (!apiKey) {
+        throw new InternalServerErrorException('OPENAI_API_KEY is not set');
+      }
+      const rawBase =
+        this.configService.get<string>('OPENAI_BASE_URL') ??
+        process.env['OPENAI_BASE_URL'];
+      const baseURL =
+        normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
+      const openai = new OpenAI({
+        apiKey,
+        baseURL,
+      });
+      const stream = await openai.chat.completions.create({
+        model: options?.model ?? 'gpt-4o-mini',
+        messages: [{ role: 'user', content: text }],
+        stream: true,
+      });
+      for await (const chunk of stream) {
+        const piece = chunk.choices[0]?.delta?.content;
+        if (piece) {
+          yield piece;
+        }
+      }
+    } catch (error) {
+      console.error('error', error);
+      throw error;
     }
   }
   public async saveQuestion(dto: QuestionDto) {
