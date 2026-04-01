@@ -34,27 +34,34 @@ const streamDeepSeekInterface = function (param) {
     data: param,
   });
 };
-const streamGeminiInterface = function(param){
+const streamGeminiInterface = function (param) {
   return request({
-    url:"/stream/gemini",
-    method:"post",
-    data:param,
+    url: "/stream/gemini",
+    method: "post",
+    data: param,
   });
-}
-const streamSaveResponseInterface = function(param){
-    return request({
-        url:"/stream/saveResponse",
-        method:"post",
-        data:param,
-    })
-}
-const removeChatInterface = function(param){
-    return request({
-        url:"/chat/deleteChatTitle",
-        method:"delete",
-        params:param,
-    });
-}
+};
+const streamChatgptInterface = function (param) {
+  return request({
+    url: "/stream/chatgpt",
+    method: "post",
+    data: param,
+  });
+};
+const streamSaveResponseInterface = function (param) {
+  return request({
+    url: "/stream/saveResponse",
+    method: "post",
+    data: param,
+  });
+};
+const removeChatInterface = function (param) {
+  return request({
+    url: "/chat/deleteChatTitle",
+    method: "delete",
+    params: param,
+  });
+};
 export default {
   chatDeepSeekInterface,
   chatGeminiInterface,
@@ -64,4 +71,5 @@ export default {
   streamSaveResponseInterface,
   removeChatInterface,
   streamGeminiInterface,
+  streamChatgptInterface,
 };

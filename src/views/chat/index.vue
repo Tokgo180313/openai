@@ -32,27 +32,7 @@
       </div> -->
     </div>
     <div class="footer">
-      <div class="operate-bar" :class="{ 'multi-line': isMultiLine }">
-        <div class="upload-file">
-          <a-popover placement="topLeft" trigger="hover">
-            <template #content>
-              <p class="is-button">
-                <a-upload
-                  v-model:file-list="fileList"
-                  :action="baseUrl"
-                  list-type="picture"
-                  @preview="previewEvent"
-                >
-                  <span class="is-icon">
-                    <FileImageOutlined />
-                  </span>
-                  上传图片和文件
-                </a-upload>
-              </p>
-            </template>
-            <i class="iconfont icon-jiahao-copy"></i>
-          </a-popover>
-        </div>
+      <div class="operate-bar">
         <div class="chat-textbox">
           <!-- <ImagePreview
           :images="previewImages"
@@ -68,16 +48,38 @@
             @input="handleInputEvent"
           ></div>
         </div>
-        <div class="send-btn">
-          <div
-            @click="sendMessageEvent"
-            :class="{ disabled: disabledSendBtn }"
-            class="send-btn-icon"
-          >
-            <i
-              class="iconfont icon-xiangshangjiantouquan-copy"
-              style="font-size: 2.5em"
-            ></i>
+        <div class="footer-actions">
+          <div class="upload-file">
+            <a-popover placement="topLeft" trigger="hover">
+              <template #content>
+                <p class="is-button">
+                  <a-upload
+                    v-model:file-list="fileList"
+                    :action="baseUrl"
+                    list-type="picture"
+                    @preview="previewEvent"
+                  >
+                    <span class="is-icon">
+                      <FileImageOutlined />
+                    </span>
+                    上传图片和文件
+                  </a-upload>
+                </p>
+              </template>
+              <i class="iconfont icon-jiahao-copy"></i>
+            </a-popover>
+          </div>
+          <div class="send-btn">
+            <div
+              @click="sendMessageEvent"
+              :class="{ disabled: disabledSendBtn }"
+              class="send-btn-icon"
+            >
+              <i
+                class="iconfont icon-xiangshangjiantouquan-copy"
+                style="font-size: 2.5em"
+              ></i>
+            </div>
           </div>
         </div>
       </div>
@@ -113,10 +115,10 @@ const {
   streamSaveResponseInterface,
   chatGeminiInterface,
   streamGeminiInterface,
+  streamChatgptInterface,
 } = api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
-const isMultiLine = ref(false);
 const disabledSendBtn = computed(() => {
   return markdownInputContent.value.length === 0;
 });
@@ -168,7 +170,6 @@ const handleInputEvent = function (event: Event) {
   const el = event.target as HTMLElement | null;
   if (!el) {
     markdownInputContent.value = "";
-    isMultiLine.value = false;
     return;
   }
 
@@ -176,7 +177,8 @@ const handleInputEvent = function (event: Event) {
   // 这会导致 innerText 变成 "\n"。这里统一把这种情况视为真正的空字符串，并移除占位 <br>。
   const rawText = el.innerText || "";
   const normalizedText = rawText.replace(/\u200B/g, "").replace(/\r\n/g, "\n");
-  const isEffectivelyEmpty = normalizedText.replace(/\n/g, "").trim().length === 0;
+  const isEffectivelyEmpty =
+    normalizedText.replace(/\n/g, "").trim().length === 0;
   if (isEffectivelyEmpty) {
     const html = (el.innerHTML || "").trim().toLowerCase();
     if (
@@ -188,25 +190,10 @@ const handleInputEvent = function (event: Event) {
       el.innerHTML = "";
     }
     markdownInputContent.value = "";
-    isMultiLine.value = false;
     return;
   }
 
   markdownInputContent.value = normalizedText;
-
-  // 自动换行：按渲染后的高度估算可见行数（视觉换行也算换行）
-  const style = window.getComputedStyle(el);
-  const lineHeight = Number.parseFloat(style.lineHeight) || 30;
-  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
-  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
-
-  const contentHeight = Math.max(
-    0,
-    el.scrollHeight - paddingTop - paddingBottom,
-  );
-  const visualLines =
-    lineHeight > 0 ? Math.max(1, Math.round(contentHeight / lineHeight)) : 1;
-  isMultiLine.value = visualLines >= 2;
 };
 import { useRequestStore } from "../../stores/requestStore";
 const requestStore = useRequestStore();
@@ -217,7 +204,6 @@ const clearInputData = () => {
     (inputEl as HTMLElement).innerHTML = "";
   }
   markdownInputContent.value = "";
-  isMultiLine.value = false;
 };
 const sendMessageEvent = () => {
   if (disabledSendBtn.value) {
@@ -252,6 +238,14 @@ const sendMessageEvent = () => {
       },
       list: [param],
     });
+  } else if (modelStore.getCurrentModelClassify.toLowerCase() == "chatgpt") {
+    chatgptchat({
+      id: documentId.value,
+      titleId: messageId.value,
+      question: {
+        ...param,
+      },
+    });
   }
 };
 const geminichat = async (param) => {
@@ -260,6 +254,20 @@ const geminichat = async (param) => {
       if (res.code == 200) {
         markdownContentList.value.push({
           role: "assistant",
+          content: res.data.answer,
+        });
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+};
+const chatgptchat = async (param) => {
+  streamChatgptInterface(param)
+    .then((res) => {
+      if (res.code == 200) {
+        markdownContentList.value.push({
+          role: "assistant",  
           content: res.data.answer,
         });
       }
@@ -531,19 +539,20 @@ watch(markdownContent, () => {
 }
 .operate-bar {
   display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  width: 100%;
+  padding: 0 1em;
+}
+.footer-actions {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0 1em;
-  flex-wrap: nowrap;
-}
-.operate-bar.multi-line {
-  flex-wrap: wrap;
-  align-items: flex-start;
 }
 .upload-file {
   cursor: pointer;
-  padding: 1em;
+  padding: 0.5em 1em;
   border-radius: 50%;
   // font-size:3em;
   font-weight: 700;
@@ -586,7 +595,7 @@ watch(markdownContent, () => {
   background: #0056b3;
 }
 .send-btn {
-  text-align: right;
+  flex-shrink: 0;
 }
 .send-btn-icon {
   cursor: pointer;
@@ -597,23 +606,9 @@ watch(markdownContent, () => {
 }
 .chat-textbox {
   width: 100%;
-  flex: 1 1 auto;
   border: none;
   outline: none;
   white-space: pre-wrap;
   line-height: 30px;
-  align-items: center;
-}
-.operate-bar.multi-line .chat-textbox {
-  flex: 1 0 100%;
-  order: 1;
-  margin-bottom: 0.5em;
-}
-.operate-bar.multi-line .upload-file {
-  order: 2;
-}
-.operate-bar.multi-line .send-btn {
-  order: 3;
-  margin-left: auto;
 }
 </style>
