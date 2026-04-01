@@ -116,7 +116,7 @@ export class ChatService {
       throw new Error(error.messages);
     }
   }
-  public async chatByChatgpt(messageDto: Array<MessageDto>, token: string) {
+  public async chatByChatgpt(messageDto: MessageDto, token: string) {
     try {
       const items = Array.isArray(messageDto) ? messageDto : [];
       if (items.length === 0) {

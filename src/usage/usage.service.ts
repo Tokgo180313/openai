@@ -38,7 +38,7 @@ export class UsageService {
         return {
             list: data,
             total,
-            currentPage: skip / limit + 1,
+            currentPage: usageDto.page,
             totalPages: Math.ceil(total / limit),
         };
     }

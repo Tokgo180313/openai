@@ -40,7 +40,7 @@ export class ChatController {
 
   @Post('/chatgpt')
   async chatByChatgpt(
-    @Body() messageDto: Array<MessageDto>,
+    @Body() messageDto: MessageDto,
     @Token() token: string,
   ) {
     return await this.chatService.chatByChatgpt(messageDto, token);

@@ -35,6 +35,7 @@ export class RecordService {
       query.endTime = recordDto.endTime;
     }
     const { skip, limit } = recordDto;
+    console.log(query,skip,limit,recordDto);
     const total = await this.recordSchema.countDocuments(query).exec();
     const data = await this.recordSchema
       .find(query)
@@ -44,8 +45,8 @@ export class RecordService {
     return {
       list: data,
       total,
-      currentPage: skip / limit + 1,
-      totalPages: Math.ceil(total / limit), 
+      currentPage: recordDto.page,
+      totalPages: Math.ceil(total / limit),
     };
   }
   //删除
