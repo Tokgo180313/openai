@@ -45,7 +45,7 @@ const rules = {
 };
 const handleSubmit = () => {
     updateApiKeyInterface(submitForm.value).then((res) => {
-        if (res.code === 200) {
+        if (res.code === 201) {
             handleClose();
             resetForm();
             message.success(res.message);
