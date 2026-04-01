@@ -11,9 +11,8 @@
             </a-form>
         </div>
         <div class="content">
-            <a-table :data-source="usageList" :columns="columnsList" :pagination="false"></a-table>
+            <a-table :data-source="usageList" :columns="columnsList" :pagination="false" size="small" bordered striped scroll="max-height: 500px"></a-table>
         </div>
-        <div class="pagination"></div>
         <div class="pagination">
             <a-pagination :current="pagination.current" :pageSize="pagination.pageSize" :total="pagination.total" @change="paginationChangeEvent"></a-pagination>
         </div>
