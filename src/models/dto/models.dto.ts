@@ -14,6 +14,8 @@ export class ModelsDto {
 
   @IsOptional()
   modelClassify?: string;
+  @IsOptional()
+  status?: string;
 
   get skip(): number {
     return (this.page - 1) * this.pageSize;

@@ -28,8 +28,25 @@ export class ModelController {
     async deleteById(@Query("id") id:string){
         return await this.modelService.deleteModel(id)
     }
+
+    @Put("/disableById")
+    async disableById(@Query("id") id: string) {
+        return await this.modelService.disableModel(id);
+    }
+
+    @Put("/enableById")
+    async enableById(@Query("id") id: string) {
+        return await this.modelService.enableModel(id);
+    }
+
     @Get("/findClassifyList")
     async findClassifyList(){
         return await this.modelService.findClassifyList()
-    } 
+    }
+
+    /** 根据 modelClassify 使用对应密钥调用 OpenAI，获取 /v1/models 列表 */
+    @Get("/openaiModelList")
+    async openaiModelList(@Query("modelClassify") modelClassify: string) {
+        return await this.modelService.listOpenAIModelsByClassify(modelClassify);
+    }
 }

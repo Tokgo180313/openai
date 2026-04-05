@@ -9,20 +9,10 @@ import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import { EncryptionService } from 'src/common/utils/encryption.service';
 import { KeyService } from 'src/key/key.service';
 import { StreamMessageDto } from './dto/stream.dto';
-
-/** OpenAI SDK 会在 baseURL 后拼接 `/chat/completions`；若 OPENAI_BASE_URL 已含该路径会导致 404。 */
-function normalizeOpenAIBaseURL(raw: string | undefined): string | undefined {
-  if (raw == null || typeof raw !== 'string') return undefined;
-  let u = raw.trim();
-  if (!u) return undefined;
-  while (/\/chat\/completions\/?$/i.test(u)) {
-    u = u.replace(/\/chat\/completions\/?$/i, '');
-  }
-  u = u.replace(/\/+$/, '');
-  return u || undefined;
-}
-
-const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+import {
+  normalizeOpenAIBaseURL,
+  OPENAI_DEFAULT_BASE_URL,
+} from 'src/common/utils/openai-base-url.util';
 
 @Injectable()
 export class StreamService {
