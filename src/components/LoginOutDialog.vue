@@ -25,6 +25,7 @@ const emits = defineEmits(["close-modal"]);
 
 let openModal = computed(() => props.visible);
 const confirmEvent = function () {
+  sessionStorage.clear();
   userStore.clearToken();
   router.replace("/login");
 };

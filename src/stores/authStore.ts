@@ -55,6 +55,9 @@ export const useAuthStore =  defineStore("auth",{
         },
         clearToken(){
             this.token = null;
+            this.nickName = null;
+            this.roleId = null;
+            this.account = null;
         }
     }
 })

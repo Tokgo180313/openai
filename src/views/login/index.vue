@@ -66,7 +66,7 @@ const onFinish = (values: any) => {
       userStore.setAccount(res.data.user.account);
       userStore.setRoleId(res.data.user.roleId);
       // 获取模型列表
-      modelStore.fetchModelList({});
+      modelStore.fetchModelList({status: "1"});
       // 获取模型分类列表
       modelStore.fetchModelClassifyList({});
       if (res.data.user.roleId === "1"|| res.data.user.roleId === "0") {

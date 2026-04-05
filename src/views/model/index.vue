@@ -24,10 +24,28 @@
         <a-form-item label="创建时间">
           <a-range-picker v-model:value="searchForm.createTime" />
         </a-form-item>
+        <a-form-item label="状态">
+          <a-select
+            v-model:value="searchForm.status"
+            placeholder="请选择状态"
+            style="width: 100px"
+          >
+            <a-select-option value="">全部</a-select-option>
+            <a-select-option value="1">启用</a-select-option>
+            <a-select-option value="0">禁用</a-select-option>
+          </a-select>
+        </a-form-item>
         <a-form-item>
-          <a-button type="primary" @click="handleSearch" size="small">查询</a-button>
-          <a-button @click="handleAdd" type="primary" size="small" style="margin-left: 10px">新增</a-button>
-          <a-button @click="handleUpdateApiKey" type="primary" size="small" style="margin-left: 10px">更新ApiKey</a-button>
+          <a-button type="primary" @click="handleSearch" size="small"
+            >查询</a-button
+          >
+          <a-button
+            @click="handleAdd"
+            type="primary"
+            size="small"
+            style="margin-left: 10px"
+            >新增</a-button
+          >
         </a-form-item>
       </a-form>
     </div>
@@ -41,21 +59,46 @@
         :pagination="false"
       >
         <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="record.status === '1' ? 'green' : 'red'">{{
+              record.status === "1" ? "启用" : "禁用"
+            }}</a-tag>
+          </template>
           <template v-if="column.key === 'action'">
             <a @click="handleDelete(record)">删除</a>
+            <span class="divider">|</span>
+            <a-popconfirm
+              title="确定要停用该模型吗？"
+              ok-text="确认"
+              cancel-text="取消"
+              @confirm="handleStop(record)"
+            >
+              <a v-if="record.status === '1'" style="color: red">停用</a>
+            </a-popconfirm>
+            <a-popconfirm
+              title="确定要启用该模型吗？"
+              ok-text="确认"
+              cancel-text="取消"
+              @confirm="handleEnable(record)"
+            >
+              <a v-if="record.status === '0'" style="color: green">启用</a>
+            </a-popconfirm>
           </template>
         </template>
       </a-table>
-    </div>
-    <div class="pagination">
       <a-pagination
+        class="pagination"
         :pageSize="pagination.pageSize"
         :current="pagination.current"
         :total="pagination.total"
-      ></a-pagination>
+        @change="handleChangePage"
+        @showSizeChange="handleChangePageSize"
+        :pageSizeOptions="['10', '20', '30', '40', '50']"
+        :showTotal="showTotal"
+      >
+      </a-pagination>
     </div>
     <add-model-dialog :visible="showAddVisible" @close="handleSuccess" />
-    <update-api-key-dialog :visible="showUpdateApiKeyVisible" @close="handleUpdateApiKeySuccess" />
   </div>
 </template>
 
@@ -64,7 +107,12 @@ import { computed, onMounted, reactive, ref } from "vue";
 import AddModelDialog from "./components/AddModelDialog.vue";
 import UpdateApiKeyDialog from "./components/UpdateApiKeyDialog.vue";
 import api from "@/api/apiList";
-let { findModelListInterface, deleteModelInterface} = api;
+let {
+  findModelListInterface,
+  deleteModelInterface,
+  enableModelInterface,
+  disableModelInterface,
+} = api;
 import { Modal } from "ant-design-vue";
 import config from "./config";
 const { columns } = config;
@@ -76,18 +124,21 @@ interface searchFormType {
   modelName: string;
   modelClassify: string;
   createTime: Date[];
+  status: string;
 }
 
 const searchForm = reactive<searchFormType>({
   modelName: "",
   modelClassify: null,
   createTime: [],
+  status: "",
 });
 interface modelType {
   id: string;
   modelName: string;
   modelClassify: string;
   createdAt: Date;
+  status: string;
 }
 
 const modelList = ref<modelType[]>();
@@ -99,6 +150,7 @@ const getModelList = async () => {
   const dto = {
     modelName: searchForm.modelName || undefined,
     modelClassify: searchForm.modelClassify || undefined,
+    status: searchForm.status || undefined,
     page: pagination.current,
     pageSize: pagination.pageSize,
   };
@@ -128,7 +180,7 @@ const handleDelete = (record: modelType) => {
     okText: "确认",
     cancelText: "取消",
     onOk() {
-      deleteModelInterface({id: record.id}).then((res) => {
+      deleteModelInterface({ id: record.id }).then((res) => {
         if (res.code === 200) {
           getModelList();
           message.success("删除成功");
@@ -147,19 +199,48 @@ const handleAdd = () => {
 const handleSuccess = () => {
   showAddVisible.value = false;
   getModelList();
-};  
-const showUpdateApiKeyVisible = ref(false);
-const handleUpdateApiKey = () => {
-  showUpdateApiKeyVisible.value = true;
 };
-const handleUpdateApiKeySuccess = () => {
-  showUpdateApiKeyVisible.value = false;
+const handleEnable = (record: modelType) => {
+  enableModelInterface({ id: record.id }).then((res) => {
+    if (res.code === 200) {
+      getModelList();
+      message.success("启用成功");
+    } else {
+      message.error(res.message || "启用失败");
+    }
+  });
+};
+const handleStop = (record: modelType) => {
+  disableModelInterface({ id: record.id }).then((res) => {
+    if (res.code === 200) {
+      getModelList();
+      message.success("停用成功");
+    } else {
+      message.error(res.message || "停用失败");
+    }
+  });
+};
+const handleChangePage = (page: number) => {
+  pagination.current = page;
   getModelList();
+};
+const handleChangePageSize = (pageSize: number) => {
+  pagination.pageSize = pageSize;
+  pagination.current = 1;
+  getModelList();
+};
+const showTotal = (total: number) => {
+  return `共 ${total} 条`;
 };
 </script>
 
 <style scoped lang="scss">
 .pagination {
   text-align: right;
+}
+.divider {
+  display: inline-block;
+  margin: 0 8px;
+  color: #999;
 }
 </style>

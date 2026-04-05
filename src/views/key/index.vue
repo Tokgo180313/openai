@@ -35,7 +35,13 @@
       <a-table
         :data-source="keyList"
         :columns="columnsList"
-        :pagination="false"
+        :pagination="true"
+        :pageSize="10"
+        :current="pagination.current"
+        @change="handleChangePage"
+        @showSizeChange="handleChangePageSize"
+        :pageSizeOptions="['10', '20', '30', '40', '50']"
+        :showTotal="showTotal"
         size="small"
         bordered
         striped
@@ -52,9 +58,19 @@
             >
               <a style="color: red">删除</a>
             </a-popconfirm>
+            <span class="divider">|</span>
+            <a-popconfirm
+              title="确定要更新该模型吗？"
+              ok-text="确认"
+              cancel-text="取消"
+              @confirm="handleUpdateModel(record)"
+            >
+              <a>更新模型</a>
+            </a-popconfirm>
           </template>
         </template>
       </a-table>
+
     </div>
 
     <add-key-dialog
@@ -80,6 +96,7 @@ let {
   findKeyListInterface,
   findByIdInterface,
   deleteByIdInterface,
+  findOpenaiModelListInterface,
 } = api;
 
 interface KeyType {
@@ -98,7 +115,11 @@ const searchForm = reactive<{
 });
 
 const keyList = ref<KeyType[]>([]);
-
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+});
 const columnsList = ref([
   {
     title: "模型分类",
@@ -189,9 +210,26 @@ const handleDelete = (record: KeyType) => {
     });
 };
 
-onMounted(() => {
+const handleUpdateModel = async (record: KeyType) => {  
+  const res = await findOpenaiModelListInterface({ modelClassify: record.modelClassify });
+  if (res?.code === 200 || res?.code === 201) {
+    message.success(res?.message || "更新模型成功");
+  } else {
+    message.error(res?.message || "更新模型失败");
+  }
+};
+const handleChangePage = (page: number) => {
+  pagination.current = page;
   fetchKeyList();
-});
+};
+const handleChangePageSize = (pageSize: number) => {
+  pagination.pageSize = pageSize;
+  pagination.current = 1;
+  fetchKeyList();
+};
+const showTotal = (total: number) => {
+  return `共 ${total} 条`;
+};
 </script>
 
 <style scoped lang="scss">

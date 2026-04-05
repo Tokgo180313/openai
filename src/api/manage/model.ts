@@ -34,10 +34,34 @@ const updateApiKeyInterface = function(param){
         data:param
     })
 }
+const findOpenaiModelListInterface = function(param){
+    return request({
+        url:"/model/openaiModelList",
+        method:"get",
+        params:param
+    })
+}
+const enableModelInterface = function(param){
+    return request({
+        url:"/model/enableById",
+        method:"put",
+        params:param
+    })
+}
+const disableModelInterface = function(param){
+    return request({
+        url:"/model/disableById",
+        method:"put",
+        params:param
+    })
+}
 export default{
     findModelListInterface,
     addModelInterface,
     deleteModelInterface,
     findModelClassifyListInterface,
     updateApiKeyInterface,
+    findOpenaiModelListInterface,
+    enableModelInterface,
+    disableModelInterface,
 }
