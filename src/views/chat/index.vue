@@ -152,7 +152,10 @@ const submitEvent = function (event: KeyboardEvent) {
   const { code, shiftKey } = event;
   if (code !== "Enter") return;
   // 输入法组合态下 Enter 用于上屏，不拦截
-  if (event.isComposing || (event as KeyboardEvent & { keyCode?: number }).keyCode === 229) {
+  if (
+    event.isComposing ||
+    (event as KeyboardEvent & { keyCode?: number }).keyCode === 229
+  ) {
     return;
   }
   if (!shiftKey) {
@@ -221,38 +224,7 @@ const sendMessageEvent = () => {
     content: content,
   });
   clearInputData();
-  generateContentStreamImpl(param)
-  // if (modelStore.getCurrentModelClassify.toLowerCase() == "deepseek") {
-  //   streamChat({
-  //     id: documentId.value,
-  //     titleId: messageId.value,
-  //     question: {
-  //       ...param,
-  //       useModel: modelStore.getCurrentModel,
-  //       modelClassify: modelStore.getCurrentModelClassify,
-  //     },
-  //     list: [param],
-  //   });
-  // } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
-  //   geminichat({
-  //     id: documentId.value,
-  //     titleId: messageId.value,
-  //     question: {
-  //       ...param,
-  //       useModel: modelStore.getCurrentModel,
-  //       modelClassify: modelStore.getCurrentModelClassify,
-  //     },
-  //     list: [param],
-  //   });
-  // } else if (modelStore.getCurrentModelClassify.toLowerCase() == "chatgpt") {
-  //   chatgptchat({
-  //     id: documentId.value,
-  //     titleId: messageId.value,
-  //     question: {
-  //       ...param,
-  //     },
-  //   });
-  // }
+  generateContentStreamImpl(param);
 };
 const generateContentStreamImpl = (param: MessageType) => {
   // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
@@ -285,74 +257,167 @@ const generateContentStreamImpl = (param: MessageType) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
-      // SSE frame: data: ... \n\n
       let buffer = "";
       let streamFinished = false;
+      /** 当前 SSE 事件内多行 data: 的片段（空行表示事件结束） */
+      const eventDataParts: string[] = [];
 
       const extractContent = (payload: unknown): string | null => {
         if (typeof payload === "string") return payload;
         if (!payload || typeof payload !== "object") return null;
 
-        const p = payload as any;
-        const direct = p?.content ?? p?.text ?? p?.data?.content;
-        if (typeof direct === "string") return direct;
+        const p = payload as Record<string, unknown>;
+        const pickFrom = (obj: Record<string, unknown>, ...keys: string[]) => {
+          for (const k of keys) {
+            const v = obj[k];
+            if (typeof v === "string") return v;
+          }
+          return null;
+        };
 
-        const deltaContent =
-          p?.delta?.content ??
-          p?.delta ??
-          p?.choices?.[0]?.delta?.content ??
-          p?.choices?.[0]?.text;
-        return typeof deltaContent === "string" ? deltaContent : null;
+        const nested = p.data;
+        if (nested && typeof nested === "object") {
+          const d = nested as Record<string, unknown>;
+          const fromData = pickFrom(
+            d,
+            "content",
+            "text",
+            "message",
+            "answer",
+            "result",
+          );
+          if (fromData) return fromData;
+        }
+
+        const direct = pickFrom(
+          p,
+          "content",
+          "text",
+          "message",
+          "answer",
+          "result",
+        );
+        if (direct) return direct;
+
+        const delta = p.delta as Record<string, unknown> | undefined;
+        if (delta) {
+          const dc = delta.content ?? delta.text;
+          if (typeof dc === "string") return dc;
+        }
+
+        const choices = p.choices as unknown[] | undefined;
+        const c0 = choices?.[0] as Record<string, unknown> | undefined;
+        if (c0) {
+          const t = c0.text;
+          if (typeof t === "string") return t;
+          const d = c0.delta as Record<string, unknown> | undefined;
+          if (d) {
+            const dc = d.content ?? d.text;
+            if (typeof dc === "string") return dc as string;
+          }
+          const msg = c0.message as Record<string, unknown> | undefined;
+          const mc = msg?.content;
+          if (typeof mc === "string") return mc;
+        }
+
+        return null;
+      };
+
+      const flushSseEvent = () => {
+        if (eventDataParts.length === 0) return;
+        const dataStr = eventDataParts.join("\n").trim();
+        eventDataParts.length = 0;
+        if (dataStr === "[DONE]") {
+          streamFinished = true;
+          return;
+        }
+        try {
+          const parsed = JSON.parse(dataStr) as unknown;
+          const piece = extractContent(parsed);
+          if (piece) markdownContent.value += piece;
+        } catch {
+          markdownContent.value += dataStr;
+        }
+      };
+
+      const processLine = (lineRaw: string) => {
+        const line = lineRaw.replace(/\r$/, "");
+        if (line === "") {
+          flushSseEvent();
+          return;
+        }
+        if (line.startsWith("data:")) {
+          const payload = line.slice(5).trimStart();
+          if (payload === "[DONE]") {
+            streamFinished = true;
+            return;
+          }
+          // 很多后端只发 `data: {...}\n`，没有空行结束事件；能解析则直接当一条消息处理
+          try {
+            const parsed = JSON.parse(payload) as unknown;
+            const piece = extractContent(parsed);
+            if (piece) {
+              markdownContent.value += piece;
+              return;
+            }
+          } catch {
+            /* 非单行 JSON，等多行拼完或等空行再 flush */
+          }
+          eventDataParts.push(payload);
+        }
+      };
+
+      const drainBufferLines = (flushTail: boolean) => {
+        while (true) {
+          const nl = buffer.indexOf("\n");
+          if (nl === -1) break;
+          const line = buffer.slice(0, nl);
+          buffer = buffer.slice(nl + 1);
+          processLine(line);
+        }
+        if (flushTail && buffer.length > 0) {
+          processLine(buffer);
+          buffer = "";
+        }
       };
 
       while (!streamFinished) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (value) {
+          buffer += decoder
+            .decode(value, { stream: true })
+            .replace(/\r\n/g, "\n");
+          drainBufferLines(false);
+        }
+        if (done) {
+          buffer += decoder.decode();
+          drainBufferLines(true);
+          flushSseEvent();
+          break;
+        }
+      }
 
-        // 兼容服务端使用 `\r\n` 作为 SSE 分隔符
-        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-
-        // 以空行分隔 SSE message frame
-        let boundaryIndex = buffer.indexOf("\n\n");
-        while (boundaryIndex !== -1) {
-          const frame = buffer.slice(0, boundaryIndex);
-          buffer = buffer.slice(boundaryIndex + 2);
-
-          const lines = frame
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean);
-
-          const dataLines: string[] = [];
-          for (const line of lines) {
-            if (line.startsWith("data:")) {
-              dataLines.push(line.slice(5).trim());
-            }
-          }
-
-          if (dataLines.length === 0) {
-            boundaryIndex = buffer.indexOf("\n\n");
-            continue;
-          }
-
-          const dataStr = dataLines.join("\n").trim();
-          if (dataStr === "[DONE]") {
-            streamFinished = true;
-            break;
-          }
-
+      // 非 SSE：整段为 JSON 或纯文本时，上面可能未命中 data: 行
+      if (!markdownContent.value.trim() && buffer.trim()) {
+        const tail = buffer.trim();
+        if (tail.startsWith("{") || tail.startsWith("[")) {
           try {
-            const parsed = JSON.parse(dataStr);
+            const parsed = JSON.parse(tail) as unknown;
             const piece = extractContent(parsed);
             if (piece) markdownContent.value += piece;
           } catch {
-            // 服务端如果不是 JSON，就按纯文本直接拼
-            markdownContent.value += dataStr;
+            markdownContent.value += tail;
           }
-
-          boundaryIndex = buffer.indexOf("\n\n");
+        } else if (tail) {
+          markdownContent.value += tail;
         }
       }
+
+      nextTick(() => {
+        if (markdownContent.value.trim()) {
+          saveResponse();
+        }
+      });
     } catch (err) {
       console.error(err);
       message.error("流式响应失败，请稍后重试");
@@ -367,7 +432,7 @@ const chatgptchat = async (param) => {
     .then((res) => {
       if (res.code == 200) {
         markdownContentList.value.push({
-          role: "assistant",  
+          role: "assistant",
           content: res.data.content,
         });
       }
