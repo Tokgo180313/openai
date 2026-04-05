@@ -148,13 +148,16 @@ onUnmounted(() => {
     textContent.removeEventListener("paste", patseImageEvent);
   }
 });
-const submitEvent = function (event) {
-  const { code, isComposing, shiftKey } = event;
-  if (code === "Enter") {
-    if (!shiftKey) {
-      // enter 事件
-      sendMessageEvent();
-    }
+const submitEvent = function (event: KeyboardEvent) {
+  const { code, shiftKey } = event;
+  if (code !== "Enter") return;
+  // 输入法组合态下 Enter 用于上屏，不拦截
+  if (event.isComposing || (event as KeyboardEvent & { keyCode?: number }).keyCode === 229) {
+    return;
+  }
+  if (!shiftKey) {
+    event.preventDefault();
+    sendMessageEvent();
   }
 };
 const handleEnterEvent = function () {
