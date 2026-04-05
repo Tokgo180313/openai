@@ -16,7 +16,6 @@ import {
   ContentSchema,
 } from 'src/schemas/content/content.schema';
 import { MessageDto } from './dto/MessageDto';
-import { QuestionDto } from './dto/question.dto';
 import { ChatDto } from './dto/chat.dto';
 import {
   ChatTitle,
@@ -63,58 +62,6 @@ export class ChatService {
       throw new Error('GEMINI_API_KEY is not set');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
-  }
-  public async completionFunction(
-    id: string,
-    titleId: string,
-    question: QuestionDto,
-    list: OpenAI.ChatCompletionMessageParam[],
-    token: string,
-  ) {
-    try {
-      const questionEntity: ContentEntity = {
-        documentId: id,
-        useModel: 'deepseek-chat',
-        role: question.role,
-        content: question.content,
-      };
-      // console.log(questionEntity, list);
-
-      const questionInfo = new this.contentSchema(questionEntity);
-      await questionInfo.save();
-      const openai = new OpenAI({
-        baseURL: 'https://api.deepseek.com',
-        apiKey: this.configService.get('VUE_APP_API_KEY'),
-      });
-      let response: OpenAI.ChatCompletion =
-        await openai.chat.completions.create({
-          messages: list,
-          model: 'deepseek-chat',
-        });
-      let contentEntity: ContentEntity = {
-        documentId: id,
-        useModel: response.model,
-        role: response.choices[0].message.role,
-        content: response.choices[0].message.content || '',
-      };
-      // console.log(contentEntity);
-      const responseInfo = new this.contentSchema(contentEntity);
-      await responseInfo.save();
-      if (titleId) {
-        this.updateChatTitle(titleId);
-      } else {
-        this.addChatTitle(
-          { documentId: id, keywordText: question.content },
-          token,
-        );
-      }
-      return contentEntity;
-      //   return contentEntity;
-    } catch (error) {
-      console.error(error);
-
-      throw new Error(error.messages);
-    }
   }
   public async chatByChatgpt(messageDto: MessageDto, token: string) {
     try {

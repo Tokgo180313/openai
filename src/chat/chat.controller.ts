@@ -23,21 +23,6 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
-  @Post('/deepseek')
-  async chatByDeepSeek(@Body() messageDto: MessageDto, @Token() token: string) {
-    if (messageDto) {
-      return await this.chatService.completionFunction(
-        messageDto.id,
-        messageDto.titleId,
-        messageDto.question,
-        messageDto.list,
-        token,
-      );
-    } else {
-      return null;
-    }
-  }
-
   @Post('/chatgpt')
   async chatByChatgpt(
     @Body() messageDto: MessageDto,

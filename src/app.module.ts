@@ -18,6 +18,7 @@ import { RecordModule } from './record/record.module';
 import { RoleModule } from './role/role.module';
 import { CommonModule } from './common/common.module';
 import { UsageModule } from './usage/usage.module';
+import { KeyModule } from './key/key.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -34,6 +35,7 @@ import { UsageModule } from './usage/usage.module';
     RoleModule,
     CommonModule,
     UsageModule,
+    KeyModule,
   ],
   controllers: [AppController],
   providers: [
