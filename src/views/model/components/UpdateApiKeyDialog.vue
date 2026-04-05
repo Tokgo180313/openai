@@ -1,13 +1,13 @@
 <template>
-    <a-modal v-model:open="open" title="更新ApiKey" @ok="handleSubmit" @cancel="handleClose" ok-text="确认" cancel-text="取消">
+    <a-modal v-model:open="open" title="更新modelName" @ok="handleSubmit" @cancel="handleClose" ok-text="确认" cancel-text="取消">
         <a-form :model="submitForm" :rules="rules" ref="formRef">
             <a-form-item label="模型分类" name="modelClassify">
                 <a-select v-model:value="submitForm.modelClassify" placeholder="请选择模型名称">
                     <a-select-option v-for="item in modelClassifyList" :key="item">{{ item }}</a-select-option>
                 </a-select>
             </a-form-item>
-            <a-form-item label="ApiKey" name="apiKey">
-                <a-input v-model:value="submitForm.apiKey" />
+            <a-form-item label="模型名称" name="modelName">
+                <a-input v-model:value="submitForm.modelName" />
             </a-form-item>
         </a-form>
     </a-modal>
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import api from "@/api/apiList";
-let { updateApiKeyInterface } = api;
+let { updatemodelNameInterface } = api;
 import { message } from "ant-design-vue";
 import { useModelStore } from "@/stores/modelStore";
 const modelStore = useModelStore();
@@ -32,19 +32,19 @@ const handleClose = () => {
     emits("close");
 };
 interface FormType {
-    apiKey: string;
+    modelName: string;
     modelClassify: string;
 }
 const submitForm = ref<FormType>({
-    apiKey: "",
+    modelName: "",
     modelClassify: "",
 });
 const rules = {
-    apiKey: [{ required: true, message: "请输入ApiKey", trigger: "blur" }],
+    modelName: [{ required: true, message: "请输入modelName", trigger: "blur" }],
     modelClassify: [{ required: true, message: "请选择模型分类", trigger: "blur" }],
 };
 const handleSubmit = () => {
-    updateApiKeyInterface(submitForm.value).then((res) => {
+    updatemodelNameInterface(submitForm.value).then((res) => {
         if (res.code === 201) {
             handleClose();
             resetForm();
@@ -56,7 +56,7 @@ const handleSubmit = () => {
 };
 const resetForm = () => {
   submitForm.value = {
-    apiKey: "",
+    modelName: "",
   };
 };
 </script>

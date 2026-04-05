@@ -96,10 +96,19 @@ const handleSearch = () => {
   getModelList();
 };
 const getModelList = async () => {
-  const res = await findModelListInterface();
+  const dto = {
+    modelName: searchForm.modelName || undefined,
+    modelClassify: searchForm.modelClassify || undefined,
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  };
+  const res = await findModelListInterface(dto);
   if (res.code === 201) {
-    modelList.value = res.data;
-    pagination.total = res.data.length;
+    modelList.value = res.data.list || res.data || [];
+    pagination.total = res.data.total;
+  } else {
+    modelList.value = [];
+    pagination.total = 0;
   }
 };
 onMounted(() => {

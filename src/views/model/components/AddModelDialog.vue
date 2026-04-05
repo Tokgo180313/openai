@@ -7,9 +7,6 @@
       <a-form-item label="模型分类" name="modelClassify">
         <a-input v-model:value="submitForm.modelClassify"></a-input>
       </a-form-item>
-      <a-form-item label="API Key" name="apiKey">
-        <a-input-password v-model:value="submitForm.apiKey"></a-input-password>
-      </a-form-item>
     </a-form>
   </a-modal>
 </template>
@@ -31,19 +28,16 @@ const props = defineProps<PropsType>();
 interface submitFormType {
   modelName: string;
   modelClassify: string;
-  apiKey: string;
 }
 const submitForm = ref<submitFormType>({
   modelName: null,
   modelClassify: null,
-  apiKey: null,
 });
 const formRules = ref({
   modelName: [{ required: true, message: "请输入模型名称", trigger: "blur" }],
   modelClassify: [
     { required: true, message: "请输入模型分类", trigger: "blur" },
   ],
-  apiKey: [{ required: true, message: "请输入API Key", trigger: "blur" }],
 });
 const handleSubmit = () => {
   addModelInterface(submitForm.value).then((res) => {
@@ -60,7 +54,6 @@ const resetForm = () => {
   submitForm.value = {
     modelName: null,
     modelClassify: null,
-    apiKey: null,
   };
 };
 </script>
