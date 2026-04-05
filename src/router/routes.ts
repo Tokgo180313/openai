@@ -86,6 +86,16 @@ const routes: RouteRecordRaw[] = [
           icon: "iconfont icon-role",
         },
       },
+      {
+        path: "/key",
+        name: "/key",
+        title: "Key管理",
+        component: () => import("@/views/key/index.vue"),
+        meta: {
+          title: "Key管理",
+          icon: "iconfont icon-keyguanli",
+        },
+      },
     ],
     meta: {
       title: "用户管理",

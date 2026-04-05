@@ -106,17 +106,12 @@ import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { nanoid } from "nanoid";
 import { MessageItem } from "../../types/messageItem.type";
+import { MessageType } from "../../types/message.type";
 let messageItemList = ref<MessageItem[]>([]);
 import { useModelStore } from "@/stores/modelStore";
 const modelStore = useModelStore();
-const {
-  chatDeepSeekInterface,
-  chatListInterface,
-  streamSaveResponseInterface,
-  chatGeminiInterface,
-  streamGeminiInterface,
-  streamChatgptInterface,
-} = api;
+const { chatListInterface, streamSaveResponseInterface, chatChatgptInterface } =
+  api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
 const disabledSendBtn = computed(() => {
@@ -211,64 +206,166 @@ const sendMessageEvent = () => {
   }
   const content = document.querySelector("[contenteditable]")?.innerText;
   const param = {
+    prompt: content,
+    model: modelStore.getCurrentModel,
+    modelClassify: modelStore.getCurrentModelClassify,
+    baseURL: import.meta.env.VITE_APP_BASIC_URL,
+    titleId: messageId.value,
+    documentId: documentId.value,
+  };
+  markdownContentList.value.push({
     role: "user",
     content: content,
-  };
-  markdownContentList.value.push(param);
+  });
   clearInputData();
-  if (modelStore.getCurrentModelClassify.toLowerCase() == "deepseek") {
-    streamChat({
-      id: documentId.value,
-      titleId: messageId.value,
-      question: {
-        ...param,
-        useModel: modelStore.getCurrentModel,
-        modelClassify: modelStore.getCurrentModelClassify,
-      },
-      list: [param],
-    });
-  } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
-    geminichat({
-      id: documentId.value,
-      titleId: messageId.value,
-      question: {
-        ...param,
-        useModel: modelStore.getCurrentModel,
-        modelClassify: modelStore.getCurrentModelClassify,
-      },
-      list: [param],
-    });
-  } else if (modelStore.getCurrentModelClassify.toLowerCase() == "chatgpt") {
-    chatgptchat({
-      id: documentId.value,
-      titleId: messageId.value,
-      question: {
-        ...param,
-      },
-    });
-  }
+  generateContentStreamImpl(param)
+  // if (modelStore.getCurrentModelClassify.toLowerCase() == "deepseek") {
+  //   streamChat({
+  //     id: documentId.value,
+  //     titleId: messageId.value,
+  //     question: {
+  //       ...param,
+  //       useModel: modelStore.getCurrentModel,
+  //       modelClassify: modelStore.getCurrentModelClassify,
+  //     },
+  //     list: [param],
+  //   });
+  // } else if (modelStore.getCurrentModelClassify.toLowerCase() == "gemini") {
+  //   geminichat({
+  //     id: documentId.value,
+  //     titleId: messageId.value,
+  //     question: {
+  //       ...param,
+  //       useModel: modelStore.getCurrentModel,
+  //       modelClassify: modelStore.getCurrentModelClassify,
+  //     },
+  //     list: [param],
+  //   });
+  // } else if (modelStore.getCurrentModelClassify.toLowerCase() == "chatgpt") {
+  //   chatgptchat({
+  //     id: documentId.value,
+  //     titleId: messageId.value,
+  //     question: {
+  //       ...param,
+  //     },
+  //   });
+  // }
 };
-const geminichat = async (param) => {
-  streamGeminiInterface(param)
-    .then((res) => {
-      if (res.code == 200) {
-        markdownContentList.value.push({
-          role: "assistant",
-          content: res.data.answer,
-        });
+const generateContentStreamImpl = (param: MessageType) => {
+  // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
+  // （axios 的封装通常不会以流式方式暴露数据流）
+  const run = async () => {
+    try {
+      markdownContent.value = "";
+
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_BASIC_URL}/stream/generateContentStream`,
+        {
+          method: "post",
+          headers: {
+            "Content-Type": "application/json",
+            accept: "text/event-stream",
+            Authorization: `Bearer ${sessionStorage.getItem("access_token")}`,
+          },
+          body: JSON.stringify(param),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Stream request failed: ${response.status}`);
       }
-    })
-    .catch((err) => {
+
+      if (!response.body) {
+        throw new Error("Stream response has no body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      // SSE frame: data: ... \n\n
+      let buffer = "";
+      let streamFinished = false;
+
+      const extractContent = (payload: unknown): string | null => {
+        if (typeof payload === "string") return payload;
+        if (!payload || typeof payload !== "object") return null;
+
+        const p = payload as any;
+        const direct = p?.content ?? p?.text ?? p?.data?.content;
+        if (typeof direct === "string") return direct;
+
+        const deltaContent =
+          p?.delta?.content ??
+          p?.delta ??
+          p?.choices?.[0]?.delta?.content ??
+          p?.choices?.[0]?.text;
+        return typeof deltaContent === "string" ? deltaContent : null;
+      };
+
+      while (!streamFinished) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // 兼容服务端使用 `\r\n` 作为 SSE 分隔符
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+
+        // 以空行分隔 SSE message frame
+        let boundaryIndex = buffer.indexOf("\n\n");
+        while (boundaryIndex !== -1) {
+          const frame = buffer.slice(0, boundaryIndex);
+          buffer = buffer.slice(boundaryIndex + 2);
+
+          const lines = frame
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean);
+
+          const dataLines: string[] = [];
+          for (const line of lines) {
+            if (line.startsWith("data:")) {
+              dataLines.push(line.slice(5).trim());
+            }
+          }
+
+          if (dataLines.length === 0) {
+            boundaryIndex = buffer.indexOf("\n\n");
+            continue;
+          }
+
+          const dataStr = dataLines.join("\n").trim();
+          if (dataStr === "[DONE]") {
+            streamFinished = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            const piece = extractContent(parsed);
+            if (piece) markdownContent.value += piece;
+          } catch {
+            // 服务端如果不是 JSON，就按纯文本直接拼
+            markdownContent.value += dataStr;
+          }
+
+          boundaryIndex = buffer.indexOf("\n\n");
+        }
+      }
+    } catch (err) {
       console.error(err);
-    });
+      message.error("流式响应失败，请稍后重试");
+    }
+  };
+
+  void run();
 };
+
 const chatgptchat = async (param) => {
-  streamChatgptInterface(param)
+  chatChatgptInterface(param)
     .then((res) => {
       if (res.code == 200) {
         markdownContentList.value.push({
           role: "assistant",  
-          content: res.data.answer,
+          content: res.data.content,
         });
       }
     })
@@ -320,7 +417,7 @@ const streamChat = async (param) => {
     saveResponse();
   });
 };
-const saveResponse = (value: string) => {
+const saveResponse = () => {
   streamSaveResponseInterface({
     documentId: documentId.value,
     useModel: modelStore.getCurrentModel,

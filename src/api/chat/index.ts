@@ -14,6 +14,13 @@ const chatGeminiInterface = function (param) {
     data: param,
   });
 };
+const chatChatgptInterface = function (param) {
+  return request({
+    url: "/chat/chatgpt",
+    method: "post",
+    data: param,
+  });
+};
 const chatTitleListInterface = function (param) {
   return request({
     url: "/chat/titleList",
@@ -72,4 +79,5 @@ export default {
   removeChatInterface,
   streamGeminiInterface,
   streamChatgptInterface,
+  chatChatgptInterface
 };

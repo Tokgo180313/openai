@@ -3,10 +3,12 @@ import record from "./record.ts"
 import model from "./model.ts"
 import role from "./role.ts"
 import usage from "./usage.ts"
+import key from "./key.ts"
 export default {
     ...user,
     ...record,
     ...model,
     ...role,
-    ...usage
+    ...usage,
+    ...key
 }
