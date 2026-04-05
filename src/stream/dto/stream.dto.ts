@@ -5,7 +5,7 @@ export class StreamMessageDto {
   modelClassify?: string;
   role?: string;
   id?: string;
-  titleId?: string;
-  documentId?: string;
-  userId?: string;
+  titleId: string;
+  documentId: string;
+  userId: string;
 }

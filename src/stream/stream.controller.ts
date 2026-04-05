@@ -25,8 +25,6 @@ export class StreamController {
     @CurrentUser('id') userId: string,
   ) {
     streamDto.userId = userId;
-    console.log('generateContentStream streamDto:', streamDto);
-
     // Server-Sent Events（text/event-stream）
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -34,13 +32,15 @@ export class StreamController {
     res.setHeader('X-Accel-Buffering', 'no');
 
     try {
+      let responseContent = '';
       for await (const chunk of this.streamService.streamGenerateContentByOpenAI(streamDto)) {
+        responseContent += chunk;
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      await this.streamService.saveResponse(responseContent, streamDto.model, streamDto.documentId);
       res.end();
     } catch (error) {
-      console.error('generateContentStream error:', error, 'userId:', userId);
       if (!res.headersSent) {
         res.status(500).end();
       } else {

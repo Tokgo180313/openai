@@ -287,6 +287,7 @@ export class ChatService {
     return await new this.chatTitleSchema(chatEntity).save();
   }
 
+
   /**
    * 根据ID查找聊天
    * @param id
@@ -367,5 +368,12 @@ export class ChatService {
     } catch (error) {
       throw new BadRequestException(error);
     }
+  }
+
+  public async addNewTitle(chatEntity: ChatEntity){
+    return await new this.chatTitleSchema(chatEntity).save();
+  }
+  public async addNewContent(content: ContentEntity){
+    return await new this.contentSchema(content).save();
   }
 }

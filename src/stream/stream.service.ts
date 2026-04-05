@@ -13,7 +13,9 @@ import {
   normalizeOpenAIBaseURL,
   OPENAI_DEFAULT_BASE_URL,
 } from 'src/common/utils/openai-base-url.util';
-
+import { ChatService } from 'src/chat/chat.service';
+import { ChatEntity } from 'src/chat/entity/Chat.entity';
+import { ContentEntity } from 'src/chat/entity/ContentEntity';
 @Injectable()
 export class StreamService {
   private genAI: GoogleGenerativeAI;
@@ -22,6 +24,7 @@ export class StreamService {
     private configService: ConfigService,
     private readonly keyService: KeyService,
     private readonly encryptionService: EncryptionService,
+    private readonly chatService: ChatService,
   ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -42,8 +45,6 @@ export class StreamService {
     if (!prompt) {
       throw new BadRequestException('prompt is required');
     }
-    console.log(dto);
-
     const modelClassify = String(dto?.modelClassify ?? '').trim();
     if (!modelClassify) {
       throw new BadRequestException('modelClassify is required');
@@ -69,11 +70,9 @@ export class StreamService {
       throw new BadRequestException('failed to decrypt stored apiKey');
     }
 
-    const baseURL =
-      normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
+    const baseURL = normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
 
-    const model =
-      String(dto?.model ?? '').trim() || 'gpt-4o-mini';
+    const model = String(dto?.model ?? '').trim() || 'gpt-4o-mini';
 
     const openai = new OpenAI({ apiKey, baseURL });
 
@@ -82,7 +81,8 @@ export class StreamService {
       role === 'system' || role === 'assistant' || role === 'user'
         ? role
         : 'user';
-
+    // 保存请求
+    await this.saveRequest(prompt, model,dto.userId, dto.titleId, dto.documentId);
     const stream = await openai.chat.completions.create({
       model,
       messages: [{ role: safeRole as any, content: prompt }],
@@ -95,5 +95,36 @@ export class StreamService {
         yield piece;
       }
     }
+  }
+
+  public async saveRequest(prompt: string, model: string, userId: string, titleId: string, documentId: string) {
+    if (!titleId) {    
+      let chatEntity = new ChatEntity({
+        userId: userId,
+        documentId: documentId,
+        title: prompt ,
+      });
+      await this.chatService.addNewTitle(chatEntity);
+    }
+    const content: ContentEntity = {
+      role: 'user',
+      content: prompt,
+      useModel: model,
+      documentId: documentId,
+    };
+    await this.chatService.addNewContent(content);
+  }
+  public async saveResponse(
+    response: string,
+    model: string,
+    documentId: string,
+  ) {
+    const content: ContentEntity = {
+      role: 'assistant',
+      content: response,
+      useModel: model,
+      documentId: documentId,
+    };
+    await this.chatService.addNewContent(content);
   }
 }

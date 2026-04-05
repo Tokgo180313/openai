@@ -4,9 +4,10 @@ import { StreamController } from './stream.controller';
 import { StreamService } from './stream.service';
 import { ConfigModule } from '@nestjs/config';
 import { KeyModule } from 'src/key/key.module';
+import { ChatModule } from 'src/chat/chat.module';
 
 @Module({
-  imports: [ConfigModule, JwtModule, KeyModule],
+  imports: [ConfigModule, JwtModule, KeyModule, ChatModule],
   controllers: [StreamController],
   providers: [StreamService],
   exports: [StreamService],
