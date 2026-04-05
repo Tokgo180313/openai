@@ -53,6 +53,9 @@ const formRules = {
   modelClassify: [
     { required: true, message: "请输入模型分类", trigger: "blur" },
   ],
+  baseURL: [
+    { required: true, message: "请输入BaseURL", trigger: "blur" },
+  ],
   // baseURL 允许为空（后端按空值处理）
   apiKey: [{ required: true, message: "请输入ApiKey", trigger: "blur" }],
 };
