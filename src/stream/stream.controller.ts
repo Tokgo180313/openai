@@ -27,19 +27,28 @@ export class StreamController {
     streamDto.userId = userId;
     console.log('generateContentStream streamDto:', streamDto);
 
-    // 设置响应头，告知客户端这是一个流式响应
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
+    // Server-Sent Events（text/event-stream）
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     try {
       for await (const chunk of this.streamService.streamGenerateContentByOpenAI(streamDto)) {
-        // 直接写回增量文本
-        res.write(chunk);
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
       console.error('generateContentStream error:', error, 'userId:', userId);
-      res.status(500).end();
+      if (!res.headersSent) {
+        res.status(500).end();
+      } else {
+        const message =
+          error instanceof Error ? error.message : 'stream failed';
+        res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+        res.end();
+      }
     }
   }
 }

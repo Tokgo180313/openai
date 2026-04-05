@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Injectable,
-  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ConfigService } from '@nestjs/config';
 import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
+import { EncryptionService } from 'src/common/utils/encryption.service';
+import { KeyService } from 'src/key/key.service';
 import { StreamMessageDto } from './dto/stream.dto';
 
 /** OpenAI SDK 会在 baseURL 后拼接 `/chat/completions`；若 OPENAI_BASE_URL 已含该路径会导致 404。 */
@@ -26,7 +28,11 @@ const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 export class StreamService {
   private genAI: GoogleGenerativeAI;
   private model: GenerativeModel;
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private readonly keyService: KeyService,
+    private readonly encryptionService: EncryptionService,
+  ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     // 仅在配置了 Gemini 时初始化；这样当只走 OpenAI 路由时不会因为缺少 Gemini key 直接启动失败
@@ -46,22 +52,38 @@ export class StreamService {
     if (!prompt) {
       throw new BadRequestException('prompt is required');
     }
+    console.log(dto);
 
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    if (!apiKey) {
-      throw new InternalServerErrorException('OPENAI_API_KEY is not set');
+    const modelClassify = String(dto?.modelClassify ?? '').trim();
+    if (!modelClassify) {
+      throw new BadRequestException('modelClassify is required');
     }
 
-    const rawBase =
-      dto.baseURL ??
-      this.configService.get<string>('OPENAI_BASE_URL') ??
-      process.env['OPENAI_BASE_URL'];
+    const keyDoc = await this.keyService.findKeyByModelClassify(modelClassify);
+    if (!keyDoc?.apiKey) {
+      throw new NotFoundException(
+        `no api key configured for modelClassify: ${modelClassify}`,
+      );
+    }
+    const rawBase = String(keyDoc.baseURL ?? '').trim();
+    if (!rawBase) {
+      throw new NotFoundException(
+        `no baseURL configured for modelClassify: ${modelClassify}`,
+      );
+    }
+
+    let apiKey: string;
+    try {
+      apiKey = this.encryptionService.decrypt(keyDoc.apiKey);
+    } catch {
+      throw new BadRequestException('failed to decrypt stored apiKey');
+    }
+
     const baseURL =
       normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
 
     const model =
-      String(dto?.model ?? dto?.modelClassify ?? '').trim() ||
-      'gpt-4o-mini';
+      String(dto?.model ?? '').trim() || 'gpt-4o-mini';
 
     const openai = new OpenAI({ apiKey, baseURL });
 

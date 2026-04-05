@@ -26,6 +26,12 @@ export class KeyController {
     return await this.keyService.findKeyById(id);
   }
 
+  // 查：根据 modelClassify 查单条
+  @Get('/findKeyByModelClassify')
+  async findKeyByModelClassify(@Query('modelClassify') modelClassify: string) {
+    return await this.keyService.findKeyByModelClassify(modelClassify);
+  }
+
   // 删
   @Delete('/deleteById')
   async deleteById(@Query('id') id: string) {
