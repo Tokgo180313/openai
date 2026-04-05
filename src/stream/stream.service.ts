@@ -16,6 +16,16 @@ import {
 import { ChatService } from 'src/chat/chat.service';
 import { ChatEntity } from 'src/chat/entity/Chat.entity';
 import { ContentEntity } from 'src/chat/entity/ContentEntity';
+
+/** 流结束后由 streamGenerateContentByOpenAI 写入 OpenAI 返回的 usage（若网关支持） */
+export type StreamCompletionUsageOut = {
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+};
+
 @Injectable()
 export class StreamService {
   private genAI: GoogleGenerativeAI;
@@ -40,10 +50,15 @@ export class StreamService {
    */
   public async *streamGenerateContentByOpenAI(
     dto: StreamMessageDto,
+    usageOut?: StreamCompletionUsageOut,
   ): AsyncGenerator<string> {
     const prompt = String(dto?.prompt ?? '').trim();
     if (!prompt) {
       throw new BadRequestException('prompt is required');
+    }
+    const documentId = String(dto?.documentId ?? '').trim();
+    if (!documentId) {
+      throw new BadRequestException('documentId is required');
     }
     const modelClassify = String(dto?.modelClassify ?? '').trim();
     if (!modelClassify) {
@@ -76,20 +91,51 @@ export class StreamService {
 
     const openai = new OpenAI({ apiKey, baseURL });
 
-    const role = String(dto?.role ?? 'user').toLowerCase();
-    const safeRole =
-      role === 'system' || role === 'assistant' || role === 'user'
-        ? role
-        : 'user';
-    // 保存请求
-    await this.saveRequest(prompt, model,dto.userId, dto.titleId, dto.documentId);
+    const normalizeRole = (
+      role: string | undefined,
+    ): 'system' | 'assistant' | 'user' => {
+      const r = String(role ?? '').trim().toLowerCase();
+      if (r === 'system') return 'system';
+      if (r === 'assistant') return 'assistant';
+      return 'user';
+    };
+
+    // 先落库本轮用户消息，再按 documentId 拉全量会话拼 messages
+    await this.saveRequest(
+      prompt,
+      model,
+      dto.userId,
+      dto.titleId,
+      documentId,
+    );
+
+    const history = await this.chatService.chatList(documentId);
+    const messages: OpenAI.ChatCompletionMessageParam[] = history
+      .map((item) => ({
+        role: normalizeRole(item.role),
+        content: String(item.content ?? '').trim(),
+      }))
+      .filter((m) => !!m.content);
+
+    if (messages.length === 0) {
+      throw new BadRequestException('messages is empty');
+    }
+
     const stream = await openai.chat.completions.create({
       model,
-      messages: [{ role: safeRole as any, content: prompt }],
+      messages,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     for await (const chunk of stream) {
+      if (chunk.usage && usageOut) {
+        usageOut.usage = {
+          prompt_tokens: chunk.usage.prompt_tokens,
+          completion_tokens: chunk.usage.completion_tokens,
+          total_tokens: chunk.usage.total_tokens,
+        };
+      }
       const piece = chunk.choices[0]?.delta?.content;
       if (piece) {
         yield piece;

@@ -342,7 +342,10 @@ export class ChatService {
    * @param chatDto
    */
   public async chatList(id: string) {
-    return await this.contentSchema.find({ documentId: id }).exec();
+    return await this.contentSchema
+      .find({ documentId: id })
+      .sort({ createdAt: 1 })
+      .exec();
   }
 
   /**

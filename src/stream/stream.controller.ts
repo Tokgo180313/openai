@@ -7,16 +7,21 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { StreamService } from './stream.service';
+import { StreamCompletionUsageOut, StreamService } from './stream.service';
 import type { Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { StreamMessageDto } from './dto/stream.dto';
+import { UsageService } from 'src/usage/usage.service';
+
 @ApiTags('stream')
 @Controller('/stream')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access_token')
 export class StreamController {
-  constructor(private readonly streamService: StreamService) {}
+  constructor(
+    private readonly streamService: StreamService,
+    private readonly usageService: UsageService,
+  ) {}
 
   @Post('/generateContentStream')
   public async generateContentStream(
@@ -33,9 +38,30 @@ export class StreamController {
 
     try {
       let responseContent = '';
-      for await (const chunk of this.streamService.streamGenerateContentByOpenAI(streamDto)) {
+      const usageOut: StreamCompletionUsageOut = {};
+      for await (const chunk of this.streamService.streamGenerateContentByOpenAI(
+        streamDto,
+        usageOut,
+      )) {
         responseContent += chunk;
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+      if (usageOut.usage) {
+        try {
+          await this.usageService.addUsage(
+            {
+              modelName: streamDto.model,
+              modelClassify: streamDto.modelClassify,
+              promptTokens: usageOut.usage.prompt_tokens,
+              completionTokens: usageOut.usage.completion_tokens,
+              totalTokens: usageOut.usage.total_tokens,
+              description: `stream documentId=${streamDto.documentId ?? ''}`,
+            },
+            userId,
+          );
+        } catch (err) {
+          console.error('generateContentStream addUsage failed:', err);
+        }
       }
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       await this.streamService.saveResponse(responseContent, streamDto.model, streamDto.documentId);
