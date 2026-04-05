@@ -412,12 +412,6 @@ const generateContentStreamImpl = (param: MessageType) => {
           markdownContent.value += tail;
         }
       }
-
-      nextTick(() => {
-        if (markdownContent.value.trim()) {
-          saveResponse();
-        }
-      });
     } catch (err) {
       console.error(err);
       message.error("流式响应失败，请稍后重试");
