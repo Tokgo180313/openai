@@ -570,7 +570,7 @@ const refreshChatContnet = () => {
   chatListInterface(documentId.value).then((res) => {
     if (res.code === 200) {
       markdownContentList.value = res.data;
-      scrollToBottom();
+      scrollToBottom(false);
     }
   });
 };
@@ -654,9 +654,15 @@ const isAtBottom = () => {
 onMounted(() => {
   scrollToBottom(false);
 });
-watch([markdownContent, () => markdownContentList.value.length], () => {
+watch(markdownContent, () => {
   scrollToBottom(true);
 });
+watch(
+  () => markdownContentList.value.length,
+  () => {
+    scrollToBottom(false);
+  },
+);
 </script>
 
 <style scoped lang="scss">

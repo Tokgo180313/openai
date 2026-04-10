@@ -99,7 +99,9 @@
                   <span class="item-icon">
                     <i class="iconfont icon-shuxie1"></i
                   ></span>
-                  <span class="item-text">重命名</span>
+                  <span class="item-text" @click.stop="showRenameDialogEvent(item)"
+                    >重命名</span
+                  >
                 </p>
                 <p class="item" @click="RemoveChatEvent(item)">
                   <span class="item-icon"
@@ -177,6 +179,21 @@
       :visible="showUpdateNickNameDialog"
       @close-modal="closeUpdateNickNameDialog"
     />
+    <a-modal
+      :open="showRenameDialog"
+      title="重命名会话"
+      okText="确认"
+      cancelText="取消"
+      :confirm-loading="renameLoading"
+      @ok="confirmRenameEvent"
+      @cancel="closeRenameDialogEvent"
+    >
+      <a-input
+        v-model:value="renameTitle"
+        :maxlength="50"
+        placeholder="请输入新的标题"
+      />
+    </a-modal>
   </div>
 </template>
 
@@ -185,6 +202,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
 import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
+import { message } from "ant-design-vue";
 const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
 });
@@ -202,7 +220,7 @@ import { useEventsBus } from "../stores/event-bus";
 import { useChatStore } from "../stores/chatStore";
 import { nanoid } from "nanoid";
 import { useAuthStore } from "@/stores/authStore";
-const { chatTitleListInterface } = apiList;
+const { chatTitleListInterface, updateChatTitleInterface } = apiList;
 const PAGE_SIZE = 10;
 interface titleInfo {
   id: string;
@@ -382,6 +400,10 @@ const handleOpenChange = function (value) {
 const showRemoveChatVisible = ref(false);
 const removeChatTitleId = ref(null);
 const showUpdateNickNameDialog = ref(false);
+const showRenameDialog = ref(false);
+const renameLoading = ref(false);
+const renameTitle = ref("");
+const renameTitleId = ref("");
 const RemoveChatEvent = function (item) {
   showRemoveChatVisible.value = true;
   removeChatTitleId.value = item.id;
@@ -396,6 +418,58 @@ const updateListEvent = function () {
 };
 const showUserInfoEvent = function () {
   showUpdateNickNameDialog.value = true;
+};
+const showRenameDialogEvent = function (item: titleInfo) {
+  renameTitleId.value = item.id;
+  renameTitle.value = item.title || "";
+  showRenameDialog.value = true;
+  showContentItemIcon.value = null;
+  currentRow.value = null;
+};
+const closeRenameDialogEvent = function () {
+  showRenameDialog.value = false;
+  renameLoading.value = false;
+  renameTitleId.value = "";
+  renameTitle.value = "";
+};
+const updateTitleInList = function (id: string, title: string) {
+  titleList.value = titleList.value.map((item) =>
+    item.id === id ? { ...item, title } : item,
+  );
+  visibleTitleList.value = visibleTitleList.value.map((item) =>
+    item.id === id ? { ...item, title } : item,
+  );
+};
+const confirmRenameEvent = function () {
+  const title = renameTitle.value.trim();
+  if (!title) {
+    message.error("标题不能为空");
+    return;
+  }
+  if (!renameTitleId.value) {
+    message.error("缺少标题ID");
+    return;
+  }
+  renameLoading.value = true;
+  updateChatTitleInterface({
+    titleId: renameTitleId.value,
+    title,
+  })
+    .then((res) => {
+      if (res.code === 200 || res.code === 201) {
+        updateTitleInList(renameTitleId.value, title);
+        message.success(res.message || "重命名成功");
+        closeRenameDialogEvent();
+      } else {
+        message.error(res.message || "重命名失败");
+      }
+    })
+    .catch(() => {
+      message.error("重命名失败，请稍后重试");
+    })
+    .finally(() => {
+      renameLoading.value = false;
+    });
 };
 const closeUpdateNickNameDialog = function (value?: string) {
   if (value) {

@@ -69,6 +69,13 @@ const removeChatInterface = function (param) {
     params: param,
   });
 };
+const updateChatTitleInterface = function (param) {
+  return request({
+    url: "/chat/updateChatTitle",
+    method: "post",
+    data: param,
+  });
+};
 export default {
   chatDeepSeekInterface,
   chatGeminiInterface,
@@ -77,6 +84,7 @@ export default {
   streamDeepSeekInterface,
   streamSaveResponseInterface,
   removeChatInterface,
+  updateChatTitleInterface,
   streamGeminiInterface,
   streamChatgptInterface,
   chatChatgptInterface
