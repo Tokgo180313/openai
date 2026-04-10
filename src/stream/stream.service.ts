@@ -30,6 +30,8 @@ export type StreamCompletionUsageOut = {
 export class StreamService {
   private genAI: GoogleGenerativeAI;
   private model: GenerativeModel;
+  private readonly abortControllers = new Map<string, AbortController>();
+  private readonly stoppedKeys = new Set<string>();
   constructor(
     private configService: ConfigService,
     private readonly keyService: KeyService,
@@ -100,6 +102,11 @@ export class StreamService {
       return 'user';
     };
 
+    const streamKey = this.buildStreamKey(dto.userId, documentId);
+    this.stoppedKeys.delete(streamKey);
+    const abortController = new AbortController();
+    this.abortControllers.set(streamKey, abortController);
+
     // 先落库本轮用户消息，再按 documentId 拉全量会话拼 messages
     await this.saveRequest(
       prompt,
@@ -123,26 +130,66 @@ export class StreamService {
       throw new BadRequestException('messages is empty');
     }
 
-    const stream = await openai.chat.completions.create({
-      model,
-      messages,
-      stream: true,
-      stream_options: { include_usage: true },
-    });
+    try {
+      const stream = await openai.chat.completions.create(
+        {
+          model,
+          messages,
+          stream: true,
+          stream_options: { include_usage: true },
+        },
+        { signal: abortController.signal } as any,
+      );
 
-    for await (const chunk of stream) {
-      if (chunk.usage && usageOut) {
-        usageOut.usage = {
-          prompt_tokens: chunk.usage.prompt_tokens,
-          completion_tokens: chunk.usage.completion_tokens,
-          total_tokens: chunk.usage.total_tokens,
-        };
+      for await (const chunk of stream) {
+        if (this.stoppedKeys.has(streamKey)) {
+          break;
+        }
+        if (chunk.usage && usageOut) {
+          usageOut.usage = {
+            prompt_tokens: chunk.usage.prompt_tokens,
+            completion_tokens: chunk.usage.completion_tokens,
+            total_tokens: chunk.usage.total_tokens,
+          };
+        }
+        const piece = chunk.choices[0]?.delta?.content;
+        if (piece) {
+          yield piece;
+        }
       }
-      const piece = chunk.choices[0]?.delta?.content;
-      if (piece) {
-        yield piece;
+    } catch (error: any) {
+      if (abortController.signal.aborted || this.stoppedKeys.has(streamKey)) {
+        return;
       }
+      throw error;
+    } finally {
+      this.abortControllers.delete(streamKey);
     }
+  }
+
+  public stopStream(userId: string, documentId: string): boolean {
+    const streamKey = this.buildStreamKey(userId, documentId);
+    this.stoppedKeys.add(streamKey);
+    const controller = this.abortControllers.get(streamKey);
+    if (controller) {
+      controller.abort();
+      return true;
+    }
+    return false;
+  }
+
+  public clearStopped(userId: string, documentId: string): void {
+    const streamKey = this.buildStreamKey(userId, documentId);
+    this.stoppedKeys.delete(streamKey);
+  }
+
+  public isStopped(userId: string, documentId: string): boolean {
+    const streamKey = this.buildStreamKey(userId, documentId);
+    return this.stoppedKeys.has(streamKey);
+  }
+
+  private buildStreamKey(userId: string, documentId: string): string {
+    return `${userId}:${documentId}`;
   }
 
   public async saveRequest(

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Post,
@@ -38,6 +39,7 @@ export class StreamController {
 
     try {
       let responseContent = '';
+      let stopped = false;
       const usageOut: StreamCompletionUsageOut = {};
       for await (const chunk of this.streamService.streamGenerateContentByOpenAI(
         streamDto,
@@ -63,9 +65,17 @@ export class StreamController {
           console.error('generateContentStream addUsage failed:', err);
         }
       }
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-      await this.streamService.saveResponse(responseContent, streamDto.model, streamDto.documentId);
+      stopped = this.streamService.isStopped(userId, streamDto.documentId);
+      res.write(`data: ${JSON.stringify({ done: true, stopped })}\n\n`);
+      if (!stopped && responseContent) {
+        await this.streamService.saveResponse(
+          responseContent,
+          streamDto.model,
+          streamDto.documentId,
+        );
+      }
       res.end();
+      this.streamService.clearStopped(userId, streamDto.documentId);
     } catch (error) {
       if (!res.headersSent) {
         res.status(500).end();
@@ -76,5 +86,22 @@ export class StreamController {
         res.end();
       }
     }
+  }
+
+  @Post('/stopStream')
+  public async stopStream(
+    @Body('documentId') documentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const targetDocumentId = String(documentId ?? '').trim();
+    if (!targetDocumentId) {
+      throw new BadRequestException('documentId is required');
+    }
+    const stopped = this.streamService.stopStream(userId, targetDocumentId);
+    return {
+      success: true,
+      stopped,
+      documentId: targetDocumentId,
+    };
   }
 }
