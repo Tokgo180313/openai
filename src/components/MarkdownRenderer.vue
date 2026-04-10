@@ -1,6 +1,24 @@
 <template>
   <div class="markdown-container" :class="roleClass">
-    <div class="markdown-content"  v-html="processedContent"></div>
+    <div class="message-row">
+      <div class="message-avatar">
+        <i
+          class="iconfont"
+          :class="props.role === 'user' ? 'icon-fl-renyuan' : 'icon-gpt'"
+        ></i>
+      </div>
+      <div class="message-body">
+        <div class="markdown-content" v-html="processedContent"></div>
+        <div v-if="props.role === 'assistant' && props.content" class="assistant-actions">
+          <span class="action-btn" @click="copyMessageContent">
+            <i class="iconfont icon-fuzhi"></i>
+          </span>
+          <span class="action-btn" @click="downloadMessageContent">
+            <i class="iconfont icon-xiazai"></i>
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -216,6 +234,35 @@ const addCopyFunction = () => {
   }
 };
 
+const copyMessageContent = async () => {
+  if (!props.content) return;
+  try {
+    await navigator.clipboard.writeText(props.content);
+    message.success("内容已复制");
+  } catch (error) {
+    console.error("复制失败:", error);
+    message.error("复制失败");
+  }
+};
+
+const downloadMessageContent = () => {
+  if (!props.content) return;
+  try {
+    const blob = new Blob([props.content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `assistant-${Date.now()}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("下载失败:", error);
+    message.error("下载失败");
+  }
+};
+
 // 监听内容变化
 watch(() => props.content, processContent, { immediate: true });
 
@@ -226,13 +273,51 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .markdown-container {
+  display: flex;
   max-width: 100%;
+  width: 100%;
   word-wrap: break-word;
   line-height: 1.2;
+  margin: 10px 0;
+
+  .message-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+  }
+
+  .message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .message-body {
+    max-width: 100%;
+  }
 
   &.role-user {
-    text-align: right;
-    margin-left: auto;
+    justify-content: flex-end;
+    .message-row {
+      justify-content: flex-start;
+      flex-direction: row-reverse;
+      width: 100%;
+    }
+    .message-body {
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+    }
+    .message-avatar {
+      background-color: #f0f0f0;
+      color: #666;
+    }
     .message-role {
       display: inline-block;
       background-color: #f0f0f0;
@@ -251,23 +336,53 @@ onMounted(() => {
       padding: 0em 1em;
       border-radius: 8px;
       display: inline-block;
-      max-width: 85%;
+      max-width: 60%;
       text-align: left;
+      margin-left: auto;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       line-height: 1.4;
-      word-break: break-all; // 纯文本连续字符自动换行
-      white-space: normal; // 按正常规则换行显示
-      margin: 10px 0;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      white-space: normal;
     }
   }
 
   &.role-assistant {
-    text-align: left;
+    justify-content: flex-start;
+    .message-row {
+      justify-content: flex-start;
+      flex-direction: row;
+    }
+    .message-avatar {
+      background-color: #e6f7e6;
+      color: #2f7d32;
+    }
     .markdown-content {
       padding: 0;
       background: none;
       border: none;
       max-width: 100%;
+      text-align: left;
+    }
+    .assistant-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .action-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      cursor: pointer;
+    }
+    .action-btn:hover {
+      background-color: #f0f0f0;
+      color: #333;
     }
 
     .message-role {

@@ -4,7 +4,7 @@
       <div v-for="content in markdownContentList" :key="content.id" class="history-item">
         <MarkdownRenderer :content="content.content" :role="content.role" />
       </div>
-      <div class="current-content">
+      <div class="current-content" v-if="markdownContent!=''">
         <MarkdownRenderer
           :content="markdownContent"
           role="assistant"
