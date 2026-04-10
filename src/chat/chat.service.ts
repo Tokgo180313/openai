@@ -328,14 +328,24 @@ export class ChatService {
    * @param token
    * @returns
    */
-  public async chatTitleList(token: string) {
+  public async chatTitleList(token: string, page: number = 1) {
+    const pageSize = 10;
+    const currentPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const payload = await this.jwtService.verifyAsync(token, {
       secret: process.env.JWT_SECRET || 'my-secret-key',
     });
-    return await this.chatTitleSchema
+    const list = await this.chatTitleSchema
       .find({ userId: payload.sub })
       .sort({ updatedAt: -1 })
+      .skip((currentPage - 1) * pageSize)
+      .limit(pageSize)
       .exec();
+    return {
+      list,
+      page: currentPage,
+      pageSize,
+      hasMore: list.length === pageSize,
+    };
   }
   /**
    * 查找聊天列表

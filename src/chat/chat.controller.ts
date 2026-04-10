@@ -42,8 +42,8 @@ export class ChatController {
   }
 
   @Get('/titleList')
-  async chatTitleList(@Token() token: string) {
-    return await this.chatService.chatTitleList(token);
+  async chatTitleList(@Token() token: string, @Query('page') page?: string) {
+    return await this.chatService.chatTitleList(token, Number(page) || 1);
   }
 
   @Post('/addChatTitle')
