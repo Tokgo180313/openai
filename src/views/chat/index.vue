@@ -70,12 +70,17 @@
           </div>
           <div class="send-btn">
             <div
-              @click="sendMessageEvent"
-              :class="{ disabled: disabledSendBtn }"
+              @click="handleSendOrStopEvent"
+              :class="{ disabled: isSendDisabled }"
               class="send-btn-icon"
             >
               <i
-                class="iconfont icon-xiangshangjiantouquan-copy"
+                class="iconfont"
+                :class="
+                  isStreamingResponse
+                    ? 'icon-tingzhi1'
+                    : 'icon-xiangshangjiantouquan-copy'
+                "
                 style="font-size: 2.5em"
               ></i>
             </div>
@@ -113,8 +118,13 @@ const { chatListInterface, streamSaveResponseInterface, chatChatgptInterface } =
   api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
+const isStreamingResponse = ref(false);
+const streamAbortController = ref<AbortController | null>(null);
 const disabledSendBtn = computed(() => {
   return markdownInputContent.value.length === 0;
+});
+const isSendDisabled = computed(() => {
+  return !isStreamingResponse.value && disabledSendBtn.value;
 });
 // 只要输入框里存在任何字符（包括换行符）就隐藏 placeholder
 const isInputEmpty = computed(() => markdownInputContent.value.length === 0);
@@ -206,7 +216,7 @@ const clearInputData = () => {
   markdownInputContent.value = "";
 };
 const sendMessageEvent = () => {
-  if (disabledSendBtn.value) {
+  if (disabledSendBtn.value || isStreamingResponse.value) {
     return;
   }
   const content = document.querySelector("[contenteditable]")?.innerText;
@@ -226,10 +236,26 @@ const sendMessageEvent = () => {
   clearInputData();
   generateContentStreamImpl(param);
 };
+const stopMessageEvent = () => {
+  if (!isStreamingResponse.value) {
+    return;
+  }
+  streamAbortController.value?.abort();
+};
+const handleSendOrStopEvent = () => {
+  if (isStreamingResponse.value) {
+    stopMessageEvent();
+    return;
+  }
+  sendMessageEvent();
+};
 const generateContentStreamImpl = (param: MessageType) => {
   // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
   // （axios 的封装通常不会以流式方式暴露数据流）
   const run = async () => {
+    const controller = new AbortController();
+    streamAbortController.value = controller;
+    isStreamingResponse.value = true;
     try {
       markdownContent.value = "";
 
@@ -243,6 +269,7 @@ const generateContentStreamImpl = (param: MessageType) => {
             Authorization: `Bearer ${sessionStorage.getItem("access_token")}`,
           },
           body: JSON.stringify(param),
+          signal: controller.signal,
         },
       );
 
@@ -413,8 +440,15 @@ const generateContentStreamImpl = (param: MessageType) => {
         }
       }
     } catch (err) {
-      console.error(err);
-      message.error("流式响应失败，请稍后重试");
+      if ((err as Error).name === "AbortError") {
+        message.info("已停止生成");
+      } else {
+        console.error(err);
+        message.error("流式响应失败，请稍后重试");
+      }
+    } finally {
+      isStreamingResponse.value = false;
+      streamAbortController.value = null;
     }
   };
 
@@ -576,6 +610,7 @@ const refreshChatContnet = () => {
 };
 onUnmounted(() => {
   chatChageEvent();
+  streamAbortController.value?.abort();
 });
 const previewImages = ref<ImageItem[]>([]);
 const handleUploadSuccess = (files: any[]) => {
