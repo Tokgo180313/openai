@@ -33,11 +33,11 @@
     <div class="footer">
       <div class="operate-bar">
         <div class="chat-textbox">
-          <!-- <ImagePreview
-          :images="previewImages"
-          @remove="handleRemovePreviewImage"
-          @image-click="handleImageClick"
-        ></ImagePreview> -->
+          <ImagePreview
+            :items="previewItems"
+            v-if="previewItems.length > 0"
+            @remove="handleRemovePreviewItem"
+          ></ImagePreview>
           <div
             id="markdown-content"
             :class="['markdown-content', { 'is-empty': isInputEmpty }]"
@@ -53,10 +53,8 @@
               <template #content>
                 <p class="is-button">
                   <a-upload
-                    v-model:file-list="fileList"
-                    :action="baseUrl"
-                    list-type="picture"
-                    @preview="previewEvent"
+                    :show-upload-list="false"
+                    :before-upload="beforeUploadEvent"
                   >
                     <span class="is-icon">
                       <FileImageOutlined />
@@ -580,13 +578,7 @@ const handlePastedImage = function (file) {
   document.body.appendChild(img);
 };
 
-const imageList = ref([]);
-const baseUrl = ref(import.meta.env.VITE_APP_BASIC_URL);
-const previewEvent = function (p) {
-  console.log(p);
-};
-// 文件上传
-import type { ImageItem } from "../../components/ImagePreview.vue";
+import type { PreviewItem } from "../../components/ImagePreview.vue";
 import { useEventsBus } from "../../stores/event-bus";
 import { useChatStore } from "../../stores/chatStore";
 const chatStore = useChatStore();
@@ -611,45 +603,86 @@ const refreshChatContnet = () => {
 onUnmounted(() => {
   chatChageEvent();
   streamAbortController.value?.abort();
-});
-const previewImages = ref<ImageItem[]>([]);
-const handleUploadSuccess = (files: any[]) => {
-  console.log("上传成功", files);
-  files.forEach((file) => {
-    if (file.serverid) {
-      previewImages.value.push({
-        id: file.serverId,
-        url: file.serverId,
-        name: file.filename,
-      });
+  previewItems.value.forEach((item) => {
+    if (item.url?.startsWith("blob:")) {
+      URL.revokeObjectURL(item.url);
     }
   });
-};
-const handleUploadError = (error: Error) => {
-  message.error(error.message);
-};
-const handleFileAdded = (file: any) => {
-  console.log("文件添加", file);
-};
-const handleUpload = () => {
-  if (fileUploadRef.value) {
-    fileUploadRef.value.uploadFiles();
+});
+const previewItems = ref<PreviewItem[]>([]);
+const appendPreviewItem = (file: File) => {
+  const isImage = file.type.startsWith("image/");
+  const id = `${file.name}-${file.size}-${Date.now()}`;
+  previewItems.value.push({
+    id,
+    name: file.name,
+    file,
+    type: isImage ? "image" : "file",
+    url: URL.createObjectURL(file),
+    uploading: isImage,
+  });
+  if (isImage) {
+    uploadImageFile(id, file);
   }
 };
-const handleClear = () => {
-  if (fileUploadRef.value) {
-    fileUploadRef.value.clearFiles();
-    previewImages.value = [];
+const beforeUploadEvent = (file: File) => {
+  appendPreviewItem(file);
+  return false;
+};
+const resolveUploadedUrl = (res: any) => {
+  return (
+    res?.data?.url ||
+    res?.data?.fileUrl ||
+    res?.data?.path ||
+    res?.data?.src ||
+    res?.url ||
+    ""
+  );
+};
+const uploadImageFile = async (itemId: string | number, file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadImage`,
+      {
+        method: "post",
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem("access_token") || ""}`,
+        },
+        body: formData,
+      },
+    );
+    const res = await response.json();
+    const uploadedUrl = resolveUploadedUrl(res);
+    if (!response.ok || !uploadedUrl) {
+      throw new Error(res?.message || "图片上传失败");
+    }
+    const target = previewItems.value.find((item) => item.id === itemId);
+    if (!target) return;
+    if (target.url?.startsWith("blob:")) {
+      URL.revokeObjectURL(target.url);
+    }
+    target.url = uploadedUrl;
+    target.uploading = false;
+    message.success("图片上传成功");
+  } catch (error: any) {
+    const target = previewItems.value.find((item) => item.id === itemId);
+    if (target) {
+      target.uploading = false;
+    }
+    message.error(error?.message || "图片上传失败");
   }
 };
-const handleRemovePreviewImage = (image: ImageItem) => {
-  const index = previewImages.value.findIndex((img) => img.id === image.id);
+const handleRemovePreviewItem = (item: PreviewItem) => {
+  const index = previewItems.value.findIndex((current) => current.id === item.id);
   if (index > -1) {
-    previewImages.value.splice(index, 1);
+    const target = previewItems.value[index];
+    if (target.url?.startsWith("blob:")) {
+      URL.revokeObjectURL(target.url);
+    }
+    previewItems.value.splice(index, 1);
   }
-};
-const handleImageClick = (image: ImageItem) => {
-  console.log("点击图片", image);
 };
 const scrollRef = ref<HTMLDivElement | null>(null);
 const getScrollBehavior = () => {
