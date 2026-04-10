@@ -17,6 +17,7 @@ import {
 } from 'src/schemas/content/content.schema';
 import { MessageDto } from './dto/MessageDto';
 import { ChatDto } from './dto/chat.dto';
+import { UpdateChatTitleDto } from './dto/update-chat-title.dto';
 import {
   ChatTitle,
   ChatTitleSchema,
@@ -378,6 +379,35 @@ export class ChatService {
         return result;
       }
       throw new NotFoundException('chat title not found');
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
+  }
+
+  public async updateChatTitleById(
+    updateChatTitleDto: UpdateChatTitleDto,
+    userId: string,
+  ) {
+    try {
+      const titleId = String(updateChatTitleDto?.titleId ?? '').trim();
+      const title = String(updateChatTitleDto?.title ?? '').trim();
+      if (!titleId) {
+        throw new BadRequestException('titleId is required');
+      }
+      if (!title) {
+        throw new BadRequestException('title is required');
+      }
+      const chatInfo = await this.findOneChat(titleId);
+      if (!chatInfo || chatInfo.userId !== userId) {
+        throw new NotFoundException('chat title not found');
+      }
+      return await this.chatTitleSchema
+        .findByIdAndUpdate(
+          titleId,
+          { title, updatedAt: new Date() },
+          { new: true },
+        )
+        .exec();
     } catch (error) {
       throw new BadRequestException(error);
     }

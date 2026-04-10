@@ -16,6 +16,7 @@ import { ChatDto } from './dto/chat.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Token } from 'src/common/decorators/token.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UpdateChatTitleDto } from './dto/update-chat-title.dto';
 @ApiTags('chat')
 @Controller('/chat')
 @UseGuards(JwtAuthGuard)
@@ -49,6 +50,18 @@ export class ChatController {
   @Post('/addChatTitle')
   async addChatTitle(@Body() chatDto: ChatDto, @Token() token: string) {
     return await this.chatService.addChatTitle(chatDto, token);
+  }
+
+  @Post('/updateChatTitle')
+  async updateChatTitle(
+    @Body() updateChatTitleDto: UpdateChatTitleDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    try {
+      return await this.chatService.updateChatTitleById(updateChatTitleDto, userId);
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 
   @Get('/info')
