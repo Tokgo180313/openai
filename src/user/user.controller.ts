@@ -52,6 +52,7 @@ export class UserController {
     @Body() userDto: UserDto,
     @CurrentUser('id') id: string,
   ) {
+    console.log("id",id)
     return this.userService.updateNickName(id, userDto.nickName || '');
   }
 }

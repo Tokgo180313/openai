@@ -1,24 +1,31 @@
-import { IsString, minLength } from "class-validator"
+import { IsOptional, IsString } from 'class-validator';
 
-export class UserDto{
+export class UserDto {
+    @IsOptional()
     @IsString()
-    id:string
+    id?: string;
 
+    @IsOptional()
     @IsString()
-    account:string
+    account?: string;
 
+    @IsOptional()
     @IsString()
-    password:string
+    password?: string;
 
+    @IsOptional()
     @IsString()
-    roleId:string
+    roleId?: string;
 
+    @IsOptional()
     @IsString()
-    passwordType:string
+    passwordType?: string;
 
+    @IsOptional()
     @IsString()
-    nickName?:string
+    nickName?: string;
 
+    @IsOptional()
     @IsString()
-    avatar?:string
+    avatar?: string;
 }
