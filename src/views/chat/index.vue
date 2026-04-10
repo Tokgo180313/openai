@@ -1,7 +1,7 @@
 <template>
   <div class="main">
     <div class="content" ref="scrollRef">
-      <div v-for="content in markdownContentList" :key="content.id">
+      <div v-for="content in markdownContentList" :key="content.id" class="history-item">
         <MarkdownRenderer :content="content.content" :role="content.role" />
       </div>
       <div class="current-content">
@@ -10,7 +10,6 @@
           role="assistant"
         ></MarkdownRenderer>
       </div>
-      <!-- 预览组件 -->
     </div>
     <div>
       <!-- 上传组件 -->
@@ -223,6 +222,7 @@ const sendMessageEvent = () => {
     role: "user",
     content: content,
   });
+  scrollLatestQuestionToTop();
   clearInputData();
   generateContentStreamImpl(param);
 };
@@ -617,11 +617,33 @@ const handleImageClick = (image: ImageItem) => {
   console.log("点击图片", image);
 };
 const scrollRef = ref<HTMLDivElement | null>(null);
-const scrollToBottom = () => {
+const getScrollBehavior = () => {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return "auto" as const;
+  }
+  return "smooth" as const;
+};
+const scrollToBottom = (smooth = true) => {
   nextTick(() => {
     if (scrollRef.value) {
-      scrollRef.value.scrollTop = scrollRef.value.scrollHeight;
+      scrollRef.value.scrollTo({
+        top: scrollRef.value.scrollHeight,
+        behavior: smooth ? getScrollBehavior() : "auto",
+      });
     }
+  });
+};
+const scrollLatestQuestionToTop = () => {
+  nextTick(() => {
+    if (!scrollRef.value) return;
+    const latestQuestion = scrollRef.value.querySelector(
+      ".history-item:last-of-type",
+    ) as HTMLElement | null;
+    if (!latestQuestion) return;
+    scrollRef.value.scrollTo({
+      top: latestQuestion.offsetTop,
+      behavior: getScrollBehavior(),
+    });
   });
 };
 const isAtBottom = () => {
@@ -630,10 +652,10 @@ const isAtBottom = () => {
   return el.scrollHeight - el.scrollTop - el.clientHeight < 10;
 };
 onMounted(() => {
-  scrollToBottom();
+  scrollToBottom(false);
 });
-watch(markdownContent, () => {
-  scrollToBottom();
+watch([markdownContent, () => markdownContentList.value.length], () => {
+  scrollToBottom(true);
 });
 </script>
 
