@@ -25,7 +25,7 @@ const chatTitleListInterface = function (param) {
   return request({
     url: "/chat/titleList",
     method: "get",
-    data: param,
+    params: param,
   });
 };
 const chatListInterface = function (param) {

@@ -51,13 +51,18 @@
       </div>
     </div>
     <div v-if="!isCollapsed" class="placeholder">你的聊天</div>
-    <div v-if="!isCollapsed" class="sider-content">
+    <div
+      v-if="!isCollapsed"
+      class="sider-content"
+      ref="siderContentRef"
+      @scroll="handleScrollLoadMore"
+    >
       <div
         class="content-item"
         @mouseenter="mouseenterItemEvent(item)"
         @mouseleave="mouseleaveItemEvent"
         @click="selectedEvent(item)"
-        v-for="item in titleList"
+        v-for="item in visibleTitleList"
         :key="item.id"
         :class="{ 'content-selected': selectedRow == item.id }"
       >
@@ -104,11 +109,14 @@
                 </p>
               </div>
             </template>
-            <span class="content-icon">
+            <span class="content-icon" @click.stop>
               <i class="iconfont icon-gengduo1"></i>
             </span>
           </a-popover>
         </div>
+      </div>
+      <div v-if="visibleTitleList.length > 0" class="load-more-tip">
+        {{ hasMoreTitle ? "上滑加载更多..." : "没有更多了" }}
       </div>
     </div>
     <div class="sider-footer" :style="{ width: footerWidth }">
@@ -173,7 +181,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
 import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
@@ -187,6 +195,7 @@ const emit = defineEmits(["collapsedChange"]);
 const isEnter = ref(false);
 const showIcon = ref("icon-gpt");
 const showContentItemIcon = ref(null);
+const siderContentRef = ref<HTMLElement | null>(null);
 let showLoginOutDialog = ref(false);
 import apiList from "@/api/apiList";
 import { useEventsBus } from "../stores/event-bus";
@@ -194,13 +203,19 @@ import { useChatStore } from "../stores/chatStore";
 import { nanoid } from "nanoid";
 import { useAuthStore } from "@/stores/authStore";
 const { chatTitleListInterface } = apiList;
+const PAGE_SIZE = 10;
 interface titleInfo {
   id: string;
   title: string;
-  createAt: number;
-  updateAt: number;
+  documentId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 const titleList = ref<titleInfo[]>([]);
+const visibleTitleList = ref<titleInfo[]>([]);
+const currentPage = ref(1);
+const hasMoreTitle = ref(false);
+const loadingMoreTitle = ref(false);
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
 const userStore = useAuthStore();
@@ -223,13 +238,32 @@ onUnmounted(() => {
   eventBus.off("update-chat-list");
 });
 
+const tryAutoLoadUntilFilled = async function () {
+  await nextTick();
+  while (siderContentRef.value && hasMoreTitle.value && !loadingMoreTitle.value) {
+    if (siderContentRef.value.scrollHeight > siderContentRef.value.clientHeight + 8) {
+      break;
+    }
+    const loaded = await loadMoreTitleList();
+    if (!loaded) {
+      break;
+    }
+    await nextTick();
+  }
+};
 const chatTitleImpl = function () {
-  chatTitleListInterface()
+  currentPage.value = 1;
+  loadingMoreTitle.value = true;
+  chatTitleListInterface({ page: 1, pageSize: PAGE_SIZE })
     .then((res) => {
       if (res.code === 200) {
-        titleList.value = res.data || [];
+        titleList.value = res.data?.list || [];
+        visibleTitleList.value = titleList.value;
+        hasMoreTitle.value = !!res.data?.hasMore;
       } else {
         titleList.value = [];
+        visibleTitleList.value = [];
+        hasMoreTitle.value = false;
       }
     })
     .then(() => {
@@ -240,8 +274,51 @@ const chatTitleImpl = function () {
     })
     .catch(() => {
       titleList.value = [];
+      visibleTitleList.value = [];
+      hasMoreTitle.value = false;
+    })
+    .finally(() => {
+      loadingMoreTitle.value = false;
+      tryAutoLoadUntilFilled();
     });
 }
+const loadMoreTitleList = function () {
+  if (!hasMoreTitle.value || loadingMoreTitle.value) {
+    return Promise.resolve(false);
+  }
+  const nextPage = currentPage.value + 1;
+  loadingMoreTitle.value = true;
+  return chatTitleListInterface({ page: nextPage, pageSize: PAGE_SIZE })
+    .then((res) => {
+      if (res.code === 200) {
+        const nextList = res.data?.list || [];
+        currentPage.value = nextPage;
+        titleList.value = [...titleList.value, ...nextList];
+        visibleTitleList.value = titleList.value;
+        hasMoreTitle.value = !!res.data?.hasMore;
+        return nextList.length > 0;
+      } else {
+        hasMoreTitle.value = false;
+        return false;
+      }
+    })
+    .catch(() => {
+      hasMoreTitle.value = false;
+      return false;
+    })
+    .finally(() => {
+      loadingMoreTitle.value = false;
+    });
+};
+const handleScrollLoadMore = function () {
+  if (!siderContentRef.value || !hasMoreTitle.value) {
+    return;
+  }
+  const { scrollTop, clientHeight, scrollHeight } = siderContentRef.value;
+  if (scrollTop + clientHeight >= scrollHeight - 8) {
+    loadMoreTitleList();
+  }
+};
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
   emit("collapsedChange", isCollapsed.value);
@@ -387,24 +464,36 @@ const closeUpdateNickNameDialog = function (value?: string) {
 .sider-content {
   overflow: auto;
   max-height: calc(100vh - 13rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
   .content-item {
     text-align: left;
-    line-height: 2rem;
-    height: 2rem;
+    line-height: 1.5rem;
+    min-height: 2rem;
     display: flex;
     justify-content: space-between;
     margin: 0 0.3em;
+    padding: 0.2rem 0;
     border-radius: 0.5em;
     cursor: pointer;
+    width: 100%;
     .content-icon {
       padding: 0 0.5rem;
     }
     .content-text {
       margin-left: 0.85rem;
+      word-break: break-all;
     }
   }
   .content-item:hover {
     background-color: rgba(211, 211, 211, 0.5);
+  }
+  .load-more-tip {
+    text-align: center;
+    color: rgba(51, 51, 51, 0.6);
+    font-size: 0.8rem;
+    padding: 0.6rem 0;
   }
 }
 .sider-footer {
