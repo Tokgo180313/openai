@@ -119,7 +119,13 @@
               <span class="item-icon"
                 ><i class="iconfont icon-fl-renyuan"></i
               ></span>
-              <span class="item-text" @click="showUserSetEvent">用户名</span>
+              <span class="item-text" @click="showUserSetEvent">{{ nickName }}</span>
+            </p>
+            <p class="item">
+              <span class="item-icon"
+                ><i class="iconfont icon-fl-renyuan"></i
+              ></span>
+              <span class="item-text" @click="showUserInfoEvent">个人资料</span>
             </p>
             <p class="item">
               <span class="item-icon"
@@ -137,9 +143,15 @@
         </template>
         <div class="footer-item">
           <div class="item-icon">
-            <i style="font-size: 1.2rem" class="iconfont icon-fl-renyuan"></i>
+            <a-avatar
+              size="default"
+              :style="{ backgroundColor: color, verticalAlign: 'middle' }"
+              :gap="gap"
+            >
+              {{ avatarValue }}
+            </a-avatar>
           </div>
-          <div class="item-text">用户名</div>
+          <div class="item-text">{{ nickName }}</div>
         </div>
       </a-popover>
     </div>
@@ -153,13 +165,18 @@
       @close-modal="closeRemoveChatEvent"
       @update-list="updateListEvent"
     ></RemoveChatDialog>
+    <PersonalDataDialog
+      :visible="showUpdateNickNameDialog"
+      @close-modal="closeUpdateNickNameDialog"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
+import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
 const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
 });
@@ -175,6 +192,7 @@ import apiList from "@/api/apiList";
 import { useEventsBus } from "../stores/event-bus";
 import { useChatStore } from "../stores/chatStore";
 import { nanoid } from "nanoid";
+import { useAuthStore } from "@/stores/authStore";
 const { chatTitleListInterface } = apiList;
 interface titleInfo {
   id: string;
@@ -185,6 +203,15 @@ interface titleInfo {
 const titleList = ref<titleInfo[]>([]);
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
+const userStore = useAuthStore();
+const color = "#f56a00";
+const gap = 4;
+const avatarValue = ref<string>(
+  userStore.getNickName ? userStore.getNickName.slice(0, 1) : userStore.getAccount.slice(0, 1),
+);
+const nickName = ref<string>(
+  userStore.getNickName ? userStore.getNickName : userStore.getAccount,
+);
 onMounted(() => {
   chatTitleImpl();
   eventBus.on("update-chat-list", () => {
@@ -277,6 +304,7 @@ const handleOpenChange = function (value) {
 };
 const showRemoveChatVisible = ref(false);
 const removeChatTitleId = ref(null);
+const showUpdateNickNameDialog = ref(false);
 const RemoveChatEvent = function (item) {
   showRemoveChatVisible.value = true;
   removeChatTitleId.value = item.id;
@@ -288,6 +316,17 @@ const closeRemoveChatEvent = function () {
 const updateListEvent = function () {
   chatTitleImpl();
   newChatEvent();
+};
+const showUserInfoEvent = function () {
+  showUpdateNickNameDialog.value = true;
+};
+const closeUpdateNickNameDialog = function (value?: string) {
+  if (value) {
+    userStore.setNickName(value);
+    nickName.value = value || userStore.getAccount;
+    avatarValue.value = (value || userStore.getAccount).slice(0, 1);
+  }
+  showUpdateNickNameDialog.value = false;
 };
 </script>
 <style scoped lang="scss">
