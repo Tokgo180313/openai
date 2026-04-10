@@ -107,6 +107,8 @@ export class StreamService {
       dto.userId,
       dto.titleId,
       documentId,
+      apiKey,
+      baseURL,
     );
 
     const history = await this.chatService.chatList(documentId);
@@ -143,12 +145,45 @@ export class StreamService {
     }
   }
 
-  public async saveRequest(prompt: string, model: string, userId: string, titleId: string, documentId: string) {
-    if (!titleId) {    
+  public async saveRequest(
+    prompt: string,
+    model: string,
+    userId: string,
+    titleId: string,
+    documentId: string,
+    apiKey: string,
+    baseURL: string,
+  ) {
+    if (!titleId) {
+      let title = '';
+      try {
+        const openai = new OpenAI({ apiKey, baseURL });
+        const titleResponse = await openai.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                '你是一个标题生成助手。请根据用户输入生成一个简短标题，只返回标题文本本身，不要包含引号、序号、解释或换行。',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          stream: false,
+        });
+        title = String(titleResponse.choices?.[0]?.message?.content ?? '').trim();
+      } catch {
+        title = '';
+      }
+      if (!title) {
+        title = prompt.slice(0, 30);
+      }
       let chatEntity = new ChatEntity({
         userId: userId,
         documentId: documentId,
-        title: prompt ,
+        title: title,
       });
       await this.chatService.addNewTitle(chatEntity);
     }
