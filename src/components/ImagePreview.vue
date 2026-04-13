@@ -1,11 +1,11 @@
 <template>
   <div class="image-preview-container">
-    <div class="empty-state" v-if="items.length === 0">暂无附件</div>
+    <div class="empty-state" v-if="displayItems.length === 0">暂无附件</div>
     <div class="image-grid" v-else>
       <div
         class="image-item"
         :class="{ 'file-item': item.type === 'file' }"
-        v-for="(item, index) in items"
+        v-for="(item, index) in displayItems"
         :key="item.id || index"
       >
         <span
@@ -16,31 +16,46 @@
           <i class="iconfont icon-cuo"></i>
         </span>
         <img
-          v-if="item.type === 'image'"
+          v-if="isImageItem(item)"
           :src="item.url"
           :alt="item.name || '预览图片'"
           @click="previewImage(item)"
         />
         <div
-          v-else
-          class="file-card"
-          @click="downloadFile(item)"
+          v-if="isImageItem(item) && item.uploading"
+          class="upload-progress-circle image-progress"
         >
+          <a-progress
+            type="circle"
+            :percent="item.uploadProgress || 0"
+            :width="30"
+            :stroke-width="10"
+            status="active"
+          />
+        </div>
+        <div v-else-if="shouldShowAsFile(item)" class="file-card" @click="downloadFile(item)">
           <div
             class="file-icon-wrap"
             :style="{ backgroundColor: getFileBackgroundColor(item.name) }"
           >
-            <i
-              class="iconfont"
-              :class="getFileIcon(item.name)"
-              :style="{ color: getFileIconColor(item.name) }"
-            ></i>
+            <i class="iconfont" :class="getFileIcon(item.name)"></i>
           </div>
           <div class="file-name-wrap">
             <a-tooltip :title="item.name || ''" placement="topLeft">
               <span class="file-name">{{ item.name }}</span>
             </a-tooltip>
-            <span class="file-type-text">{{ getFileTypeText(item.name) }}</span>
+            <div class="file-type-line">
+              <span class="file-type-text">{{ getFileTypeText(item.name) }}</span>
+              <div v-if="item.uploading" class="upload-progress-circle">
+                <a-progress
+                  type="circle"
+                  :percent="item.uploadProgress || 0"
+                  :width="28"
+                  :stroke-width="10"
+                  status="active"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -49,21 +64,42 @@
 </template>
 
 <script lang="ts" setup>
+import { computed } from "vue";
 export interface PreviewItem {
   id?: string | number;
+  fileId?: string;
   url: string;
+  uploadedUrl?: string;
   name?: string;
   file?: File;
   type: "image" | "file";
   uploading?: boolean;
+  uploadProgress?: number;
 }
 interface Props {
   items: PreviewItem[];
   showRemove?: boolean;
 }
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   items: () => [],
   showRemove: true,
+});
+
+const imageExtSet = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
+const normalizeName = (name?: string) => (name || "").trim().toLowerCase();
+const displayItems = computed(() => {
+  const list = props.items || [];
+  const imageNameSet = new Set(
+    list.filter((item) => isImageItem(item)).map((item) => normalizeName(item.name)),
+  );
+  return list.filter((item) => {
+    if (isImageItem(item)) return true;
+    const fileName = normalizeName(item.name);
+    if (fileName && imageNameSet.has(fileName)) {
+      return false;
+    }
+    return true;
+  });
 });
 
 const emit = defineEmits<{
@@ -74,11 +110,11 @@ const previewImage = (item: PreviewItem) => {
   if (!item.url) return;
   window.open(item.url, "_blank");
 };
-
 const downloadFile = (item: PreviewItem) => {
-  if (!item.url) return;
+  const downloadUrl = item.uploadedUrl || item.url;
+  if (!downloadUrl) return;
   const link = document.createElement("a");
-  link.href = item.url;
+  link.href = downloadUrl;
   link.download = item.name || "download";
   document.body.appendChild(link);
   link.click();
@@ -89,7 +125,16 @@ const getFileExt = (name?: string) => {
   if (!name || !name.includes(".")) return "";
   return name.split(".").pop()?.toLowerCase() || "";
 };
-
+const isImageItem = (item: PreviewItem) => {
+  if (item.type === "image") return true;
+  const fileType = item.file?.type || "";
+  if (fileType.startsWith("image/")) return true;
+  const ext = getFileExt(item.name);
+  return imageExtSet.has(ext);
+};
+const shouldShowAsFile = (item: PreviewItem) => {
+  return !isImageItem(item);
+};
 const getFileIcon = (name?: string) => {
   const ext = getFileExt(name);
   if (["pdf"].includes(ext)) return "icon-PDFwenjian";
@@ -103,20 +148,6 @@ const getFileIcon = (name?: string) => {
   }
   return "icon-file";
 };
-
-const getFileIconColor = (name?: string) => {
-  const ext = getFileExt(name);
-  if (["pdf"].includes(ext)) return "#d93025";
-  if (["doc", "docx"].includes(ext)) return "#2b579a";
-  if (["xls", "xlsx", "csv"].includes(ext)) return "#217346";
-  if (["ppt", "pptx"].includes(ext)) return "#d24726";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "#6f42c1";
-  if (["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go"].includes(ext)) {
-    return "#1f6feb";
-  }
-  return "#777";
-};
-
 const getFileBackgroundColor = (name?: string) => {
   const ext = getFileExt(name);
   if (["pdf"].includes(ext)) return "#7f1d1d";
@@ -129,11 +160,10 @@ const getFileBackgroundColor = (name?: string) => {
   }
   return "#374151";
 };
-
 const getFileTypeText = (name?: string) => {
   const ext = getFileExt(name);
   if (!ext) return "文件";
-  if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) return "图片";
+  if (imageExtSet.has(ext)) return "图片";
   if (["pdf"].includes(ext)) return "PDF 文档";
   if (["doc", "docx", "txt", "md"].includes(ext)) return "文档";
   if (["xls", "xlsx", "csv"].includes(ext)) return "表格";
@@ -168,7 +198,8 @@ const getFileTypeText = (name?: string) => {
   transition: transform 0.2s;
 }
 .image-item:not(.file-item) {
-  width: 100px;
+  width: 72px;
+  height: 72px;
 }
 .image-item.file-item {
   border-radius: 12px;
@@ -182,7 +213,7 @@ const getFileTypeText = (name?: string) => {
 }
 .image-item img {
   width: 100%;
-  height: 72px;
+  height: 100%;
   object-fit: cover;
   cursor: pointer;
   border-radius: 12px;
@@ -259,6 +290,25 @@ const getFileTypeText = (name?: string) => {
 }
 .image-remove-badge .iconfont {
   font-size: 11px;
+}
+.file-type-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.upload-progress-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-progress {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+}
+.upload-progress-circle :deep(.ant-progress-text) {
+  font-size: 10px;
 }
 .image-info {
   padding: 6px;

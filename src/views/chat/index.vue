@@ -610,6 +610,7 @@ onUnmounted(() => {
   });
 });
 const previewItems = ref<PreviewItem[]>([]);
+const CHUNK_SIZE = 2 * 1024 * 1024;
 const appendPreviewItem = (file: File) => {
   const isImage = file.type.startsWith("image/");
   const id = `${file.name}-${file.size}-${Date.now()}`;
@@ -619,11 +620,10 @@ const appendPreviewItem = (file: File) => {
     file,
     type: isImage ? "image" : "file",
     url: URL.createObjectURL(file),
-    uploading: isImage,
+    uploading: true,
+    uploadProgress: 0,
   });
-  if (isImage) {
-    uploadImageFile(id, file);
-  }
+  uploadChunkedFile(id, file);
 };
 const beforeUploadEvent = (file: File) => {
   appendPreviewItem(file);
@@ -639,40 +639,113 @@ const resolveUploadedUrl = (res: any) => {
     ""
   );
 };
-const uploadImageFile = async (itemId: string | number, file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("modelClassify", modelStore.getCurrentModelClassify);
+const isLikelyImageUrl = (url: string) => {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(url);
+};
+const resolveUploadedChunkSet = (res: any): Set<number> => {
+  const uploaded =
+    res?.data?.uploadedChunks ||
+    res?.data?.chunkIndexes ||
+    res?.data?.uploadedChunkIndexes ||
+    [];
+  if (Array.isArray(uploaded)) {
+    return new Set(uploaded.map((v) => Number(v)).filter((v) => Number.isInteger(v)));
+  }
+  const uploadedCount = Number(res?.data?.uploadedChunksCount ?? res?.data?.uploadedCount);
+  if (Number.isInteger(uploadedCount) && uploadedCount > 0) {
+    return new Set(Array.from({ length: uploadedCount }, (_, i) => i));
+  }
+  return new Set();
+};
+const uploadChunkedFile = async (itemId: string | number, file: File) => {
+  const uploadId = `${file.name}-${file.size}-${file.lastModified}`.replace(/\s+/g, "_");
+  const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+  const token = sessionStorage.getItem("access_token") || "";
+  const target = previewItems.value.find((item) => item.id === itemId);
+  if (target) {
+    target.fileId = uploadId;
+    target.uploadProgress = 0;
+  }
   try {
-    const response = await fetch(
-      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
+    const statusResponse = await fetch(
+      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadStatus?uploadId=${encodeURIComponent(uploadId)}`,
       {
-        method: "post",
+        method: "get",
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: formData,
       },
     );
-    const res = await response.json();
-    const uploadedUrl = resolveUploadedUrl(res);
-    if (!response.ok || !uploadedUrl) {
-      throw new Error(res?.message || "图片上传失败");
+    const statusRes = await statusResponse.json().catch(() => ({}));
+    const uploadedChunkSet = statusResponse.ok ? resolveUploadedChunkSet(statusRes) : new Set<number>();
+
+    let uploadRes: any = null;
+    let uploadedCount = uploadedChunkSet.size;
+    if (target && totalChunks > 0) {
+      target.uploadProgress = Math.min(99, Math.floor((uploadedCount / totalChunks) * 100));
     }
-    const target = previewItems.value.find((item) => item.id === itemId);
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+      if (uploadedChunkSet.has(chunkIndex)) {
+        continue;
+      }
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(file.size, start + CHUNK_SIZE);
+      const chunk = file.slice(start, end);
+      const formData = new FormData();
+      formData.append("file", chunk, file.name);
+      formData.append("uploadId", uploadId);
+      formData.append("fileName", file.name);
+      formData.append("mimeType", file.type || "application/octet-stream");
+      formData.append("chunkIndex", String(chunkIndex));
+      formData.append("totalChunks", String(totalChunks));
+      const uploadResponse = await fetch(
+        `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
+        {
+          method: "post",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+      uploadRes = await uploadResponse.json().catch(() => ({}));
+      if (!uploadResponse.ok) {
+        throw new Error(uploadRes?.message || "分片上传失败");
+      }
+      uploadedCount += 1;
+      if (target && totalChunks > 0) {
+        target.uploadProgress = Math.min(99, Math.floor((uploadedCount / totalChunks) * 100));
+      }
+    }
     if (!target) return;
-    if (target.url?.startsWith("blob:")) {
-      URL.revokeObjectURL(target.url);
+    const uploadedUrl =
+      resolveUploadedUrl(uploadRes) ||
+      `${import.meta.env.VITE_APP_BASIC_URL}/file/${encodeURIComponent(uploadId)}/download`;
+    // 图片优先保留本地预览地址，避免服务端下载地址无法直接回显
+    if (target.type === "image") {
+      target.uploadedUrl = uploadedUrl;
+      if (isLikelyImageUrl(uploadedUrl)) {
+        if (target.url?.startsWith("blob:")) {
+          URL.revokeObjectURL(target.url);
+        }
+        target.url = uploadedUrl;
+      }
+    } else {
+      if (target.url?.startsWith("blob:")) {
+        URL.revokeObjectURL(target.url);
+      }
+      target.url = uploadedUrl;
     }
-    target.url = uploadedUrl;
     target.uploading = false;
-    message.success("图片上传成功");
+    target.uploadProgress = 100;
+    message.success("上传成功");
   } catch (error: any) {
     const target = previewItems.value.find((item) => item.id === itemId);
     if (target) {
       target.uploading = false;
+      target.uploadProgress = 0;
     }
-    message.error(error?.message || "图片上传失败");
+    message.error(error?.message || "上传失败");
   }
 };
 const handleRemovePreviewItem = (item: PreviewItem) => {
