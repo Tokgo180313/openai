@@ -4,6 +4,7 @@
     <div class="image-grid" v-else>
       <div
         class="image-item"
+        :class="{ 'file-item': item.type === 'file' }"
         v-for="(item, index) in items"
         :key="item.id || index"
       >
@@ -23,7 +24,6 @@
         <div
           v-else
           class="file-card"
-          :style="{ backgroundColor: getFileBackgroundColor(item.name) }"
           @click="downloadFile(item)"
         >
           <div class="file-icon-wrap">
@@ -37,6 +37,7 @@
             <a-tooltip :title="item.name || ''" placement="topLeft">
               <span class="file-name">{{ item.name }}</span>
             </a-tooltip>
+            <span class="file-type-text">{{ getFileTypeText(item.name) }}</span>
           </div>
         </div>
       </div>
@@ -95,7 +96,7 @@ const getFileIcon = (name?: string) => {
   if (["ppt", "pptx"].includes(ext)) return "icon-weibiaoti-2_huaban11";
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "icon-yasuobao";
   if (["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(ext)) {
-    return "icon-file1";
+    return "icon-s12";
   }
   return "icon-file";
 };
@@ -125,6 +126,18 @@ const getFileBackgroundColor = (name?: string) => {
   }
   return "#f7f7f7";
 };
+
+const getFileTypeText = (name?: string) => {
+  const ext = getFileExt(name);
+  if (!ext) return "文件";
+  if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) return "图片";
+  if (["pdf"].includes(ext)) return "PDF 文档";
+  if (["doc", "docx", "txt", "md"].includes(ext)) return "文档";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "表格";
+  if (["ppt", "pptx"].includes(ext)) return "演示文稿";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "压缩包";
+  return "文件";
+};
 </script>
 
 <style scoped lang="scss">
@@ -139,16 +152,26 @@ const getFileBackgroundColor = (name?: string) => {
   border-radius: 8px;
 }
 .image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
 }
 .image-item {
   position: relative;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 12px;
+  overflow: visible;
   transition: transform 0.2s;
+}
+.image-item:not(.file-item) {
+  width: 100px;
+}
+.image-item.file-item {
+  border-radius: 12px;
+  width: 240px;
+  min-width: 190px;
+  max-width: 100%;
 }
 .image-item:hover {
   transform: translateY(-1px);
@@ -156,51 +179,70 @@ const getFileBackgroundColor = (name?: string) => {
 }
 .image-item img {
   width: 100%;
-  height: 88px;
+  height: 72px;
   object-fit: cover;
   cursor: pointer;
+  border-radius: 12px;
 }
 .file-card {
-  height: 60px;
-  padding: 0 10px;
+  height: 72px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   cursor: pointer;
   gap: 8px;
+  background: #f3f3f3;
+  border-radius: 12px;
 }
 .file-icon-wrap {
-  width: 24px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border-radius: 12px;
+  background: #1677ff;
 }
 .file-icon-wrap .iconfont {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  color: #fff !important;
 }
 .file-name-wrap {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: flex-start;
+  text-align: left;
 }
 .file-name {
   font-size: 12px;
-  color: #444;
+  font-weight: 600;
+  color: #111;
   display: inline-block;
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 20px;
+}
+.file-type-text {
+  font-size: 10px;
+  color: #666;
+  line-height: 20px;
 }
 .image-remove-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: -6px;
+  right: -6px;
   z-index: 2;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  background: #111;
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -208,7 +250,7 @@ const getFileBackgroundColor = (name?: string) => {
   cursor: pointer;
 }
 .image-remove-badge .iconfont {
-  font-size: 12px;
+  font-size: 11px;
 }
 .image-info {
   padding: 6px;
