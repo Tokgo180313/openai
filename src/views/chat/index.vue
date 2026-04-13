@@ -642,9 +642,10 @@ const resolveUploadedUrl = (res: any) => {
 const uploadImageFile = async (itemId: string | number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("modelClassify", modelStore.getCurrentModelClassify);
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadImage`,
+      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
       {
         method: "post",
         headers: {
@@ -807,7 +808,7 @@ watch(
 }
 .upload-file {
   cursor: pointer;
-  padding: 0.5em 1em;
+  padding: 0.5em;
   border-radius: 50%;
   // font-size:3em;
   font-weight: 700;

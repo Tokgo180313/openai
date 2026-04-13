@@ -26,7 +26,10 @@
           class="file-card"
           @click="downloadFile(item)"
         >
-          <div class="file-icon-wrap">
+          <div
+            class="file-icon-wrap"
+            :style="{ backgroundColor: getFileBackgroundColor(item.name) }"
+          >
             <i
               class="iconfont"
               :class="getFileIcon(item.name)"
@@ -116,15 +119,15 @@ const getFileIconColor = (name?: string) => {
 
 const getFileBackgroundColor = (name?: string) => {
   const ext = getFileExt(name);
-  if (["pdf"].includes(ext)) return "#fff1f0";
-  if (["doc", "docx"].includes(ext)) return "#f0f5ff";
-  if (["xls", "xlsx", "csv"].includes(ext)) return "#f6ffed";
-  if (["ppt", "pptx"].includes(ext)) return "#fff7e6";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "#f9f0ff";
+  if (["pdf"].includes(ext)) return "#7f1d1d";
+  if (["doc", "docx"].includes(ext)) return "#1e3a8a";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "#14532d";
+  if (["ppt", "pptx"].includes(ext)) return "#9a3412";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "#581c87";
   if (["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(ext)) {
-    return "#e6f7ff";
+    return "#0f3d5e";
   }
-  return "#f7f7f7";
+  return "#374151";
 };
 
 const getFileTypeText = (name?: string) => {
@@ -206,8 +209,13 @@ const getFileTypeText = (name?: string) => {
   background: #1677ff;
 }
 .file-icon-wrap .iconfont {
-  font-size: 1.05rem;
+  font-size: 2rem;
   color: #fff !important;
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .file-name-wrap {
   min-width: 0;
