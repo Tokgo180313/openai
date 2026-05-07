@@ -13,6 +13,18 @@ const routes: RouteRecordRaw[] = [
         title: "首页",
         component: () => import("@/views/chat/index.vue"),
       },
+      {
+        path: "/image",
+        name: "/image",
+        title: "图片",
+        component: () => import("@/views/image/index.vue"),
+      },
+      {
+        path: "/imageTask",
+        name: "/imageTask",
+        title: "图片任务",
+        component: () => import("@/views/imageTask/index.vue"),
+      },
     ],
     meta: {
       title: "首页",
@@ -96,6 +108,16 @@ const routes: RouteRecordRaw[] = [
           icon: "iconfont icon-keyguanli",
         },
       },
+      {
+        path: "/schedule",
+        name: "/schedule",
+        title: "定时任务",
+        component: () => import("@/views/schedule/index.vue"),
+        meta: {
+          title: "定时任务",
+          icon: "iconfont icon-renwujincheng",
+        },
+      }
     ],
     meta: {
       title: "用户管理",

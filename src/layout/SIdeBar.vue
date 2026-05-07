@@ -49,6 +49,42 @@
           </a-tooltip>
         </div>
       </div>
+      <div class="tool-item" @click="newImageChatEvent">
+        <div class="item-icon" v-if="!isCollapsed">
+          <i style="font-size: 1.2rem" class="iconfont icon-image"></i>
+        </div>
+        <div v-if="!isCollapsed" class="item-text">
+          <span>图片</span>
+        </div>
+        <div class="item-icon" v-if="isCollapsed">
+          <a-tooltip
+            title="图片"
+            placement="right"
+            trigger="hover"
+            :overlayStyle="{ 'margin-left': '1em' }"
+          >
+            <i style="font-size: 1.2rem" class="iconfont icon-image"></i>
+          </a-tooltip>
+        </div>
+      </div>
+      <div class="tool-item" @click="newImageTaskEvent">
+        <div class="item-icon" v-if="!isCollapsed">
+          <i style="font-size: 1.2rem" class="iconfont icon-renwujincheng"></i>
+        </div>
+        <div v-if="!isCollapsed" class="item-text">
+          <span>图片任务</span>
+        </div>
+        <div class="item-icon" v-if="isCollapsed">
+          <a-tooltip
+            title="图片任务"
+            placement="right"
+            trigger="hover"
+            :overlayStyle="{ 'margin-left': '1em' }"
+          >
+            <i style="font-size: 1.2rem" class="iconfont icon-renwujincheng"></i>
+          </a-tooltip>
+        </div>
+      </div>
     </div>
     <div v-if="!isCollapsed" class="placeholder">你的聊天</div>
     <div
@@ -199,6 +235,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
 import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
@@ -236,6 +273,7 @@ const hasMoreTitle = ref(false);
 const loadingMoreTitle = ref(false);
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
+const router = useRouter();
 const userStore = useAuthStore();
 const color = "#f56a00";
 const gap = 4;
@@ -362,18 +400,27 @@ const mouseenterItemEvent = function (item) {
 const mouseleaveItemEvent = function (item) {
   currentRow.value = null;
 };
-const selectedEvent = function (item) {
+const selectedEvent = async function (item) {
+  await router.push("/chat");
+  await nextTick();
   selectedRow.value = item.id;
   chatStore.updateDocument(item.documentId);
   chatStore.updateTitleId(item.id);
   eventBus.emit("chat-change");
 };
 const newChatEvent = function () {
+  router.push("/chat");
   let documentId = nanoid();
   selectedRow.value = null;
   chatStore.updateDocument(documentId);
   chatStore.updateTitleId(null);
   eventBus.emit("chat-change");
+};
+const newImageChatEvent = function () {
+  router.push("/image");
+};
+const newImageTaskEvent = function () {
+  router.push("/imageTask");
 };
 const loginOutEvent = function () {
   showLoginOutDialog.value = true;

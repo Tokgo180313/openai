@@ -4,11 +4,13 @@ import model from "./model.ts"
 import role from "./role.ts"
 import usage from "./usage.ts"
 import key from "./key.ts"
+import schedule from "./schedule.ts"
 export default {
     ...user,
     ...record,
     ...model,
     ...role,
     ...usage,
-    ...key
+    ...key,
+    ...schedule
 }
