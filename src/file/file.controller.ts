@@ -36,14 +36,13 @@ export class FileController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'fileName', 'totalChunks', 'chunkIndex'],
+      required: ['file', 'fileName', 'documentId'],
       properties: {
         file: { type: 'string', format: 'binary' },
-        uploadId: { type: 'string', description: '首次可不传，服务端会返回' },
+        uploadId: { type: 'string', description: '可选，前端自定义上传标识' },
+        documentId: { type: 'string', description: '文件归档标识' },
         fileName: { type: 'string' },
         mimeType: { type: 'string' },
-        totalChunks: { type: 'number', example: 8 },
-        chunkIndex: { type: 'number', example: 0 },
       },
     },
   })
@@ -51,10 +50,9 @@ export class FileController {
     @UploadedFile()
     file: { buffer: Buffer; originalname?: string; mimetype?: string },
     @Body('uploadId') uploadId: string,
+    @Body('documentId') documentId: string,
     @Body('fileName') fileName: string,
     @Body('mimeType') mimeType: string,
-    @Body('totalChunks') totalChunks: number | string,
-    @Body('chunkIndex') chunkIndex: number | string,
     @CurrentUser('id') userId: string,
   ) {
     if (!file) {
@@ -63,14 +61,16 @@ export class FileController {
     if (!fileName) {
       throw new BadRequestException('fileName is required');
     }
+    if (!documentId) {
+      throw new BadRequestException('documentId is required');
+    }
     return this.fileService.uploadFileChunk(
       {
         file,
         uploadId,
+        documentId,
         fileName,
         mimeType,
-        totalChunks: Number(totalChunks),
-        chunkIndex: Number(chunkIndex),
       },
       userId,
     );

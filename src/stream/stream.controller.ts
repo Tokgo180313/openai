@@ -26,11 +26,17 @@ export class StreamController {
 
   @Post('/generateContentStream')
   public async generateContentStream(
-    @Body() streamDto: StreamMessageDto,
+    @Body() streamDtoList: StreamMessageDto[],
     @Res() res: Response,
     @CurrentUser('id') userId: string,
   ) {
-    streamDto.userId = userId;
+    if (!Array.isArray(streamDtoList) || streamDtoList.length === 0) {
+      throw new BadRequestException('streamDtoList is required');
+    }
+    for (const item of streamDtoList) {
+      item.userId = userId;
+    }
+    const latestDto = streamDtoList[streamDtoList.length - 1];
     // Server-Sent Events（text/event-stream）
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -42,7 +48,7 @@ export class StreamController {
       let stopped = false;
       const usageOut: StreamCompletionUsageOut = {};
       for await (const chunk of this.streamService.streamGenerateContentByOpenAI(
-        streamDto,
+        streamDtoList,
         usageOut,
       )) {
         responseContent += chunk;
@@ -52,12 +58,12 @@ export class StreamController {
         try {
           await this.usageService.addUsage(
             {
-              modelName: streamDto.model,
-              modelClassify: streamDto.modelClassify,
+              modelName: latestDto.model,
+              modelClassify: latestDto.modelClassify,
               promptTokens: usageOut.usage.prompt_tokens,
               completionTokens: usageOut.usage.completion_tokens,
               totalTokens: usageOut.usage.total_tokens,
-              description: `stream documentId=${streamDto.documentId ?? ''}`,
+              description: `stream documentId=${latestDto.documentId ?? ''}`,
             },
             userId,
           );
@@ -65,17 +71,17 @@ export class StreamController {
           console.error('generateContentStream addUsage failed:', err);
         }
       }
-      stopped = this.streamService.isStopped(userId, streamDto.documentId);
+      stopped = this.streamService.isStopped(userId, latestDto.documentId);
       res.write(`data: ${JSON.stringify({ done: true, stopped })}\n\n`);
       if (!stopped && responseContent) {
         await this.streamService.saveResponse(
           responseContent,
-          streamDto.model,
-          streamDto.documentId,
+          latestDto.model,
+          latestDto.documentId,
         );
       }
       res.end();
-      this.streamService.clearStopped(userId, streamDto.documentId);
+      this.streamService.clearStopped(userId, latestDto.documentId);
     } catch (error) {
       if (!res.headersSent) {
         res.status(500).end();

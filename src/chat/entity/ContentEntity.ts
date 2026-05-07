@@ -15,5 +15,35 @@ export class ContentEntity{
 
     @IsString()
     useModel:string;
+
+    @IsString()
+    type?: 'input_text' | 'input_file' | 'input_url';
+
+    @IsString()
+    openaiFileId?: string;
+
+    @IsString()
+    input_url?: string;
+
+    @IsString()
+    image_base64?: string;
+
+    @IsString()
+    gridFsFileId?: string;
+
+    @IsString()
+    fileName?: string;
+
+    @IsString()
+    mimeType?: string;
+
+    @IsString()
+    fileUrl?: string;
+
+    @IsString()
+    file_url?: string;
+
+    @IsString()
+    file?:string;
 }
 

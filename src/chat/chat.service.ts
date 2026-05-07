@@ -30,6 +30,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { UsageService } from 'src/usage/usage.service';
 import { GeminiUsageEntity } from 'src/usage/entity/gemini.usage.entity';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
+import { readFile } from 'node:fs/promises';
+import { inferUserContentInputType } from 'src/common/utils/user-input-type.util';
 
 /** OpenAI SDK 会在 baseURL 后拼接 `/chat/completions`；若 OPENAI_BASE_URL 已含该路径会导致 404。 */
 function normalizeOpenAIBaseURL(raw: string | undefined): string | undefined {
@@ -353,10 +355,45 @@ export class ChatService {
    * @param chatDto
    */
   public async chatList(id: string) {
-    return await this.contentSchema
+    const list = await this.contentSchema
       .find({ documentId: id })
       .sort({ createdAt: 1 })
+      .lean()
       .exec();
+    for (const item of list as Record<string, any>[]) {
+      const role = String(item?.role ?? '').trim().toLowerCase();
+      if (role === 'user') {
+        item.type = inferUserContentInputType(item);
+      }
+      if (String(item?.type ?? '').trim() !== 'input_url') {
+        continue;
+      }
+      const fileUrl =
+        String(item?.fileUrl ?? '').trim() || String(item?.file_url ?? '').trim();
+      if (!fileUrl) {
+        continue;
+      }
+      try {
+        const buffer = await readFile(fileUrl);
+        const ext = fileUrl.split('.').pop()?.toLowerCase();
+        const fallbackMime =
+          ext === 'png'
+            ? 'image/png'
+            : ext === 'jpg' || ext === 'jpeg'
+              ? 'image/jpeg'
+              : ext === 'webp'
+                ? 'image/webp'
+                : ext === 'gif'
+                  ? 'image/gif'
+                  : 'application/octet-stream';
+        const mimeType =
+          String(item?.mimeType ?? '').trim() || fallbackMime;
+        item.file = `data:${mimeType};base64,${buffer.toString('base64')}`;
+      } catch {
+        // 图片文件不存在或不可读时，保持原 content 返回。
+      }
+    }
+    return list as any[];
   }
 
   /**
@@ -418,5 +455,22 @@ export class ChatService {
   }
   public async addNewContent(content: ContentEntity){
     return await new this.contentSchema(content).save();
+  }
+
+  public async replaceOpenaiFileId(
+    documentId: string,
+    oldOpenaiFileId: string,
+    newOpenaiFileId: string,
+  ) {
+    const targetDocumentId = String(documentId ?? '').trim();
+    const oldId = String(oldOpenaiFileId ?? '').trim();
+    const newId = String(newOpenaiFileId ?? '').trim();
+    if (!targetDocumentId || !oldId || !newId || oldId === newId) {
+      return;
+    }
+    await this.contentSchema.updateMany(
+      { documentId: targetDocumentId, openaiFileId: oldId },
+      { $set: { openaiFileId: newId } },
+    );
   }
 }
