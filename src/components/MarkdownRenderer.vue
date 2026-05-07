@@ -8,8 +8,38 @@
         ></i>
       </div>
       <div class="message-body">
-        <div class="markdown-content" v-html="processedContent"></div>
-        <div v-if="props.role === 'assistant' && props.content" class="assistant-actions">
+        <div
+          v-if="currentItem.type === 'input_text'"
+          class="markdown-content"
+          v-html="processedContent"
+        ></div>
+        <img
+          v-else-if="currentItem.type === 'input_url'"
+          class="single-image"
+          :src="currentItem.file"
+          :alt="currentItem.name || '图片'"
+          @click="previewImage"
+        />
+        <div
+          v-else-if="currentItem.type === 'input_file'"
+          class="attachment-file"
+          @click="downloadCurrentFile"
+        >
+          <div class="file-icon-wrap" :style="{ backgroundColor: getFileBackgroundColor(currentItem.name) }">
+            <i class="iconfont" :class="getFileIcon(currentItem.name)"></i>
+          </div>
+          <div class="file-meta">
+            <a-tooltip :title="currentItem.name || ''" placement="topLeft">
+              <span class="file-name">{{ currentItem.name }}</span>
+            </a-tooltip>
+            <span class="file-type">{{ getFileTypeText(currentItem.name) }}</span>
+          </div>
+        </div>
+        
+        <div
+          v-if="props.role === 'assistant' && currentItem.type === 'input_text' && currentItem.content"
+          class="assistant-actions"
+        >
           <span class="action-btn" @click="copyMessageContent">
             <i class="iconfont icon-fuzhi"></i>
           </span>
@@ -23,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
@@ -31,6 +61,9 @@ import { message } from "ant-design-vue";
 
 interface Props {
   content: string;
+  type?: "input_text" | "input_file" | "input_url";
+  file?: string;
+  name?: string;
   role?: "user" | "assistant";
 }
 
@@ -39,6 +72,28 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const processedContent = ref("");
+const currentItem = computed(() => {
+  return {
+    type: props?.type || "input_text",
+    content: props?.content || "",
+    file: props?.file || "",
+    name: props?.name || "",
+  };
+});
+console.log(currentItem.value,props);
+const imageObjectUrl = ref("");
+const imageSrc = computed(() => {
+  const raw = currentItem.value.file as unknown;
+  if (!raw) return "";
+  if (typeof raw === "string") return raw;
+  if (raw instanceof File) {
+    if (!imageObjectUrl.value) {
+      imageObjectUrl.value = URL.createObjectURL(raw);
+    }
+    return imageObjectUrl.value;
+  }
+  return "";
+});
 
 // 配置 highlight.js
 hljs.configure({
@@ -156,14 +211,14 @@ const roleClass = computed(() => ({
 
 // 处理内容
 const processContent = () => {
-  if (!props.content) {
+  if (currentItem.value.type !== "input_text" || !currentItem.value.content) {
     processedContent.value = "";
     return;
   }
 
   try {
     // 先渲染Markdown
-    let rendered = md.render(props.content);
+    let rendered = md.render(currentItem.value.content);
 
     // 处理可能的嵌套问题
     rendered = rendered.replace(
@@ -195,8 +250,66 @@ const processContent = () => {
     processedContent.value = rendered;
   } catch (error) {
     console.error("Markdown渲染错误:", error);
-    processedContent.value = props.content;
+    processedContent.value = currentItem.value.content;
   }
+};
+
+const imageExtSet = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
+const getFileExt = (nameOrUrl?: string) => {
+  if (!nameOrUrl) return "";
+  const pure = nameOrUrl.split("?")[0].split("#")[0];
+  if (!pure.includes(".")) return "";
+  return pure.split(".").pop()?.toLowerCase() || "";
+};
+const previewImage = () => {
+  if (!imageSrc.value) return;
+  window.open(imageSrc.value, "_blank");
+};
+const downloadCurrentFile = () => {
+  const fileUrl = String(currentItem.value.file || "");
+  if (!fileUrl) return;
+  const link = document.createElement("a");
+  link.href = fileUrl;
+  link.download = currentItem.value.name || "download";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+const getFileIcon = (name?: string) => {
+  const ext = getFileExt(name);
+  if (["pdf"].includes(ext)) return "icon-PDFwenjian";
+  if (["doc", "docx"].includes(ext)) return "icon-weibiaoti-2_huaban1";
+  if (["xls", "xlsx"].includes(ext)) return "icon-xlswenjian";
+  if (["csv"].includes(ext)) return "icon-csv";
+  if (["ppt", "pptx"].includes(ext)) return "icon-weibiaoti-2_huaban11";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "icon-yasuobao";
+  if (["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(ext)) {
+    return "icon-s12";
+  }
+  return "icon-file";
+};
+const getFileBackgroundColor = (name?: string) => {
+  const ext = getFileExt(name);
+  if (["pdf"].includes(ext)) return "#7f1d1d";
+  if (["doc", "docx"].includes(ext)) return "#1e3a8a";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "#14532d";
+  if (["ppt", "pptx"].includes(ext)) return "#9a3412";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "#581c87";
+  if (["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(ext)) {
+    return "#0f3d5e";
+  }
+  return "#374151";
+};
+const getFileTypeText = (name?: string) => {
+  const ext = getFileExt(name);
+  if (!ext) return "文件";
+  if (imageExtSet.has(ext)) return "图片";
+  if (["pdf"].includes(ext)) return "PDF 文档";
+  if (["doc", "docx", "txt", "md"].includes(ext)) return "文档";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "表格";
+  if (["ppt", "pptx"].includes(ext)) return "演示文稿";
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "压缩包";
+  return "文件";
 };
 
 // 添加复制功能到全局
@@ -235,9 +348,9 @@ const addCopyFunction = () => {
 };
 
 const copyMessageContent = async () => {
-  if (!props.content) return;
+  if (!currentItem.value.content) return;
   try {
-    await navigator.clipboard.writeText(props.content);
+    await navigator.clipboard.writeText(currentItem.value.content);
     message.success("内容已复制");
   } catch (error) {
     console.error("复制失败:", error);
@@ -246,9 +359,9 @@ const copyMessageContent = async () => {
 };
 
 const downloadMessageContent = () => {
-  if (!props.content) return;
+  if (!currentItem.value.content) return;
   try {
-    const blob = new Blob([props.content], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([currentItem.value.content], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -265,9 +378,24 @@ const downloadMessageContent = () => {
 
 // 监听内容变化
 watch(() => props.content, processContent, { immediate: true });
+watch(
+  () => currentItem.value.file,
+  () => {
+    if (imageObjectUrl.value) {
+      URL.revokeObjectURL(imageObjectUrl.value);
+      imageObjectUrl.value = "";
+    }
+  },
+);
 
 onMounted(() => {
   addCopyFunction();
+});
+onUnmounted(() => {
+  if (imageObjectUrl.value) {
+    URL.revokeObjectURL(imageObjectUrl.value);
+    imageObjectUrl.value = "";
+  }
 });
 </script>
 
@@ -300,6 +428,55 @@ onMounted(() => {
 
   .message-body {
     max-width: 100%;
+  }
+  .single-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    object-fit: cover;
+    cursor: pointer;
+    display: inline-block;
+  }
+  .attachment-file {
+    width: 230px;
+    height: 72px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f3f3f3;
+    cursor: pointer;
+  }
+  .file-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .file-icon-wrap .iconfont {
+    color: #fff;
+    font-size: 1.6rem;
+  }
+  .file-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .file-name {
+    width: 100%;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-type {
+    font-size: 10px;
+    color: #666;
   }
 
   &.role-user {

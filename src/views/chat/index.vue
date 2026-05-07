@@ -1,10 +1,20 @@
 <template>
   <div class="main">
     <div class="content" ref="scrollRef">
-      <div v-for="content in markdownContentList" :key="content.id" class="history-item">
-        <MarkdownRenderer :content="content.content" :role="content.role" />
+      <div
+        v-for="content in markdownContentList"
+        :key="content.id"
+        class="history-item"
+      >
+        <MarkdownRenderer
+          :content="content.content"
+          :role="content.role"
+          :type="content.type"
+          :file="content.file"
+          :name="content.name"
+        />
       </div>
-      <div class="current-content" v-if="markdownContent!=''">
+      <div class="current-content" v-if="markdownContent != ''">
         <MarkdownRenderer
           :content="markdownContent"
           role="assistant"
@@ -90,30 +100,17 @@
 </template>
 
 <script lang="ts" setup>
-import { FileImageOutlined, FileAddOutlined } from "@ant-design/icons-vue";
-import MarkdownViewer from "../../components/MarkdownViewer.vue";
-import FileUpload from "../../components/FileUpload.vue";
+import { FileImageOutlined } from "@ant-design/icons-vue";
 import ImagePreview from "../../components/ImagePreview.vue";
 import MarkdownRenderer from "../../components/MarkdownRenderer.vue";
-import {
-  ref,
-  onMounted,
-  onUnmounted,
-  useModel,
-  watch,
-  nextTick,
-  computed,
-} from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { nanoid } from "nanoid";
-import { MessageItem } from "../../types/messageItem.type";
 import { MessageType } from "../../types/message.type";
-let messageItemList = ref<MessageItem[]>([]);
 import { useModelStore } from "@/stores/modelStore";
 const modelStore = useModelStore();
-const { chatListInterface, streamSaveResponseInterface, chatChatgptInterface } =
-  api;
+const { chatListInterface } = api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
 const isStreamingResponse = ref(false);
@@ -127,7 +124,6 @@ const isSendDisabled = computed(() => {
 // 只要输入框里存在任何字符（包括换行符）就隐藏 placeholder
 const isInputEmpty = computed(() => markdownInputContent.value.length === 0);
 const markdownContentList = ref([]);
-const fileList = ref([]);
 interface PatseOptions {
   stripFormatting?: boolean;
   convertToMarkdown?: boolean;
@@ -170,10 +166,6 @@ const submitEvent = function (event: KeyboardEvent) {
     sendMessageEvent();
   }
 };
-const handleEnterEvent = function () {
-  const content = document.querySelector("[contenteditable]")?.innerText;
-  markdownContent.value = content || "";
-};
 const handleInputEvent = function (event: Event) {
   const el = event.target as HTMLElement | null;
   if (!el) {
@@ -203,8 +195,6 @@ const handleInputEvent = function (event: Event) {
 
   markdownInputContent.value = normalizedText;
 };
-import { useRequestStore } from "../../stores/requestStore";
-const requestStore = useRequestStore();
 const clearInputData = () => {
   const inputEl = document.querySelector("[contenteditable]");
   if (inputEl) {
@@ -212,27 +202,68 @@ const clearInputData = () => {
     (inputEl as HTMLElement).innerHTML = "";
   }
   markdownInputContent.value = "";
+  previewItems.value = [];
 };
-const sendMessageEvent = () => {
+const fileToBase64 = (file: File) => {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("文件转Base64失败"));
+    reader.readAsDataURL(file);
+  });
+};
+const sendMessageEvent = async () => {
   if (disabledSendBtn.value || isStreamingResponse.value) {
     return;
   }
   const content = document.querySelector("[contenteditable]")?.innerText;
-  const param = {
+  console.log(previewItems.value);
+  let paramList = previewItems.value.map((item) => {
+    return {
+      prompt: item.name,
+      model: modelStore.getCurrentModel,
+      modelClassify: modelStore.getCurrentModelClassify,
+      baseURL: import.meta.env.VITE_APP_BASIC_URL,
+      titleId: messageId.value,
+      documentId: documentId.value,
+      type: item.type,
+      fileUrl: item.uploadedUrl,
+      mimeType: item.mimeType? item.mimeType : undefined,
+    };
+  });
+  paramList.push({
     prompt: content,
     model: modelStore.getCurrentModel,
     modelClassify: modelStore.getCurrentModelClassify,
     baseURL: import.meta.env.VITE_APP_BASIC_URL,
     titleId: messageId.value,
     documentId: documentId.value,
-  };
+    type: "input_text",
+  });
+  let fileContent = await Promise.all(
+    previewItems.value.map(async (item) => {
+      const isImage = item.type.includes("image");
+      const base64File =
+        isImage && item.file ? await fileToBase64(item.file) : item.file;
+      return {
+        role: "user",
+        file: base64File,
+        name: item.name,
+        type: isImage ? "input_url" : "input_file",
+      };
+    }),
+  );
+  markdownContentList.value.push(...fileContent);
   markdownContentList.value.push({
     role: "user",
     content: content,
+    type: "input_text",
   });
+  console.log(markdownContentList.value);
   scrollLatestQuestionToTop();
   clearInputData();
-  generateContentStreamImpl(param);
+  // return;
+  generateContentStreamImpl(paramList);
 };
 const stopMessageEvent = () => {
   if (!isStreamingResponse.value) {
@@ -247,7 +278,7 @@ const handleSendOrStopEvent = () => {
   }
   sendMessageEvent();
 };
-const generateContentStreamImpl = (param: MessageType) => {
+const generateContentStreamImpl = (param: MessageType[]) => {
   // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
   // （axios 的封装通常不会以流式方式暴露数据流）
   const run = async () => {
@@ -453,82 +484,6 @@ const generateContentStreamImpl = (param: MessageType) => {
   void run();
 };
 
-const chatgptchat = async (param) => {
-  chatChatgptInterface(param)
-    .then((res) => {
-      if (res.code == 200) {
-        markdownContentList.value.push({
-          role: "assistant",
-          content: res.data.content,
-        });
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-    });
-};
-const streamChat = async (param) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_APP_BASIC_URL}/stream/deepseek`,
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-        accept: "text/event-stream",
-        Authorization: `Bearer ${sessionStorage.getItem("access_token")}`,
-      },
-      body: JSON.stringify(param),
-    },
-  );
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-  while (true) {
-    const { done, value } = await reader?.read();
-    if (done) {
-      break;
-    }
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n\n").filter((line) => line.trim());
-
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        if (data === "[DONE]") {
-          break;
-        }
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.content) {
-            markdownContent.value += parsed.content;
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    }
-  }
-  nextTick(() => {
-    saveResponse();
-  });
-};
-const saveResponse = () => {
-  streamSaveResponseInterface({
-    documentId: documentId.value,
-    useModel: modelStore.getCurrentModel,
-    role: "assistant",
-    content: markdownContent.value,
-  }).then((res) => {
-    if (res.code == 201) {
-      markdownContentList.value.push({
-        role: "assistant",
-        content: markdownContent.value,
-      });
-      markdownContent.value = "";
-    }
-  });
-};
-const uploadImageEvent = function () {};
-const uploadFileEvent = function () {};
 const patseImageEvent = function (event: ClipboardEvent) {
   console.log("粘贴事件出发点");
   const options: PatseOptions = {
@@ -550,7 +505,7 @@ const handlePatse = function (
     // 优先处理图片粘贴
     for (let i = 0; i < clipboardData.items.length; i++) {
       const item = clipboardData.items[i];
-      if (item.type.indexOf("image") !== -1) {
+      if (item.type.indexOf("input_url") !== -1) {
         const file = item.getAsFile();
         handlePastedImage(file);
         event.preventDefault();
@@ -582,7 +537,6 @@ import type { PreviewItem } from "../../components/ImagePreview.vue";
 import { useEventsBus } from "../../stores/event-bus";
 import { useChatStore } from "../../stores/chatStore";
 const chatStore = useChatStore();
-const fileUploadRef = ref();
 const eventBus = useEventsBus();
 const documentId = ref("");
 const chatChageEvent = eventBus.on("chat-change", () => {
@@ -610,7 +564,6 @@ onUnmounted(() => {
   });
 });
 const previewItems = ref<PreviewItem[]>([]);
-const CHUNK_SIZE = 2 * 1024 * 1024;
 const appendPreviewItem = (file: File) => {
   const isImage = file.type.startsWith("image/");
   const id = `${file.name}-${file.size}-${Date.now()}`;
@@ -618,48 +571,54 @@ const appendPreviewItem = (file: File) => {
     id,
     name: file.name,
     file,
-    type: isImage ? "image" : "file",
+    type: isImage ? "input_url" : "input_file",
     url: URL.createObjectURL(file),
     uploading: true,
     uploadProgress: 0,
   });
-  uploadChunkedFile(id, file);
+  uploadPreviewFile(id, file);
 };
 const beforeUploadEvent = (file: File) => {
   appendPreviewItem(file);
   return false;
 };
+/** 统一取出上传结果体：支持 { code, data: { fileId, file_url, ... } } 或直接返回字段 */
+const uploadResultBody = (res: any) => {
+  if (
+    res &&
+    typeof res === "object" &&
+    res.data != null &&
+    typeof res.data === "object" &&
+    !Array.isArray(res.data)
+  ) {
+    return res.data;
+  }
+  return res;
+};
+/** 后端示例：{ uploadId, titleId, fileName, mimeType, status, complete, fileId, file_url } */
 const resolveUploadedUrl = (res: any) => {
+  const b = uploadResultBody(res);
   return (
-    res?.data?.url ||
-    res?.data?.fileUrl ||
-    res?.data?.path ||
-    res?.data?.src ||
-    res?.url ||
+    b?.file_url ||
+    b?.url ||
+    b?.fileUrl ||
+    b?.path ||
+    b?.src ||
     ""
   );
+};
+const resolveGridFsFileId = (res: any) => {
+  const b = uploadResultBody(res);
+  return b?.fileId || b?.gridFsFileId || "";
 };
 const isLikelyImageUrl = (url: string) => {
   return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(url);
 };
-const resolveUploadedChunkSet = (res: any): Set<number> => {
-  const uploaded =
-    res?.data?.uploadedChunks ||
-    res?.data?.chunkIndexes ||
-    res?.data?.uploadedChunkIndexes ||
-    [];
-  if (Array.isArray(uploaded)) {
-    return new Set(uploaded.map((v) => Number(v)).filter((v) => Number.isInteger(v)));
-  }
-  const uploadedCount = Number(res?.data?.uploadedChunksCount ?? res?.data?.uploadedCount);
-  if (Number.isInteger(uploadedCount) && uploadedCount > 0) {
-    return new Set(Array.from({ length: uploadedCount }, (_, i) => i));
-  }
-  return new Set();
-};
-const uploadChunkedFile = async (itemId: string | number, file: File) => {
-  const uploadId = `${file.name}-${file.size}-${file.lastModified}`.replace(/\s+/g, "_");
-  const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+const uploadPreviewFile = async (itemId: string | number, file: File) => {
+  const uploadId = `${file.name}-${file.size}-${file.lastModified}`.replace(
+    /\s+/g,
+    "_",
+  );
   const token = sessionStorage.getItem("access_token") || "";
   const target = previewItems.value.find((item) => item.id === itemId);
   if (target) {
@@ -667,75 +626,45 @@ const uploadChunkedFile = async (itemId: string | number, file: File) => {
     target.uploadProgress = 0;
   }
   try {
-    const statusResponse = await fetch(
-      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadStatus?uploadId=${encodeURIComponent(uploadId)}`,
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    formData.append("fileName", file.name);
+    formData.append("mimeType", file.type || "application/octet-stream");
+    formData.append("documentId", documentId.value);
+    formData.append("uploadId", uploadId);
+    if (target) {
+      target.uploadProgress = 50;
+    }
+    const uploadResponse = await fetch(
+      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
       {
-        method: "get",
+        method: "post",
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        body: formData,
       },
     );
-    const statusRes = await statusResponse.json().catch(() => ({}));
-    const uploadedChunkSet = statusResponse.ok ? resolveUploadedChunkSet(statusRes) : new Set<number>();
-
-    let uploadRes: any = null;
-    let uploadedCount = uploadedChunkSet.size;
-    if (target && totalChunks > 0) {
-      target.uploadProgress = Math.min(99, Math.floor((uploadedCount / totalChunks) * 100));
+    const uploadRes = await uploadResponse.json().catch(() => ({}));
+    if (!uploadResponse.ok) {
+      throw new Error(uploadRes?.message || uploadRes?.msg || "上传失败");
     }
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
-      if (uploadedChunkSet.has(chunkIndex)) {
-        continue;
-      }
-      const start = chunkIndex * CHUNK_SIZE;
-      const end = Math.min(file.size, start + CHUNK_SIZE);
-      const chunk = file.slice(start, end);
-      const formData = new FormData();
-      formData.append("file", chunk, file.name);
-      formData.append("uploadId", uploadId);
-      formData.append("fileName", file.name);
-      formData.append("mimeType", file.type || "application/octet-stream");
-      formData.append("chunkIndex", String(chunkIndex));
-      formData.append("totalChunks", String(totalChunks));
-      const uploadResponse = await fetch(
-        `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
-        {
-          method: "post",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
-      );
-      uploadRes = await uploadResponse.json().catch(() => ({}));
-      if (!uploadResponse.ok) {
-        throw new Error(uploadRes?.message || "分片上传失败");
-      }
-      uploadedCount += 1;
-      if (target && totalChunks > 0) {
-        target.uploadProgress = Math.min(99, Math.floor((uploadedCount / totalChunks) * 100));
-      }
+    if (
+      typeof uploadRes?.code === "number" &&
+      uploadRes.code !== 200 &&
+      uploadRes.code !== 201
+    ) {
+      throw new Error(uploadRes?.message || uploadRes?.msg || "上传失败");
     }
     if (!target) return;
-    const uploadedUrl =
-      resolveUploadedUrl(uploadRes) ||
-      `${import.meta.env.VITE_APP_BASIC_URL}/file/${encodeURIComponent(uploadId)}/download`;
-    // 图片优先保留本地预览地址，避免服务端下载地址无法直接回显
-    if (target.type === "image") {
-      target.uploadedUrl = uploadedUrl;
-      if (isLikelyImageUrl(uploadedUrl)) {
-        if (target.url?.startsWith("blob:")) {
-          URL.revokeObjectURL(target.url);
-        }
-        target.url = uploadedUrl;
-      }
-    } else {
-      if (target.url?.startsWith("blob:")) {
-        URL.revokeObjectURL(target.url);
-      }
-      target.url = uploadedUrl;
+    const uploadedUrl = uploadResultBody(uploadRes)?.file_url || "";
+    if (!uploadedUrl) {
+      throw new Error("上传成功但未返回 file_url");
     }
+    // 保存后端返回的 file_url 与 fileName 到当前预览对象
+    target.uploadedUrl = uploadedUrl;
+    target.name = uploadResultBody(uploadRes)?.fileName || target.name;
+    target.mimeType = uploadResultBody(uploadRes)?.mimeType || target.mimeType;
     target.uploading = false;
     target.uploadProgress = 100;
     message.success("上传成功");
@@ -749,7 +678,9 @@ const uploadChunkedFile = async (itemId: string | number, file: File) => {
   }
 };
 const handleRemovePreviewItem = (item: PreviewItem) => {
-  const index = previewItems.value.findIndex((current) => current.id === item.id);
+  const index = previewItems.value.findIndex(
+    (current) => current.id === item.id,
+  );
   if (index > -1) {
     const target = previewItems.value[index];
     if (target.url?.startsWith("blob:")) {
@@ -787,11 +718,6 @@ const scrollLatestQuestionToTop = () => {
       behavior: getScrollBehavior(),
     });
   });
-};
-const isAtBottom = () => {
-  if (!scrollRef.value) return false;
-  const el = scrollRef.value;
-  return el.scrollHeight - el.scrollTop - el.clientHeight < 10;
 };
 onMounted(() => {
   scrollToBottom(false);

@@ -8,4 +8,5 @@ export interface MessageType {
     titleId?: string;
     documentId?: string;
     userId?: string;
+    type?: 'input_text' | 'input_file' | 'input_url';
 }

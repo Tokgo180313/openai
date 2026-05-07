@@ -4,7 +4,7 @@
     <div class="image-grid" v-else>
       <div
         class="image-item"
-        :class="{ 'file-item': item.type === 'file' }"
+        :class="{ 'file-item': item.type === 'input_file' }"
         v-for="(item, index) in displayItems"
         :key="item.id || index"
       >
@@ -16,13 +16,13 @@
           <i class="iconfont icon-cuo"></i>
         </span>
         <img
-          v-if="isImageItem(item)"
-          :src="item.url"
+          v-if="item.type === 'input_url'"
+          :src="getImageSrc(item)"
           :alt="item.name || '预览图片'"
           @click="previewImage(item)"
         />
         <div
-          v-if="isImageItem(item) && item.uploading"
+          v-if="item.type === 'input_url' && item.uploading"
           class="upload-progress-circle image-progress"
         >
           <a-progress
@@ -33,7 +33,7 @@
             status="active"
           />
         </div>
-        <div v-else-if="shouldShowAsFile(item)" class="file-card" @click="downloadFile(item)">
+        <div v-else-if="item.type === 'input_file'" class="file-card" @click="downloadFile(item)">
           <div
             class="file-icon-wrap"
             :style="{ backgroundColor: getFileBackgroundColor(item.name) }"
@@ -58,6 +58,9 @@
             </div>
           </div>
         </div>
+        <div v-else-if="item.type === 'input_text'" class="text-card">
+          <span class="text-content">{{ item.content }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -68,11 +71,13 @@ import { computed } from "vue";
 export interface PreviewItem {
   id?: string | number;
   fileId?: string;
-  url: string;
+  gridFsFileId?: string;
+  url?: string;
   uploadedUrl?: string;
+  content?: string;
   name?: string;
-  file?: File;
-  type: "image" | "file";
+  file?: File | string;
+  type: "input_text" | "input_file" | "input_url";
   uploading?: boolean;
   uploadProgress?: number;
 }
@@ -85,21 +90,8 @@ const props = withDefaults(defineProps<Props>(), {
   showRemove: true,
 });
 
-const imageExtSet = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
-const normalizeName = (name?: string) => (name || "").trim().toLowerCase();
 const displayItems = computed(() => {
-  const list = props.items || [];
-  const imageNameSet = new Set(
-    list.filter((item) => isImageItem(item)).map((item) => normalizeName(item.name)),
-  );
-  return list.filter((item) => {
-    if (isImageItem(item)) return true;
-    const fileName = normalizeName(item.name);
-    if (fileName && imageNameSet.has(fileName)) {
-      return false;
-    }
-    return true;
-  });
+  return props.items || [];
 });
 
 const emit = defineEmits<{
@@ -107,8 +99,15 @@ const emit = defineEmits<{
 }>();
 
 const previewImage = (item: PreviewItem) => {
-  if (!item.url) return;
-  window.open(item.url, "_blank");
+  const src = getImageSrc(item);
+  if (!src) return;
+  window.open(src, "_blank");
+};
+const getImageSrc = (item: PreviewItem) => {
+  if (typeof item.file === "string" && item.file.length > 0) {
+    return item.file;
+  }
+  return item.url || item.uploadedUrl || "";
 };
 const downloadFile = (item: PreviewItem) => {
   const downloadUrl = item.uploadedUrl || item.url;
@@ -124,16 +123,6 @@ const downloadFile = (item: PreviewItem) => {
 const getFileExt = (name?: string) => {
   if (!name || !name.includes(".")) return "";
   return name.split(".").pop()?.toLowerCase() || "";
-};
-const isImageItem = (item: PreviewItem) => {
-  if (item.type === "image") return true;
-  const fileType = item.file?.type || "";
-  if (fileType.startsWith("image/")) return true;
-  const ext = getFileExt(item.name);
-  return imageExtSet.has(ext);
-};
-const shouldShowAsFile = (item: PreviewItem) => {
-  return !isImageItem(item);
 };
 const getFileIcon = (name?: string) => {
   const ext = getFileExt(name);
@@ -163,7 +152,7 @@ const getFileBackgroundColor = (name?: string) => {
 const getFileTypeText = (name?: string) => {
   const ext = getFileExt(name);
   if (!ext) return "文件";
-  if (imageExtSet.has(ext)) return "图片";
+  if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext)) return "图片";
   if (["pdf"].includes(ext)) return "PDF 文档";
   if (["doc", "docx", "txt", "md"].includes(ext)) return "文档";
   if (["xls", "xlsx", "csv"].includes(ext)) return "表格";
@@ -206,6 +195,18 @@ const getFileTypeText = (name?: string) => {
   width: 240px;
   min-width: 190px;
   max-width: 100%;
+}
+.text-card {
+  max-width: 260px;
+  padding: 8px 10px;
+  background: #f7f7f7;
+  border-radius: 10px;
+}
+.text-content {
+  font-size: 12px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .image-item:hover {
   transform: translateY(-1px);
