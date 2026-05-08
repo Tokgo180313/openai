@@ -20,6 +20,8 @@ import { CommonModule } from './common/common.module';
 import { UsageModule } from './usage/usage.module';
 import { KeyModule } from './key/key.module';
 import { ScheduleModule } from './schedule/schedule.module';
+import { TaskImageModule } from './taskImage/taskImage.module';
+import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -38,6 +40,8 @@ import { ScheduleModule } from './schedule/schedule.module';
     UsageModule,
     KeyModule,
     ScheduleModule,
+    TaskImageModule,
+    AiModelConfigModule,
   ],
   controllers: [AppController],
   providers: [
