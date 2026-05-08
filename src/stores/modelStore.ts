@@ -58,19 +58,38 @@ export const useModelStore = defineStore("model", {
           }
         });
     },
-    fetchModelList(param) {
+    /**
+     * @param options.preserveCurrentModel 为 true 时只更新 modelList，不修改 currentModel（供管理类下拉开列表等场景）
+     */
+    fetchModelList(
+      param,
+      options?: { preserveCurrentModel?: boolean },
+    ) {
       return findModelListInterface(param)
         .then((res) => {
           if (res.code === 201) {
-            this.setModelList(res.data.list||res.data||[]);
-            return res.data.list||res.data||[];
+            const list = res.data.list || res.data || [];
+            if (options?.preserveCurrentModel) {
+              this.modelList = list;
+            } else {
+              this.setModelList(list);
+            }
+            return list;
           } else {
-            this.setModelList([]);
+            if (options?.preserveCurrentModel) {
+              this.modelList = [];
+            } else {
+              this.setModelList([]);
+            }
             return [] ;
           }
         })
         .catch(() => {
-          this.setModelList([]);
+          if (options?.preserveCurrentModel) {
+            this.modelList = [];
+          } else {
+            this.setModelList([]);
+          }
           return [] ;
         });
     },

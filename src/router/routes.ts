@@ -117,7 +117,17 @@ const routes: RouteRecordRaw[] = [
           title: "定时任务",
           icon: "iconfont icon-renwujincheng",
         },
-      }
+      },
+      {
+        path: "/aiModelConfig",
+        name: "/aiModelConfig",
+        title: "AI模型配置",
+        component: () => import("@/views/aiModelConfig/index.vue"),
+        meta: {
+          title: "AI模型配置",
+          icon: "iconfont icon-aiModelConfig",
+        },
+      },
     ],
     meta: {
       title: "用户管理",

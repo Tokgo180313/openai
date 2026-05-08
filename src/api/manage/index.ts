@@ -5,6 +5,7 @@ import role from "./role.ts"
 import usage from "./usage.ts"
 import key from "./key.ts"
 import schedule from "./schedule.ts"
+import aiModelConfig from "./aiModelConfig.ts"
 export default {
     ...user,
     ...record,
@@ -12,5 +13,6 @@ export default {
     ...role,
     ...usage,
     ...key,
-    ...schedule
+    ...schedule,
+    ...aiModelConfig,
 }
