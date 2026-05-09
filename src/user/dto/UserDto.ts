@@ -29,7 +29,7 @@ export class UserDto {
     @IsString()
     avatar?: string;
 
-    /** 上级用户 id，仅普通用户 roleId=2 有效；传空字符串表示清空 */
+    /** 上级用户 id；roleId 为 0、1 时不参与上下级；传空字符串表示清空 */
     @IsOptional()
     @IsString()
     parentId?: string;

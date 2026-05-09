@@ -3,7 +3,6 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('records')
@@ -20,9 +19,7 @@ export class OperationRecord {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  /** 仅维护创建时间（无 updatedAt） */
   @CreateDateColumn()
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

@@ -5,7 +5,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { validate as validateUuid } from 'uuid';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserDto } from './dto/UserDto';
@@ -23,11 +22,26 @@ export class UserService {
     private recordService: RecordService,
   ) {}
 
-  /** 普通用户角色编码（上下级仅对该角色生效） */
+  /** 新建用户未传 roleId 时的默认角色 */
   private static readonly ORDINARY_ROLE_ID = '2';
 
+  /** 超级管理员等角色不参与上下级，不可绑定 parentId */
+  private static readonly ROLE_IDS_WITHOUT_HIERARCHY = new Set(['0', '1']);
+
+  private hierarchyApplies(roleId: string): boolean {
+    return !UserService.ROLE_IDS_WITHOUT_HIERARCHY.has(roleId);
+  }
+
+  /**
+   * 校验「标准 hyphenated 外形」8-4-4-4-12 十六进制。
+   * 注意：`uuid` 包的 validate() 还会限制版本位与 RFC variant（第 4 段须以 8/9/a/b 开头），
+   * 许多库生成的「形似 UUID」的主键若 variant 不符会误判；此处仅做字符串形态校验。
+   */
+  private static readonly UUID_STRING_SHAPE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   private isUuid(value: string): boolean {
-    return validateUuid(value);
+    return UserService.UUID_STRING_SHAPE.test(value);
   }
 
   private parseOptionalParentRef(value: string | undefined): string | null {
@@ -41,14 +55,16 @@ export class UserService {
     return v;
   }
 
-  /** 仅 roleId=2 的普通用户可绑定 parentId */
+  /** 除 roleId 为 0、1 外均可绑定 parentId */
   private assertParentAllowedForRole(
     roleId: string,
     parentId: string | null,
   ): void {
     if (parentId == null) return;
-    if (roleId !== UserService.ORDINARY_ROLE_ID) {
-      throw new BadRequestException('仅普通用户(roleId=2)可设置上级 parentId');
+    if (!this.hierarchyApplies(roleId)) {
+      throw new BadRequestException(
+        '角色 0、1 不参与上下级，不可设置 parentId',
+      );
     }
   }
 
@@ -84,7 +100,7 @@ export class UserService {
     }
   }
 
-  async create(userDto: UserDto, operatorId?: string | undefined): Promise<User> {
+  async create(userDto: UserDto): Promise<User> {
     try {
       if (!userDto.account) {
         throw new BadRequestException('账号必填');
@@ -115,9 +131,6 @@ export class UserService {
         parentId,
       });
       const savedUser = await this.userRepo.save(entity);
-      if (operatorId) {
-        await this.addRecord(savedUser.account, '用户添加', operatorId);
-      }
       return savedUser;
     } catch (error) {
       if (error instanceof ConflictException) throw error;
@@ -175,7 +188,7 @@ export class UserService {
     return this.userRepo.findOne({ where: { id: v } });
   }
 
-  async deleteById(id: string, operatorId: string): Promise<void> {
+  async deleteById(id: string, _operatorId: string): Promise<string> {
     const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException('用户不存在');
@@ -189,8 +202,9 @@ export class UserService {
     if (childCount > 0) {
       throw new ConflictException('存在下级用户，无法删除');
     }
+    const account = user.account;
     await this.userRepo.delete(user.id);
-    await this.addRecord(user.account, '用户删除', operatorId);
+    return account;
   }
 
   async updatePassword(
@@ -237,7 +251,7 @@ export class UserService {
     if (userDto.parentId !== undefined) {
       nextParentId = this.parseOptionalParentRef(userDto.parentId);
     }
-    if (nextRoleId !== UserService.ORDINARY_ROLE_ID) {
+    if (!this.hierarchyApplies(nextRoleId)) {
       nextParentId = null;
     }
 
@@ -273,7 +287,6 @@ export class UserService {
     if (!updateUser) {
       throw new NotFoundException('用户不存在');
     }
-    await this.addRecord(updateUser.account, '用户修改', operatorId);
     return updateUser;
   }
 

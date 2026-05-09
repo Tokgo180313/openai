@@ -6,8 +6,12 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { OperationLogService } from 'src/common/operation-log/operation-log.service';
 import { ScheduleService } from './schedule.service';
 import {
   ScheduleCreateDto,
@@ -17,16 +21,31 @@ import {
 
 @ApiTags('schedule')
 @Controller('/schedule')
+@UseGuards(JwtAuthGuard)
 export class ScheduleController {
-  constructor(private readonly scheduleService: ScheduleService) {}
+  constructor(
+    private readonly scheduleService: ScheduleService,
+    private readonly operationLog: OperationLogService,
+  ) {}
 
   @Put('/add')
-  async addSchedule(@Body() dto: ScheduleCreateDto) {
-    return await this.scheduleService.createSchedule(dto);
+  async addSchedule(
+    @Body() dto: ScheduleCreateDto,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    const row = await this.scheduleService.createSchedule(dto);
+    await this.operationLog.append(operatorId, '定时任务添加', String(row.id));
+    return row;
   }
+
   @Post('/findScheduleList')
-  async findScheduleList(@Body() dto: ScheduleQueryDto) {
-    return await this.scheduleService.findScheduleList(dto);
+  async findScheduleList(
+    @Body() dto: ScheduleQueryDto,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    const result = await this.scheduleService.findScheduleList(dto);
+    await this.operationLog.append(operatorId, '定时任务列表查询');
+    return result;
   }
 
   @Get('/findById')
@@ -35,12 +54,22 @@ export class ScheduleController {
   }
 
   @Delete('/deleteById')
-  async deleteById(@Query('id') id: string) {
-    return await this.scheduleService.deleteScheduleById(id);
+  async deleteById(
+    @Query('id') id: string,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    await this.scheduleService.deleteScheduleById(id);
+    await this.operationLog.append(operatorId, '定时任务删除', id);
   }
 
   @Put('/updateById')
-  async updateById(@Query('id') id: string, @Body() dto: ScheduleUpdateDto) {
-    return await this.scheduleService.updateScheduleById(id, dto);
+  async updateById(
+    @Query('id') id: string,
+    @Body() dto: ScheduleUpdateDto,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    const row = await this.scheduleService.updateScheduleById(id, dto);
+    await this.operationLog.append(operatorId, '定时任务修改', id);
+    return row;
   }
 }

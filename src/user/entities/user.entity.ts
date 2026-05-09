@@ -39,7 +39,7 @@ export class User {
   @Column({ nullable: true })
   avatar?: string;
 
-  /** 上级用户 id（普通用户 roleId=2 的上下级；顶层可为 null） */
+  /** 上级用户 id（roleId 非 0、1 时的上下级；顶层可为 null） */
   @Column({ name: 'parent_id', type: 'varchar', length: 36, nullable: true })
   parentId: string | null;
 
