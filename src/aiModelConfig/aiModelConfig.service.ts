@@ -3,13 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
+import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
 import {
-  AiModelConfig,
-  AiModelConfigDocument,
-} from 'src/schemas/aiModelConfig/aiModelConfig.schema';
+  AiModelConfigEntity,
+  FieldMappingsJson,
+} from './entities/ai-model-config.entity';
 import {
   AiModelConfigCreateDto,
   AiModelConfigQueryDto,
@@ -23,12 +24,12 @@ function isDefined<T>(v: T | undefined | null): v is T {
 @Injectable()
 export class AiModelConfigService {
   constructor(
-    @InjectModel(AiModelConfig.name)
-    private readonly aiModelConfigModel: Model<AiModelConfigDocument>,
+    @InjectRepository(AiModelConfigEntity)
+    private readonly repo: Repository<AiModelConfigEntity>,
   ) {}
 
-  async create(dto: AiModelConfigCreateDto): Promise<AiModelConfig> {
-    const doc = new this.aiModelConfigModel({
+  async create(dto: AiModelConfigCreateDto): Promise<AiModelConfigEntity> {
+    const entity = this.repo.create({
       provider: String(dto.provider).trim(),
       modelName: String(dto.modelName).trim(),
       displayName: String(dto.displayName).trim(),
@@ -41,20 +42,18 @@ export class AiModelConfigService {
       defaultResolution: dto.defaultResolution,
       supportedFormats: dto.supportedFormats ?? [],
       maxResolution: dto.maxResolution,
-      fieldMappings: dto.fieldMappings ?? {},
+      fieldMappings: (dto.fieldMappings ?? {}) as FieldMappingsJson,
       defaultParams: dto.defaultParams ?? {},
       isEnabled: dto.isEnabled ?? true,
       sort: dto.sort ?? 0,
     });
 
     try {
-      return await doc.save();
+      return await this.repo.save(entity);
     } catch (error: unknown) {
-      const err = error as { code?: number; message?: string };
-      if (err.code === 11000) {
-        throw new BadRequestException(
-          '该 provider 下已存在相同的 modelName',
-        );
+      const err = error as { code?: string; errno?: number; message?: string };
+      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+        throw new BadRequestException('该 provider 下已存在相同的 modelName');
       }
       throw new BadRequestException(err.message ?? '创建失败');
     }
@@ -62,28 +61,30 @@ export class AiModelConfigService {
 
   async findList(
     dto: AiModelConfigQueryDto,
-  ): Promise<PaginationResponse<AiModelConfig>> {
-    const query: FilterQuery<AiModelConfig> = {};
+  ): Promise<PaginationResponse<AiModelConfigEntity>> {
+    const qb = this.repo.createQueryBuilder('c');
+
     if (dto.provider?.trim()) {
-      query.provider = dto.provider.trim();
+      qb.andWhere('c.provider = :p', { p: dto.provider.trim() });
     }
     if (dto.modelName?.trim()) {
-      query.modelName = { $regex: dto.modelName.trim(), $options: 'i' };
+      qb.andWhere('LOWER(c.modelName) LIKE LOWER(:mn)', {
+        mn: `%${dto.modelName.trim()}%`,
+      });
     }
     if (dto.modelType?.trim()) {
-      query.modelType = dto.modelType.trim();
+      qb.andWhere('c.modelType = :mt', { mt: dto.modelType.trim() });
     }
     if (typeof dto.isEnabled === 'boolean') {
-      query.isEnabled = dto.isEnabled;
+      qb.andWhere('c.isEnabled = :en', { en: dto.isEnabled });
     }
 
-    const total = await this.aiModelConfigModel.countDocuments(query).exec();
-    const list = await this.aiModelConfigModel
-      .find(query)
-      .sort({ sort: 1, createdAt: -1 })
+    const [list, total] = await qb
+      .orderBy('c.sort', 'ASC')
+      .addOrderBy('c.createdAt', 'DESC')
       .skip(dto.skip)
-      .limit(dto.limit)
-      .exec();
+      .take(dto.limit)
+      .getManyAndCount();
 
     return {
       list,
@@ -93,12 +94,12 @@ export class AiModelConfigService {
     };
   }
 
-  async findById(id: string): Promise<AiModelConfig> {
-    const trimmed = String(id ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException('id is required');
+  async findById(id: string): Promise<AiModelConfigEntity> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
     }
-    const doc = await this.aiModelConfigModel.findById(trimmed).exec();
+    const doc = await this.repo.findOne({ where: { id: nid } });
     if (!doc) {
       throw new NotFoundException('ai model config not found');
     }
@@ -106,75 +107,75 @@ export class AiModelConfigService {
   }
 
   async deleteById(id: string): Promise<void> {
-    const trimmed = String(id ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException('id is required');
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
     }
-    const existed = await this.aiModelConfigModel.findById(trimmed).lean().exec();
+    const existed = await this.repo.findOne({ where: { id: nid } });
     if (!existed) {
       throw new NotFoundException('ai model config not found');
     }
-    await this.aiModelConfigModel.findByIdAndDelete(trimmed).exec();
+    await this.repo.delete(nid);
   }
 
   async updateById(
     id: string,
     dto: AiModelConfigUpdateDto,
-  ): Promise<AiModelConfig> {
-    const trimmed = String(id ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException('id is required');
+  ): Promise<AiModelConfigEntity> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
     }
 
-    const update: Partial<AiModelConfig> = {};
+    const row = await this.repo.findOne({ where: { id: nid } });
+    if (!row) {
+      throw new NotFoundException('ai model config not found');
+    }
 
-    if (isDefined(dto.provider)) update.provider = String(dto.provider).trim();
-    if (isDefined(dto.modelName)) update.modelName = String(dto.modelName).trim();
+    const patch: Partial<AiModelConfigEntity> = {};
+    if (isDefined(dto.provider)) patch.provider = String(dto.provider).trim();
+    if (isDefined(dto.modelName)) patch.modelName = String(dto.modelName).trim();
     if (isDefined(dto.displayName)) {
-      update.displayName = String(dto.displayName).trim();
+      patch.displayName = String(dto.displayName).trim();
     }
-    if (isDefined(dto.modelType)) update.modelType = String(dto.modelType).trim();
-    if (isDefined(dto.apiUrl)) update.apiUrl = String(dto.apiUrl).trim();
-    if (isDefined(dto.maxImageCount)) update.maxImageCount = dto.maxImageCount;
+    if (isDefined(dto.modelType)) patch.modelType = String(dto.modelType).trim();
+    if (isDefined(dto.apiUrl)) patch.apiUrl = String(dto.apiUrl).trim();
+    if (isDefined(dto.maxImageCount)) patch.maxImageCount = dto.maxImageCount;
     if (isDefined(dto.supportedAspectRatio)) {
-      update.supportedAspectRatio = dto.supportedAspectRatio;
+      patch.supportedAspectRatio = dto.supportedAspectRatio;
     }
     if (isDefined(dto.defaultAspectRatio)) {
-      update.defaultAspectRatio = dto.defaultAspectRatio;
+      patch.defaultAspectRatio = dto.defaultAspectRatio;
     }
     if (isDefined(dto.supportedResolutions)) {
-      update.supportedResolutions = dto.supportedResolutions;
+      patch.supportedResolutions = dto.supportedResolutions;
     }
     if (isDefined(dto.defaultResolution)) {
-      update.defaultResolution = dto.defaultResolution;
+      patch.defaultResolution = dto.defaultResolution;
     }
     if (isDefined(dto.supportedFormats)) {
-      update.supportedFormats = dto.supportedFormats;
+      patch.supportedFormats = dto.supportedFormats;
     }
-    if (isDefined(dto.maxResolution)) update.maxResolution = dto.maxResolution;
-    if (isDefined(dto.fieldMappings)) update.fieldMappings = dto.fieldMappings;
-    if (isDefined(dto.defaultParams)) update.defaultParams = dto.defaultParams;
-    if (isDefined(dto.isEnabled)) update.isEnabled = dto.isEnabled;
-    if (isDefined(dto.sort)) update.sort = dto.sort;
+    if (isDefined(dto.maxResolution)) patch.maxResolution = dto.maxResolution;
+    if (isDefined(dto.fieldMappings)) {
+      patch.fieldMappings = dto.fieldMappings as FieldMappingsJson;
+    }
+    if (isDefined(dto.defaultParams)) patch.defaultParams = dto.defaultParams;
+    if (isDefined(dto.isEnabled)) patch.isEnabled = dto.isEnabled;
+    if (isDefined(dto.sort)) patch.sort = dto.sort;
 
-    if (Object.keys(update).length === 0) {
+    if (Object.keys(patch).length === 0) {
       throw new BadRequestException('no fields to update');
     }
 
+    Object.assign(row, patch);
+
     try {
-      const updated = await this.aiModelConfigModel
-        .findByIdAndUpdate(trimmed, update, { new: true })
-        .exec();
-      if (!updated) {
-        throw new NotFoundException('ai model config not found');
-      }
-      return updated;
+      return await this.repo.save(row);
     } catch (error: unknown) {
-      const err = error as { code?: number; message?: string };
-      if (err.code === 11000) {
-        throw new BadRequestException(
-          '该 provider 下已存在相同的 modelName',
-        );
+      const err = error as { code?: string; errno?: number; message?: string };
+      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+        throw new BadRequestException('该 provider 下已存在相同的 modelName');
       }
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(err.message ?? '更新失败');

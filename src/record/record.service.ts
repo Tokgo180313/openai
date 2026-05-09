@@ -1,56 +1,77 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { RecordDto } from './dto/record.dto';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
-import { Record, RecordDocument } from 'src/schemas/record/record.schema';
+import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
 import { RecordEntity } from './entity/record.entity';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
+import { OperationRecord } from './entities/operation-record.entity';
+
 @Injectable()
 export class RecordService {
   constructor(
-    @InjectModel(Record.name) private recordSchema: Model<RecordDocument>,
+    @InjectRepository(OperationRecord)
+    private readonly recordRepo: Repository<OperationRecord>,
   ) {}
 
-  //添加
-  async createRecord(recordDto: RecordEntity): Promise<Record> {
-    const createRecord = new this.recordSchema(recordDto);
-    return await createRecord.save();
+  async createRecord(recordDto: RecordEntity): Promise<OperationRecord> {
+    const entity = this.recordRepo.create({
+      nickName: recordDto.nickName,
+      account: recordDto.account,
+      description: recordDto.description,
+    });
+    return await this.recordRepo.save(entity);
   }
-  //查询
-  async findRecordList(recordDto: RecordDto): Promise<PaginationResponse<Record>> {
-    const query: FilterQuery<Record> = {};
+
+  async findRecordList(
+    recordDto: RecordDto,
+  ): Promise<PaginationResponse<OperationRecord>> {
+    const qb = this.recordRepo.createQueryBuilder('r');
+
     if (recordDto.account && recordDto.account !== '') {
-      query.account = recordDto.account;
+      qb.andWhere('r.account = :account', { account: recordDto.account });
     }
     if (recordDto.modelName && recordDto.modelName !== '') {
-      query.modelName = recordDto.modelName;
+      qb.andWhere('r.description LIKE :mn', {
+        mn: `%${recordDto.modelName}%`,
+      });
     }
     if (recordDto.classify && recordDto.classify !== '') {
-      query.classify = recordDto.classify;
+      qb.andWhere('r.description LIKE :cl', {
+        cl: `%${recordDto.classify}%`,
+      });
     }
-    if (recordDto.startTime ) {
-      query.startTime = recordDto.startTime;
+    if (recordDto.startTime) {
+      qb.andWhere('r.createdAt >= :startTime', {
+        startTime: new Date(recordDto.startTime),
+      });
     }
     if (recordDto.endTime) {
-      query.endTime = recordDto.endTime;
+      qb.andWhere('r.createdAt <= :endTime', {
+        endTime: new Date(recordDto.endTime),
+      });
     }
+
     const { skip, limit } = recordDto;
-    console.log(query,skip,limit,recordDto);
-    const total = await this.recordSchema.countDocuments(query).exec();
-    const data = await this.recordSchema
-      .find(query)
+    const [data, total] = await qb
+      .orderBy('r.createdAt', 'DESC')
       .skip(skip)
-      .limit(limit)
-      .exec();
+      .take(limit)
+      .getManyAndCount();
+
     return {
       list: data,
       total,
       currentPage: recordDto.page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
     };
   }
-  //删除
+
   async deleteRecord(id: string): Promise<void> {
-    await this.recordSchema.findByIdAndDelete(id).exec();
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      return;
+    }
+    await this.recordRepo.delete(nid);
   }
 }

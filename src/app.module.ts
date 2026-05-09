@@ -4,10 +4,11 @@ import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptors';
 import { MongooseSerializerInterceptor } from './common/interceptors/mongoose-serializer.interceptor';
-import { HttpExecptionFilter } from './common/filters/http-exception.filter';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
@@ -25,6 +26,23 @@ import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'mysql',
+        host: config.get<string>('MYSQL_HOST', 'localhost'),
+        port: parseInt(config.get<string>('MYSQL_PORT', '3306'), 10),
+        username: config.get<string>('MYSQL_USERNAME', 'root'),
+        password: config.get<string>('MYSQL_PASSWORD', ''),
+        database: config.get<string>('MYSQL_DATABASE', 'nest'),
+        charset: 'utf8mb4',
+        timezone: '+08:00',
+        autoLoadEntities: true,
+        synchronize: config.get<string>('MYSQL_SYNCHRONIZE', 'false') === 'true',
+        logging: config.get<string>('NODE_ENV') === 'development',
+      }),
+    }),
     MongooseModule.forRoot('mongodb://127.0.0.1:27017/nest', {
       autoIndex: true,
     }),
@@ -55,7 +73,7 @@ import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
     },
     {
       provide: APP_FILTER,
-      useClass: HttpExecptionFilter,
+      useClass: GlobalExceptionFilter,
     },
     AppService,
   ],

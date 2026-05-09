@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ModelsDto } from './dto/models.dto';
-import { Models, ModelDocument } from 'src/schemas/models/models.schema';
-import { FilterQuery, Model } from 'mongoose';
+import { positiveInt } from 'src/common/dto/pagination-int.util';
+import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
-import { InjectModel } from '@nestjs/mongoose';
-import { RecordService } from 'src/record/record.service';
 import { EncryptionService } from 'src/common/utils/encryption.service';
 import { KeyService } from 'src/key/key.service';
 import {
@@ -18,11 +18,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ModelsEntity } from './entity/models.entity';
+import { ModelRecord } from './entities/model-record.entity';
 
-function mongoErrorMessage(error: unknown): string {
+function rowErrorMessage(error: unknown): string {
   if (error == null) return '创建模型失败';
   if (typeof error === 'string') return error;
-  const e = error as { message?: unknown; errors?: Record<string, { message?: string }> };
+  const e = error as {
+    message?: unknown;
+    errors?: Record<string, { message?: string }>;
+  };
   if (typeof e.message === 'string') return e.message;
   if (Array.isArray(e.message)) return e.message.map(String).join('; ');
   if (e.errors && typeof e.errors === 'object') {
@@ -34,70 +38,99 @@ function mongoErrorMessage(error: unknown): string {
   return '创建模型失败';
 }
 
-/**
- * findClassifyList / findModelByModelNameAndModelClassify 使用的公共条件。
- * findModelList 单独构造 query，不按 status 过滤（需包含 status 为「0」的停用数据）。
- */
-const notDeletedFilter: FilterQuery<Models> = {};
-
 @Injectable()
 export class ModelService {
   constructor(
-    @InjectModel(Models.name) private modelSchema: Model<ModelDocument>,
+    @InjectRepository(ModelRecord)
+    private readonly modelRepo: Repository<ModelRecord>,
     private readonly encryptionService: EncryptionService,
-    private recordService: RecordService,
     private readonly keyService: KeyService,
   ) {}
 
-  //添加
-  async createModel(modelDto: ModelsEntity): Promise<Models> {
+  async createModel(modelDto: ModelsEntity): Promise<ModelRecord> {
     try {
       modelDto.status = '1';
-      const createModel = new this.modelSchema(modelDto);
-      return await createModel.save();
+      const entity = this.modelRepo.create({
+        modelName: modelDto.modelName,
+        modelClassify: modelDto.modelClassify,
+        description: modelDto.description,
+        status: modelDto.status,
+      });
+      return await this.modelRepo.save(entity);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
       console.error('createModel error:', error);
-      throw new BadRequestException(mongoErrorMessage(error));
+      throw new BadRequestException(rowErrorMessage(error));
     }
   }
-  //查询（分页，不过滤 status，含停用「0」）
+
   async findModelList(
     modelDto: ModelsDto,
-  ): Promise<PaginationResponse<Models>> {
-    const query: FilterQuery<Models> = {};
-    if (modelDto.modelName) query.modelName = modelDto.modelName;
-    if (modelDto.modelClassify) query.modelClassify = modelDto.modelClassify;
-    if (modelDto.status) query.status = modelDto.status;
+  ): Promise<PaginationResponse<ModelRecord>> {
+    const qb = this.modelRepo.createQueryBuilder('m');
+    if (modelDto.modelName) {
+      qb.andWhere('m.modelName = :modelName', {
+        modelName: modelDto.modelName,
+      });
+    }
+    if (modelDto.modelClassify) {
+      qb.andWhere('m.modelClassify = :modelClassify', {
+        modelClassify: modelDto.modelClassify,
+      });
+    }
+    if (modelDto.status) {
+      qb.andWhere('m.status = :status', { status: modelDto.status });
+    }
 
-    const { skip, limit, page, pageSize } = modelDto;
-    const total = await this.modelSchema.countDocuments(query).exec();
-    const list = await this.modelSchema
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .exec();
+    qb.orderBy('m.createdAt', 'DESC');
+
+    const noPaging =
+      modelDto.page === undefined && modelDto.pageSize === undefined;
+
+    if (noPaging) {
+      const [list, total] = await qb.getManyAndCount();
+      return {
+        list,
+        total,
+        currentPage: 1,
+        totalPages: total === 0 ? 0 : 1,
+      };
+    }
+
+    const page =
+      modelDto.page !== undefined
+        ? positiveInt(modelDto.page, 1)
+        : 1;
+    const pageSize =
+      modelDto.pageSize !== undefined
+        ? positiveInt(modelDto.pageSize, 10)
+        : 10;
+    const skip = (page - 1) * pageSize;
+
+    const [list, total] = await qb.skip(skip).take(pageSize).getManyAndCount();
 
     return {
       list,
       total,
       currentPage: page,
-      totalPages: Math.ceil(total / pageSize),
+      totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
     };
   }
-  //get by id
-  async findModelById(id: string): Promise<Models | null> {
-    return await this.modelSchema.findById(id).exec();
+
+  async findModelById(id: string): Promise<ModelRecord | null> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      return null;
+    }
+    return await this.modelRepo.findOne({ where: { id: nid } });
   }
-  /** 停用：status → "0" */
+
   async disableModel(id: string): Promise<Record<string, unknown>> {
     return this.setModelStatus(id, '0');
   }
 
-  /** 启用：status → "1" */
   async enableModel(id: string): Promise<Record<string, unknown>> {
     return this.setModelStatus(id, '1');
   }
@@ -106,62 +139,60 @@ export class ModelService {
     id: string,
     status: string,
   ): Promise<Record<string, unknown>> {
-    const trimmed = String(id ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException('id is required');
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
     }
-    const updated = await this.modelSchema
-      .findByIdAndUpdate(trimmed, { status }, { new: true })
-      .exec();
-    if (!updated) {
+    const row = await this.modelRepo.findOne({ where: { id: nid } });
+    if (!row) {
       throw new NotFoundException('model not found');
     }
-    return updated.toJSON() as Record<string, unknown>;
+    row.status = status;
+    const updated = await this.modelRepo.save(row);
+    return { ...updated } as Record<string, unknown>;
   }
 
-  /** 物理删除 */
   async deleteModel(id: string): Promise<{ message: string }> {
-    const trimmed = String(id ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException('id is required');
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
     }
-    const deleted = await this.modelSchema.findByIdAndDelete(trimmed).exec();
-    if (!deleted) {
+    const res = await this.modelRepo.delete(nid);
+    if (!res.affected) {
       throw new NotFoundException('model not found');
     }
     return { message: '删除成功' };
   }
 
-  //查询分类列表
   async findClassifyList(): Promise<string[]> {
-    return await this.modelSchema
-      .distinct('modelClassify', notDeletedFilter)
-      .exec();
-  }
-  //查询模型名称和分类
-  async findModelByModelNameAndModelClassify(modelName: string, modelClassify: string): Promise<Models | null> {
-    return await this.modelSchema
-      .findOne({ modelName, modelClassify, ...notDeletedFilter })
-      .exec();
+    const raw = await this.modelRepo
+      .createQueryBuilder('m')
+      .select('DISTINCT m.modelClassify', 'c')
+      .where('m.modelClassify IS NOT NULL')
+      .andWhere("m.modelClassify != ''")
+      .getRawMany<{ c: string }>();
+    return raw.map((r) => r.c).filter(Boolean);
   }
 
-  /** 是否存在同名同分类记录（含 status 为「0」等，用于去重入库） */
+  async findModelByModelNameAndModelClassify(
+    modelName: string,
+    modelClassify: string,
+  ): Promise<ModelRecord | null> {
+    return await this.modelRepo.findOne({
+      where: { modelName, modelClassify },
+    });
+  }
+
   private async existsModelByNameAndClassify(
     modelName: string,
     modelClassify: string,
   ): Promise<boolean> {
-    const one = await this.modelSchema
-      .findOne({ modelName, modelClassify })
-      .select('_id')
-      .lean()
-      .exec();
-    return !!one;
+    const cnt = await this.modelRepo.count({
+      where: { modelName, modelClassify },
+    });
+    return cnt > 0;
   }
 
-  /**
-   * 根据 modelClassify 从密钥表取 apiKey/baseURL，调用 OpenAI `GET /v1/models` 拉取远端模型列表；
-   * 将远端模型写入库（m.id → modelName，modelClassify 为入参，status 默认「0」），已存在则跳过。
-   */
   async listOpenAIModelsByClassify(modelClassify: string): Promise<{
     message: string;
     added: number;
@@ -213,19 +244,19 @@ export class ModelService {
         }
 
         try {
-          const doc = new this.modelSchema({
+          const entity = this.modelRepo.create({
             modelName: openaiId,
             modelClassify: classify,
             status: '0',
           });
-          await doc.save();
+          await this.modelRepo.save(entity);
           added += 1;
         } catch (err) {
           if (err instanceof HttpException) {
             throw err;
           }
           console.error('listOpenAIModelsByClassify save error:', err);
-          throw new BadRequestException(mongoErrorMessage(err));
+          throw new BadRequestException(rowErrorMessage(err));
         }
       }
 

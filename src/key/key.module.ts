@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { KeyController } from './key.controller';
 import { KeyService } from './key.service';
-import { ApiKey, ApiKeySchema } from 'src/schemas/key/key.schema';
+import { ApiKey } from './entities/api-key.entity';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: ApiKey.name, schema: ApiKeySchema }])],
+  imports: [TypeOrmModule.forFeature([ApiKey])],
   controllers: [KeyController],
   providers: [KeyService],
   exports: [KeyService],

@@ -1,8 +1,7 @@
 import { Controller } from "@nestjs/common";
 import { RoleService } from "./role.service";
 import { ApiTags } from "@nestjs/swagger";
-import { RoleDto } from "./dto/role.dto";
-import { Role } from "src/schemas/role/role.schema";
+import { CreateRoleDto, RoleDto } from "./dto/role.dto";
 import { Body, Delete, Post, Put ,Query} from "@nestjs/common";
 
 @ApiTags('role')
@@ -11,7 +10,7 @@ export class RoleController {
     constructor(private roleService: RoleService) {}
 
     @Put("/add")
-    async createRole(@Body() roleDto: Role) {
+    async createRole(@Body() roleDto: CreateRoleDto) {
         return await this.roleService.createRole(roleDto);
     }
 

@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
-import {
-  ScheduleTask,
-  ScheduleTaskDocument,
-} from 'src/schemas/schedule/schedule.schema';
+import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
+import { ScheduleTaskRecord } from './entities/schedule-task.entity';
 import {
   ScheduleCreateDto,
   ScheduleQueryDto,
@@ -16,59 +14,64 @@ import {
 @Injectable()
 export class ScheduleService {
   constructor(
-    @InjectModel(ScheduleTask.name)
-    private readonly scheduleSchema: Model<ScheduleTaskDocument>,
+    @InjectRepository(ScheduleTaskRecord)
+    private readonly scheduleRepo: Repository<ScheduleTaskRecord>,
   ) {}
 
-  async createSchedule(dto: ScheduleCreateDto): Promise<ScheduleTask> {
+  async createSchedule(dto: ScheduleCreateDto): Promise<ScheduleTaskRecord> {
     if (!dto?.name || !dto?.conExpression) {
       throw new BadRequestException('name and conExpression are required');
     }
-    const created = new this.scheduleSchema({
+    const created = this.scheduleRepo.create({
       name: dto.name,
       conExpression: dto.conExpression,
       isEnabled: dto.isEnabled ?? true,
       status: dto.status ?? 'idle',
-      lastRunAt: dto.lastRunAt,
-      nextRunAt: dto.nextRunAt,
-      lastError: dto.lastError,
+      lastRunAt: dto.lastRunAt ?? null,
+      nextRunAt: dto.nextRunAt ?? null,
+      lastError: dto.lastError ?? null,
     });
-    return await created.save();
+    return await this.scheduleRepo.save(created);
   }
 
   async findScheduleList(
     dto: ScheduleQueryDto,
-  ): Promise<PaginationResponse<ScheduleTask>> {
+  ): Promise<PaginationResponse<ScheduleTaskRecord>> {
     const { skip, limit } = dto;
-    const query: FilterQuery<ScheduleTask> = {};
+    const qb = this.scheduleRepo.createQueryBuilder('s');
+
     if (dto?.name) {
-      query.name = { $regex: dto.name, $options: 'i' };
+      qb.andWhere('LOWER(s.name) LIKE LOWER(:name)', {
+        name: `%${dto.name}%`,
+      });
     }
     if (typeof dto?.isEnabled === 'boolean') {
-      query.isEnabled = dto.isEnabled;
+      qb.andWhere('s.isEnabled = :en', { en: dto.isEnabled });
     }
     if (dto?.status) {
-      query.status = dto.status;
+      qb.andWhere('s.status = :st', { st: dto.status });
     }
 
-    const total = await this.scheduleSchema.countDocuments(query).exec();
-    const list = await this.scheduleSchema
-      .find(query)
-      .sort({ createdAt: -1 })
+    const [list, total] = await qb
+      .orderBy('s.createdAt', 'DESC')
       .skip(skip)
-      .limit(limit)
-      .exec();
+      .take(limit)
+      .getManyAndCount();
 
     return {
       list,
       total,
       currentPage: dto.page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
     };
   }
 
-  async findScheduleById(id: string): Promise<ScheduleTask> {
-    const schedule = await this.scheduleSchema.findById(id).exec();
+  async findScheduleById(id: string): Promise<ScheduleTaskRecord> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new NotFoundException('schedule task not found');
+    }
+    const schedule = await this.scheduleRepo.findOne({ where: { id: nid } });
     if (!schedule) {
       throw new NotFoundException('schedule task not found');
     }
@@ -76,39 +79,54 @@ export class ScheduleService {
   }
 
   async deleteScheduleById(id: string): Promise<void> {
-    const existed = await this.scheduleSchema.findById(id).lean().exec();
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new NotFoundException('schedule task not found');
+    }
+    const existed = await this.scheduleRepo.findOne({ where: { id: nid } });
     if (!existed) {
       throw new NotFoundException('schedule task not found');
     }
-    await this.scheduleSchema.findByIdAndDelete(id).exec();
+    await this.scheduleRepo.delete(nid);
   }
 
   async updateScheduleById(
     id: string,
     dto: ScheduleUpdateDto,
-  ): Promise<ScheduleTask> {
-    const update: Partial<ScheduleTask> = {};
-
-    if (typeof dto?.name === 'string') update.name = dto.name;
-    if (typeof dto?.conExpression === 'string') {
-      update.conExpression = dto.conExpression;
+  ): Promise<ScheduleTaskRecord> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new NotFoundException('schedule task not found');
     }
-    if (typeof dto?.isEnabled === 'boolean') update.isEnabled = dto.isEnabled;
-    if (typeof dto?.status === 'string') update.status = dto.status;
-    if (dto?.lastRunAt !== undefined) update.lastRunAt = dto.lastRunAt;
-    if (dto?.nextRunAt !== undefined) update.nextRunAt = dto.nextRunAt;
-    if (dto?.lastError !== undefined) update.lastError = dto.lastError;
+    const row = await this.scheduleRepo.findOne({ where: { id: nid } });
+    if (!row) {
+      throw new NotFoundException('schedule task not found');
+    }
 
-    if (Object.keys(update).length === 0) {
+    const patchKeys = [
+      'name',
+      'conExpression',
+      'isEnabled',
+      'status',
+      'lastRunAt',
+      'nextRunAt',
+      'lastError',
+    ] as const;
+    const hasPatch = patchKeys.some((k) => dto[k] !== undefined);
+    if (!hasPatch) {
       throw new BadRequestException('no fields to update');
     }
 
-    const updated = await this.scheduleSchema
-      .findByIdAndUpdate(id, update, { new: true })
-      .exec();
-    if (!updated) {
-      throw new NotFoundException('schedule task not found');
+    if (typeof dto?.name === 'string') row.name = dto.name;
+    if (typeof dto?.conExpression === 'string') {
+      row.conExpression = dto.conExpression;
     }
-    return updated;
+    if (typeof dto?.isEnabled === 'boolean') row.isEnabled = dto.isEnabled;
+    if (typeof dto?.status === 'string') row.status = dto.status;
+    if (dto?.lastRunAt !== undefined) row.lastRunAt = dto.lastRunAt ?? null;
+    if (dto?.nextRunAt !== undefined) row.nextRunAt = dto.nextRunAt ?? null;
+    if (dto?.lastError !== undefined) row.lastError = dto.lastError ?? null;
+
+    return await this.scheduleRepo.save(row);
   }
 }

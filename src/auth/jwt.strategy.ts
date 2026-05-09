@@ -1,19 +1,28 @@
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
-import { UserService } from "src/user/user.service";
+import { JwtAccessPayload } from "./interfaces/jwt-payload.interface";
 
+/** JWT 校验后的 request.user（与 TypeORM users.id 对应） */
+export interface JwtValidatedUser {
+    account: string;
+    id: string;
+}
+
+@Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy){
-    constructor(){
+    constructor(private readonly config: ConfigService){
         super({
             jwtFromRequest:ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration:false,
-            secretOrKey:process.env.JWT_SECRET||'my-secret-key',
+            secretOrKey: config.get<string>('JWT_SECRET') || 'my-secret-key',
         })
     }
-    async validate(payload:any)  {
+    async validate(payload: JwtAccessPayload): Promise<JwtValidatedUser>  {
         return {
-            account:payload.account,
-            id:payload.sub,
-        }
+            account: payload.account,
+            id: String(payload.sub),
+        };
     }
 }

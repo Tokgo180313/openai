@@ -1,13 +1,11 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { RecordService } from './record.service';
 import { RecordController } from './record.controller';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Record,RecordSchema } from 'src/schemas/record/record.schema';
+import { OperationRecord } from './entities/operation-record.entity';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name:Record.name, schema: RecordSchema }]),
-  ],
+  imports: [TypeOrmModule.forFeature([OperationRecord])],
   controllers: [RecordController],
   providers: [RecordService],
   exports: [RecordService],

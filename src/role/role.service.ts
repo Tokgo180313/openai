@@ -1,53 +1,67 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Role, RoleDocument } from '../schemas/role/role.schema';
-import { RoleDto } from './dto/role.dto';
-import { FilterQuery } from 'mongoose';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Role } from './entities/role.entity';
+import { CreateRoleDto, RoleDto } from './dto/role.dto';
 
 @Injectable()
 export class RoleService {
   constructor(
-    @InjectModel(Role.name) private roleSchema: Model<RoleDocument>,
+    @InjectRepository(Role)
+    private readonly roleRepo: Repository<Role>,
   ) {}
-  //添加
-  async createRole(roleDto: Role): Promise<Role> {
-    const createRole = new this.roleSchema(roleDto);
-    return await createRole.save();
+
+  async createRole(roleDto: CreateRoleDto): Promise<Role> {
+    const existed = await this.roleRepo.findOne({
+      where: { roleId: roleDto.roleId },
+    });
+    if (existed) {
+      throw new ConflictException('角色编码已存在');
+    }
+    const entity = this.roleRepo.create(roleDto);
+    return await this.roleRepo.save(entity);
   }
-  //查询
+
   async findRoleList(roleDto: RoleDto): Promise<Role[]> {
-    const query: FilterQuery<Role> = {};
-    if (roleDto.name && roleDto.name !== '') {
-      query.name = { $regex: roleDto.name, $options: 'i' };
-    }
+    const qb = this.roleRepo.createQueryBuilder('role');
     if (roleDto.status && roleDto.status !== '') {
-      query.status = roleDto.status;
+      qb.andWhere('role.status = :status', { status: roleDto.status });
     }
-    return await this.roleSchema.find(query).exec();
+    if (roleDto.name && roleDto.name !== '') {
+      qb.andWhere('role.name LIKE :name', { name: `%${roleDto.name}%` });
+    }
+    return qb.getMany();
   }
+
   async findRoleById(id: string): Promise<Role | null> {
-    return await this.roleSchema.findById(id).exec();
+    const numId = Number(id);
+    if (Number.isNaN(numId)) {
+      return null;
+    }
+    return await this.roleRepo.findOne({ where: { id: numId } });
   }
- 
-  //停止
+
   async stopRole(id: string): Promise<void> {
-    let role = await this.findRoleById(id);
-    if(!role){
+    const role = await this.findRoleById(id);
+    if (!role) {
       throw new NotFoundException('角色不存在');
     }
-    if(role.roleId === '0'){
+    if (role.roleId === '0') {
       throw new ConflictException('超级管理员不能停止');
     }
-    await this.roleSchema
-      .updateOne({ _id: id }, { $set: { status: "0" } })
-      .exec();
+    const numId = Number(id);
+    await this.roleRepo.update(numId, { status: '0' });
   }
-  //启动
+
   async startRole(id: string): Promise<void> {
-    await this.roleSchema
-      .updateOne({ _id: id }, { $set: { status: "1" } })
-      .exec();
+    const numId = Number(id);
+    if (Number.isNaN(numId)) {
+      return;
+    }
+    await this.roleRepo.update(numId, { status: '1' });
   }
 }

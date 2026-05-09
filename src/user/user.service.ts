@@ -4,59 +4,134 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { User, UserDocument } from 'src/schemas/user/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { validate as validateUuid } from 'uuid';
+import { FindOptionsWhere, Repository } from 'typeorm';
+import { User } from './entities/user.entity';
 import { UserDto } from './dto/UserDto';
 import { PasswordUtil } from 'src/common/utils/password.utils';
 import { PaginationDto } from './dto/PaginationDto';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
 import { RecordService } from 'src/record/record.service';
-import { Record } from 'src/schemas/record/record.schema';
 import { RecordEntity } from 'src/record/entity/record.entity';
+
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private userSchema: Model<UserDocument>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private recordService: RecordService,
   ) {}
 
-  //添加
-  async create(userDto: UserDto, id?: string | undefined): Promise<User> {
+  /** 普通用户角色编码（上下级仅对该角色生效） */
+  private static readonly ORDINARY_ROLE_ID = '2';
+
+  private isUuid(value: string): boolean {
+    return validateUuid(value);
+  }
+
+  private parseOptionalParentRef(value: string | undefined): string | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    const v = value.trim();
+    if (!this.isUuid(v)) {
+      throw new BadRequestException('无效的 parentId（需为 UUID）');
+    }
+    return v;
+  }
+
+  /** 仅 roleId=2 的普通用户可绑定 parentId */
+  private assertParentAllowedForRole(
+    roleId: string,
+    parentId: string | null,
+  ): void {
+    if (parentId == null) return;
+    if (roleId !== UserService.ORDINARY_ROLE_ID) {
+      throw new BadRequestException('仅普通用户(roleId=2)可设置上级 parentId');
+    }
+  }
+
+  private async validateParentChain(
+    userId: string | undefined,
+    parentId: string | null,
+  ): Promise<void> {
+    if (parentId == null) return;
+    const parent = await this.userRepo.findOne({
+      where: { id: parentId },
+      select: ['id', 'parentId'],
+    });
+    if (!parent) {
+      throw new BadRequestException('上级用户不存在');
+    }
+    if (userId != null && parentId === userId) {
+      throw new BadRequestException('上级不能为自己');
+    }
+    if (userId == null) return;
+    let cursor: string | null = parentId;
+    const seen = new Set<string>();
+    while (cursor != null) {
+      if (cursor === userId) {
+        throw new BadRequestException('不能形成循环上下级');
+      }
+      if (seen.has(cursor)) break;
+      seen.add(cursor);
+      const row = await this.userRepo.findOne({
+        where: { id: cursor },
+        select: ['id', 'parentId'],
+      });
+      cursor = row?.parentId ?? null;
+    }
+  }
+
+  async create(userDto: UserDto, operatorId?: string | undefined): Promise<User> {
     try {
-      userDto.password = process.env.INITIAL_PASSWORD || '123456!';
-      userDto.passwordType = '0';
-      const existingUser = await this.userSchema.findOne({
-        $or: [{ account: userDto.account }],
+      if (!userDto.account) {
+        throw new BadRequestException('账号必填');
+      }
+      const existingUser = await this.userRepo.findOne({
+        where: { account: userDto.account },
       });
       if (existingUser) {
-        if (existingUser.account === userDto.account) {
-          throw new ConflictException('账号已存在');
-        }
+        throw new ConflictException('账号已存在');
       }
-      const createUser = new this.userSchema(userDto);
-      const savedUser = await createUser.save();
-      if (id) {
-        this.addRecord(savedUser.account, '用户添加', id);
+      const roleId =
+        userDto.roleId !== undefined && userDto.roleId !== null
+          ? userDto.roleId
+          : UserService.ORDINARY_ROLE_ID;
+      const parentId = this.parseOptionalParentRef(userDto.parentId);
+      this.assertParentAllowedForRole(roleId, parentId);
+      await this.validateParentChain(undefined, parentId);
+
+      const initialPlain = process.env.INITIAL_PASSWORD || '123456!';
+      const hashed = await PasswordUtil.hash(initialPlain);
+      const entity = this.userRepo.create({
+        account: userDto.account,
+        password: hashed,
+        roleId,
+        passwordType: '0',
+        nickName: userDto.nickName,
+        avatar: userDto.avatar,
+        parentId,
+      });
+      const savedUser = await this.userRepo.save(entity);
+      if (operatorId) {
+        await this.addRecord(savedUser.account, '用户添加', operatorId);
       }
       return savedUser;
     } catch (error) {
-      throw new BadRequestException(error.message);
+      if (error instanceof ConflictException) throw error;
+      throw new BadRequestException((error as Error).message);
     }
   }
-  //查询
+
   async findAll(pagination: PaginationDto): Promise<PaginationResponse<User>> {
     const { skip, limit, name } = pagination;
-    const query: any = {};
+    const qb = this.userRepo.createQueryBuilder('user').skip(skip).take(limit);
     if (name) {
-      query.account = { $regex: name, $options: 'i' };
+      qb.andWhere('user.account LIKE :name', { name: `%${name}%` });
     }
-    const total = await this.userSchema.countDocuments(query).exec();
-    const data = await this.userSchema
-      .find(query)
-      .skip(skip)
-      .limit(limit)
-      .exec();
+    const [data, total] = await qb.getManyAndCount();
     return {
       list: data,
       total,
@@ -65,92 +140,187 @@ export class UserService {
     };
   }
 
-  //查找
   async findOne(userDto: UserDto): Promise<User | null> {
-    return await this.userSchema.findOne(userDto);
+    const where: FindOptionsWhere<User> = {};
+    if (userDto.id !== undefined && userDto.id !== '') {
+      const id = userDto.id.trim();
+      if (this.isUuid(id)) where.id = id;
+    }
+    if (userDto.account !== undefined) where.account = userDto.account;
+    if (userDto.roleId !== undefined) where.roleId = userDto.roleId;
+    if (userDto.nickName !== undefined) where.nickName = userDto.nickName;
+    if (userDto.parentId !== undefined && userDto.parentId !== '') {
+      const p = userDto.parentId.trim();
+      if (this.isUuid(p)) where.parentId = p;
+    }
+    if (Object.keys(where).length === 0) {
+      return null;
+    }
+    return this.userRepo.findOne({ where });
   }
-  // 根据账号查询用户，包含密码，用于验证
-  async findUserByAccountWithPassword(
-    account: string,
-  ): Promise<UserDocument | null> {
-    return this.userSchema.findOne({ account }).select('+password').exec();
+
+  async findUserByAccountWithPassword(account: string): Promise<User | null> {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.account = :account', { account })
+      .getOne();
   }
-  // 根据ID查找用户
+
   async findById(id: string): Promise<User | null> {
-    return await this.userSchema.findById(id).exec();
+    const v = id?.trim();
+    if (!v || !this.isUuid(v)) {
+      return null;
+    }
+    return this.userRepo.findOne({ where: { id: v } });
   }
-  //删除
-  async deleteById(id: string, userId: string): Promise<void> {
-    let user = await this.findById(id);
+
+  async deleteById(id: string, operatorId: string): Promise<void> {
+    const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
     if (user.roleId === '0') {
       throw new ConflictException('超级管理员不能删除');
     }
-    await this.userSchema.findByIdAndDelete(id).exec();
-    this.addRecord(user.account, '用户删除', userId, );
+    const childCount = await this.userRepo.count({
+      where: { parentId: user.id },
+    });
+    if (childCount > 0) {
+      throw new ConflictException('存在下级用户，无法删除');
+    }
+    await this.userRepo.delete(user.id);
+    await this.addRecord(user.account, '用户删除', operatorId);
   }
 
   async updatePassword(
     id: string,
     newPassword: string,
-    userId: string,
+    operatorId: string,
   ): Promise<void> {
-    const hashPassword = await PasswordUtil.hash(newPassword);
-    const result = await this.userSchema
-      .findByIdAndUpdate(
-        id,
-        { password: hashPassword, passwordType: '1' },
-        {
-          new: true,
-        },
-      )
-      .exec();
-    if (!result) {
+    const existing = await this.findById(id);
+    if (!existing) {
       throw new NotFoundException('用户不存在');
     }
-    this.addRecord(result.account, '密码修改', userId);
-  }
-  async updateUser(userDto: UserDto, id: string): Promise<User> {
-    if (userDto.password) {
-      userDto.password = await PasswordUtil.hash(userDto.password);
-      userDto.passwordType = '1';
+    const hashPassword = await PasswordUtil.hash(newPassword);
+    const result = await this.userRepo.update(existing.id, {
+      password: hashPassword,
+      passwordType: '1',
+    });
+    if (!result.affected) {
+      throw new NotFoundException('用户不存在');
     }
-    const updateUser = await this.userSchema
-      .findByIdAndUpdate(userDto.id, userDto, { new: true })
-      .exec();
+    const updated = await this.findById(id);
+    if (updated) {
+      await this.addRecord(updated.account, '密码修改', operatorId);
+    }
+  }
+
+  async updateUser(userDto: UserDto, operatorId: string): Promise<User> {
+    if (!userDto.id) {
+      throw new BadRequestException('用户 id 必填');
+    }
+    const userId = userDto.id.trim();
+    if (!this.isUuid(userId)) {
+      throw new BadRequestException('无效的用户 id（需为 UUID）');
+    }
+
+    const existingBefore = await this.findById(userId);
+    if (!existingBefore) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    const nextRoleId =
+      userDto.roleId !== undefined ? userDto.roleId : existingBefore.roleId;
+
+    let nextParentId = existingBefore.parentId;
+    if (userDto.parentId !== undefined) {
+      nextParentId = this.parseOptionalParentRef(userDto.parentId);
+    }
+    if (nextRoleId !== UserService.ORDINARY_ROLE_ID) {
+      nextParentId = null;
+    }
+
+    this.assertParentAllowedForRole(nextRoleId, nextParentId);
+    await this.validateParentChain(userId, nextParentId);
+
+    const payload: Partial<User> = {};
+    if (userDto.account !== undefined) payload.account = userDto.account;
+    if (userDto.roleId !== undefined) payload.roleId = userDto.roleId;
+    if (userDto.passwordType !== undefined) payload.passwordType = userDto.passwordType;
+    if (userDto.nickName !== undefined) payload.nickName = userDto.nickName;
+    if (userDto.avatar !== undefined) payload.avatar = userDto.avatar;
+    if (userDto.parentId !== undefined || userDto.roleId !== undefined) {
+      payload.parentId = nextParentId;
+    }
+
+    if (userDto.password) {
+      payload.password = await PasswordUtil.hash(userDto.password);
+      payload.passwordType = '1';
+    }
+
+    if (Object.keys(payload).length === 0) {
+      const existing = await this.findById(userId);
+      if (!existing) throw new NotFoundException('用户不存在');
+      return existing;
+    }
+
+    const result = await this.userRepo.update(userId, payload);
+    if (!result.affected) {
+      throw new NotFoundException('用户不存在');
+    }
+    const updateUser = await this.findById(userId);
     if (!updateUser) {
       throw new NotFoundException('用户不存在');
     }
-    this.addRecord(updateUser.account, '用户修改', id);
+    await this.addRecord(updateUser.account, '用户修改', operatorId);
     return updateUser;
   }
+
   async resetUser(userDto: UserDto): Promise<User> {
-    userDto.password = process.env.INITIAL_PASSWORD || '123456!';
-    userDto.passwordType = '';
-    const updateUser = await this.userSchema
-      .findByIdAndUpdate(userDto.id, userDto, { new: true })
-      .exec();
+    if (!userDto.id) {
+      throw new BadRequestException('用户 id 必填');
+    }
+    const userId = userDto.id.trim();
+    if (!this.isUuid(userId)) {
+      throw new BadRequestException('无效的用户 id（需为 UUID）');
+    }
+
+    const hashed = await PasswordUtil.hash(process.env.INITIAL_PASSWORD || '123456!');
+    const result = await this.userRepo.update(userId, {
+      password: hashed,
+      passwordType: '',
+    });
+    if (!result.affected) {
+      throw new NotFoundException('重置失败');
+    }
+    const updateUser = await this.findById(userId);
     if (!updateUser) {
       throw new NotFoundException('重置失败');
     }
     return updateUser;
   }
-  // 验证用户
+
   async validateUser(account: string, password: string): Promise<User | null> {
-    let user: UserDocument | null = null;
-    user = await this.findUserByAccountWithPassword(account);
-    if (user && (await user.validaterPassword(password))) {
-      return user;
+    const user = await this.findUserByAccountWithPassword(account);
+    if (user && (await PasswordUtil.compare(password, user.password))) {
+      const { password: _p, ...rest } = user;
+      void _p;
+      return rest as User;
     }
     return null;
   }
 
   async updateNickName(id: string, nickName: string): Promise<User> {
-    const updateUser = await this.userSchema
-      .findByIdAndUpdate(id, { nickName: nickName }, { new: true })
-      .exec();
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException('用户不存在');
+    }
+    const result = await this.userRepo.update(existing.id, { nickName });
+    if (!result.affected) {
+      throw new NotFoundException('用户不存在');
+    }
+    const updateUser = await this.findById(id);
     if (!updateUser) {
       throw new NotFoundException('用户不存在');
     }
@@ -160,10 +330,10 @@ export class UserService {
   async addRecord(
     account: string,
     description: string,
-    id: string,
+    operatorId: string,
   ): Promise<void> {
     try {
-      const user = await this.findById(id);
+      const user = await this.findById(operatorId);
       if (!user) {
         throw new NotFoundException('记录失败，操作用户不存在');
       }
@@ -174,7 +344,7 @@ export class UserService {
       };
       await this.recordService.createRecord(recordData);
     } catch (error) {
-      throw new BadRequestException(error.message);
+      throw new BadRequestException((error as Error).message);
     }
   }
 }

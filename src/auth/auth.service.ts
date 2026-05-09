@@ -2,7 +2,11 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from 'src/login/dto/LoginDto';
 import { UserDto } from 'src/user/dto/UserDto';
+import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
+
+/** 不含 password 字段的登录用户（TypeORM User 经 validateUser 剥离密码） */
+export type AuthUser = Omit<User, 'password'>;
 
 @Injectable()
 export class AuthService {
@@ -11,7 +15,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
   // 用户登录验证
-  async validateUser(loginDto: LoginDto): Promise<any> {
+  async validateUser(loginDto: LoginDto): Promise<AuthUser> {
     const { account, password } = loginDto;
     if (!account) {
       throw new UnauthorizedException('请输入用户名');
@@ -21,39 +25,38 @@ export class AuthService {
       throw new UnauthorizedException('用户名或密码错误');
     }
 
-    return user;
+    return user as AuthUser;
   }
   // 用户登录
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto);
-    const payload = {
+    const token = this.jwtService.sign({
       account: user.account,
-      sub: user._id,
-    };
+      sub: String(user.id),
+    });
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: token,
       user,
     };
   }
   // 用户注册
   async register(userDto: UserDto) {
     const user = await this.userService.create(userDto);
-    const payload = {
-      account: userDto.account,
-      sub: user.id,
-    };
+    const token = this.jwtService.sign({
+      account: user.account,
+      sub: String(user.id),
+    });
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: token,
       user,
     };
   }
   // 生成 Jwt Token
-  async generateToken(user: any) {
-    const payload = {
+  async generateToken(user: Pick<User, 'id' | 'account'>) {
+    return this.jwtService.sign({
       account: user.account,
-      sub: user._id || user.id,
-    };
-    return this.jwtService.sign(payload);
+      sub: String(user.id),
+    });
   }
   async validateToken(token: string) {
     try {
@@ -68,7 +71,7 @@ export class AuthService {
         throw new Error('Token 未生效');
       }
 
-      if (payload.iss && payload.isss !== process.env.JWT_ISSUER) {
+      if (payload.iss && payload.iss !== process.env.JWT_ISSUER) {
         throw new Error('无效的签发者');
       }
 

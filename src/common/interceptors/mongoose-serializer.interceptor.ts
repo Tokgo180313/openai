@@ -21,10 +21,15 @@ export class MongooseSerializerInterceptor implements NestInterceptor {
             return data.map(item => this.transform(item));
         }
         if(data && typeof data === 'object'){
-            const obj = data.toObject ? data.toObject() : data;
+            const obj = data.toObject
+                ? data.toObject()
+                : { ...(data as Record<string, unknown>) };
             if(obj._id){
                 obj.id = obj._id.toString();
                 delete obj._id;
+            }
+            if ('password' in obj && obj.password !== undefined) {
+                delete obj.password;
             }
             if(obj.apiKey){
                 obj.isApiKeySet = true;

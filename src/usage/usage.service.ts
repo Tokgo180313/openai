@@ -1,102 +1,142 @@
-import { Injectable } from "@nestjs/common";
-import { Model, FilterQuery } from "mongoose";
-import { Usage, UsageDocument } from "src/schemas/usage/usage.schema";
-import { PaginationResponse } from "src/interfaces/pagination.interface";
-import { RecordService } from "src/record/record.service";
-import { UserService } from "src/user/user.service";
-import { UsageDto } from "./dto/usage.dto";
-import { NotFoundException } from "@nestjs/common";
-import { UsageEntity } from "./entity/usage.entity";
-import { RecordEntity } from "src/record/entity/record.entity";
-import { InjectModel } from "@nestjs/mongoose";
-import { GeminiUsageEntity } from "./entity/gemini.usage.entity";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { PaginationResponse } from 'src/interfaces/pagination.interface';
+import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
+import { RecordService } from 'src/record/record.service';
+import { UserService } from 'src/user/user.service';
+import { UsageDto } from './dto/usage.dto';
+import { UsageEntity } from './entity/usage.entity';
+import { RecordEntity } from 'src/record/entity/record.entity';
+import { GeminiUsageEntity } from './entity/gemini.usage.entity';
+import { UsageRecord } from './entities/usage-record.entity';
 
 @Injectable()
-export class UsageService { 
-    constructor(@InjectModel(Usage.name) private usageSchema: Model<UsageDocument>, private readonly recordService: RecordService, private readonly userService: UserService){}
+export class UsageService {
+  constructor(
+    @InjectRepository(UsageRecord)
+    private readonly usageRepo: Repository<UsageRecord>,
+    private readonly recordService: RecordService,
+    private readonly userService: UserService,
+  ) {}
 
-    async findUsageList(usageDto: UsageDto): Promise<PaginationResponse<Usage>> {
-        const { skip, limit } = usageDto;
-        const query: FilterQuery<Usage> = {};
-        if (usageDto.account) {
-            query.account = usageDto.account;
-        }
-        if (usageDto.modelName) {
-            query.modelName = usageDto.modelName;
-        }
-        if (usageDto.modelClassify) {
-            query.modelClassify = usageDto.modelClassify;
-        }
-        if (usageDto.startTime) {
-            query.startTime = usageDto.startTime;
-        }
-        if (usageDto.endTime) {
-            query.endTime = usageDto.endTime;
-        }
-        const total = await this.usageSchema.countDocuments(query).exec();
-        const data = await this.usageSchema.find(query).skip(skip).limit(limit).exec();
-        return {
-            list: data,
-            total,
-            currentPage: usageDto.page,
-            totalPages: Math.ceil(total / limit),
-        };
+  async findUsageList(
+    usageDto: UsageDto,
+  ): Promise<PaginationResponse<UsageRecord>> {
+    const { skip, limit } = usageDto;
+    const qb = this.usageRepo.createQueryBuilder('u');
+
+    if (usageDto.account) {
+      qb.andWhere('u.account = :account', { account: usageDto.account });
     }
-    async deleteById(id: string, userId: string): Promise<void> {
-        const user = await this.userService.findById(userId);
-        if (!user) {
-            throw new NotFoundException('user not found');
-        }
-        await this.usageSchema.findByIdAndDelete(id).exec();
-        const record: RecordEntity = {
-            nickName: user.nickName,
-            account: user.account,
-            description: 'usage deleted: ' + id,
-        };
-        this.recordService.createRecord(record);
+    if (usageDto.modelName) {
+      qb.andWhere('u.modelName = :modelName', { modelName: usageDto.modelName });
     }
-    async addUsage(usageDto: UsageEntity,id:string): Promise<Usage> {
-        const user = await this.userService.findById(id);
-        if (!user) {
-            throw new NotFoundException('user not found');
-        }
-        const usage: UsageEntity = {
-            nickName: user.nickName,
-            account: user.account,
-            modelName: usageDto.modelName,
-            modelClassify: usageDto.modelClassify,
-            promptTokens: usageDto.promptTokens,
-            completionTokens: usageDto.completionTokens,
-            totalTokens: usageDto.totalTokens,
-            description: usageDto.description,
-            status: "0",
-        };
-        return await this.usageSchema.create(usage);
+    if (usageDto.modelClassify) {
+      qb.andWhere('u.modelClassify = :modelClassify', {
+        modelClassify: usageDto.modelClassify,
+      });
+    }
+    if (usageDto.startTime) {
+      qb.andWhere('u.createdAt >= :startTime', {
+        startTime: new Date(usageDto.startTime),
+      });
+    }
+    if (usageDto.endTime) {
+      qb.andWhere('u.createdAt <= :endTime', {
+        endTime: new Date(usageDto.endTime),
+      });
     }
 
-    async updateUsage(id: string, status: string): Promise<Usage> {
-        const usage = await this.usageSchema.findByIdAndUpdate(id, {status}, { new: true }).exec();
-        if (!usage) {
-            throw new NotFoundException('usage not found');
-        }
-        return usage;
+    const [data, total] = await qb
+      .orderBy('u.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      list: data,
+      total,
+      currentPage: usageDto.page,
+      totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
+    };
+  }
+
+  async deleteById(id: string, userId: string): Promise<void> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new NotFoundException('usage not found');
     }
-    async addUsageByGemini(usageDto: GeminiUsageEntity,id:string,modelName:string,status:string): Promise<Usage> {
-        const user = await this.userService.findById(id);
-        if (!user) {
-            throw new NotFoundException('user not found');
-        }
-        const usage: UsageEntity = {
-            nickName: user.nickName,
-            account: user.account,
-            modelName: modelName,
-            modelClassify: "Gemini",
-            promptTokens: usageDto ? usageDto.promptTokenCount : undefined,
-            completionTokens: usageDto ? usageDto.candidatesTokenCount : undefined,
-            totalTokens: usageDto ? usageDto.totalTokenCount : undefined,
-            thoughtsTokens: usageDto ? usageDto.thoughtsTokenCount : undefined,
-            status,
-        }
-        return await this.usageSchema.create(usage);
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('user not found');
     }
+    const res = await this.usageRepo.delete(nid);
+    if (!res.affected) {
+      throw new NotFoundException('usage not found');
+    }
+    const record: RecordEntity = {
+      nickName: user.nickName,
+      account: user.account,
+      description: 'usage deleted: ' + String(nid),
+    };
+    await this.recordService.createRecord(record);
+  }
+
+  async addUsage(usageDto: UsageEntity, id: string): Promise<UsageRecord> {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      throw new NotFoundException('user not found');
+    }
+    const entity = this.usageRepo.create({
+      nickName: user.nickName,
+      account: user.account,
+      modelName: usageDto.modelName,
+      modelClassify: usageDto.modelClassify,
+      promptTokens: usageDto.promptTokens,
+      completionTokens: usageDto.completionTokens,
+      totalTokens: usageDto.totalTokens,
+      description: usageDto.description,
+      thoughtsTokens: usageDto.thoughtsTokens,
+      status: usageDto.status ?? '0',
+    });
+    return await this.usageRepo.save(entity);
+  }
+
+  async updateUsage(id: string, status: string): Promise<UsageRecord> {
+    const nid = parsePositiveIntId(id);
+    if (nid == null) {
+      throw new NotFoundException('usage not found');
+    }
+    const existing = await this.usageRepo.findOne({ where: { id: nid } });
+    if (!existing) {
+      throw new NotFoundException('usage not found');
+    }
+    existing.status = status;
+    return await this.usageRepo.save(existing);
+  }
+
+  async addUsageByGemini(
+    usageDto: GeminiUsageEntity,
+    id: string,
+    modelName: string,
+    status: string,
+  ): Promise<UsageRecord> {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      throw new NotFoundException('user not found');
+    }
+    const entity = this.usageRepo.create({
+      nickName: user.nickName,
+      account: user.account,
+      modelName,
+      modelClassify: 'Gemini',
+      promptTokens: usageDto?.promptTokenCount,
+      completionTokens: usageDto?.candidatesTokenCount,
+      totalTokens: usageDto?.totalTokenCount,
+      thoughtsTokens: usageDto?.thoughtsTokenCount,
+      status,
+    });
+    return await this.usageRepo.save(entity);
+  }
 }

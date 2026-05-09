@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Post, Put, Query } from "@nestjs/common"
 import { ModelService } from "./models.service";
 import { ModelsDto } from "./dto/models.dto";
 import { ApiTags } from "@nestjs/swagger";
-import { Models } from "src/schemas/models/models.schema";
 import { ModelsEntity } from "./entity/models.entity";
 @ApiTags("model")
 @Controller("/model")
