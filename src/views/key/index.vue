@@ -120,6 +120,9 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
 });
+onMounted(()=>{
+  fetchKeyList();
+});
 const columnsList = ref([
   {
     title: "模型分类",

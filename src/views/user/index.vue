@@ -21,6 +21,9 @@
           <span v-if="record.roleId == '0'"> 超级管理员 </span>
           <span v-else-if="record.roleId == '1'"> 管理员 </span>
           <span v-else-if="record.roleId == '2'"> 普通用户 </span>
+          <span v-else-if="record.roleId == '3'"> 团队管理者 </span>
+          <span v-else-if="record.roleId == '4'"> 团队成员 </span>
+          <span v-else>{{ record.roleId }}</span>
         </template>
         <template v-if="column.key == 'action'">
           <a-popconfirm
@@ -53,6 +56,7 @@
     </div>
     <UserAddDialog
       :visible="showAddUserVisible"
+      :default-parent-id="currentParentId"
       @close-modal="closeModalEvent"
     ></UserAddDialog>
   </div>
@@ -61,6 +65,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from "vue";
 import UserAddDialog from "@/components/UserAddDialog.vue";
+import { useAuthStore } from "@/stores/authStore";
 import { UserType, columnType, searchFormType } from "./types/UserType";
 import { PaginationType } from "@/types/pagination";
 import api from "@/api/apiList";
@@ -71,6 +76,10 @@ let {
   removeUserInfoInterface,
   resetUserInfoInterface,
 } = api;
+const authStore = useAuthStore();
+/** 新增用户时的上级 id，默认当前登录用户 */
+const currentParentId = computed(() => authStore.getUserId ?? "");
+
 const searchForm = ref<searchFormType>({
   name: "",
 });

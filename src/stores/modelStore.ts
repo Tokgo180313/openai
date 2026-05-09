@@ -50,6 +50,7 @@ export const useModelStore = defineStore("model", {
           if (res.code === 201) {
             let roleList = res.data.list || res.data || [];
             roleList = roleList.filter(item=>item.roleId !== '0');
+            console.log(roleList);
             this.setRoleList(roleList);
             return roleList
           } else {

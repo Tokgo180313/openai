@@ -7,6 +7,7 @@ export const useAuthStore =  defineStore("auth",{
         nickName:null,
         roleId:null,
         account:null,
+        userId:null as string | null,
     }),
     persist:true,
     getters:{
@@ -21,6 +22,9 @@ export const useAuthStore =  defineStore("auth",{
         },
         getAccount(){
             return this.account;
+        },
+        getUserId(){
+            return this.userId ?? sessionStorage.getItem("user_id");
         },
         
     },
@@ -53,11 +57,22 @@ export const useAuthStore =  defineStore("auth",{
             sessionStorage.setItem("account", account);
             this.account = account;
         },
+        setUserId(userId: string | null){
+            if (userId != null && userId !== "") {
+                sessionStorage.setItem("user_id", userId);
+                this.userId = userId;
+            } else {
+                sessionStorage.removeItem("user_id");
+                this.userId = null;
+            }
+        },
         clearToken(){
             this.token = null;
             this.nickName = null;
             this.roleId = null;
             this.account = null;
+            this.userId = null;
+            sessionStorage.removeItem("user_id");
         }
     }
 })

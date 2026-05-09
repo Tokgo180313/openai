@@ -2,21 +2,14 @@
   <div class="record-container">
     <div class="heaer">
       <a-form layout="inline" :model="searchForm">
-        <a-form-item label="用户账号">
-          <a-input v-model:value="searchForm.account" placeholder="请输入用户账号" style="width: 120px" />
+        <a-form-item label="账号">
+          <a-input v-model:value="searchForm.account" placeholder="请输入账号" style="width: 160px" allow-clear />
         </a-form-item>
-        <a-form-item label="模型名称">
-          <a-select v-model:value="searchForm.modelName" placeholder="请选择模型名称" style="width: 200px">
-            <a-select-option v-for="item in modelList" :key="item">{{ item }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="模型类型">
-          <a-select v-model:value="searchForm.modelClassify" placeholder="请选择模型类型" style="width: 120px">
-            <a-select-option v-for="item in modelClassifyList" :key="item">{{ item }}</a-select-option>
-          </a-select>
+        <a-form-item label="描述">
+          <a-input v-model:value="searchForm.description" placeholder="请输入描述" style="width: 200px" allow-clear />
         </a-form-item>
         <a-form-item label="创建时间">
-          <a-range-picker v-model:value="searchForm.createTime" />
+          <a-range-picker v-model:value="searchForm.createTime" style="width: 260px" />
         </a-form-item>
         <a-form-item>
           <a-button type="primary" @click="handleSearch" size="small">查询</a-button>
@@ -49,15 +42,17 @@
 
 <script lang="ts" setup>
 // 操作日志
-import { computed, onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
+import dayjs, { type Dayjs } from "dayjs";
 import api from "@/api/apiList";
 let { findRecordListInterface } = api;
 import config from "./config";
 const { columns } = config;
-import { useModelStore } from "@/stores/modelStore";
-const modelStore = useModelStore();
-const modelClassifyList = computed(() => modelStore.getModelClassifyList);
-const modelList = computed(() => modelStore.getModelList);
+
+function defaultTodayRange(): [Dayjs, Dayjs] {
+  return [dayjs().startOf("day"), dayjs().endOf("day")];
+}
+
 interface recordType {
   id: string;
   userId: string;
@@ -69,29 +64,25 @@ interface recordType {
   createTime: Date;
 }
 interface searchFormType {
-  nickName: string | null;
   account: string | null;
-  modelName: string | null;
-  modelClassify: string | null;
-  createTime: Date[] | null;
+  description: string | null;
+  createTime: [Dayjs, Dayjs] | null;
 }
 const searchForm = ref<searchFormType>({
-  nickName: null,
   account: null,
-  modelName: null,
-  modelClassify: null,
-  createTime: null,
+  description: null,
+  createTime: defaultTodayRange(),
 });
 const handleSearch = () => {
   getRecordList();
 };
 const getRecordList = async () => {
+  const range = searchForm.value.createTime;
   const param = {
-    nickName: searchForm.value.nickName,
     account: searchForm.value.account,
-    modelName: searchForm.value.modelName,
-    modelClassify: searchForm.value.modelClassify,
-    createTime: searchForm.value.createTime,
+    description: searchForm.value.description,
+    createdAtStart: range?.[0]?.startOf("day").format("YYYY-MM-DD HH:mm:ss"),
+    createdAtEnd: range?.[1]?.endOf("day").format("YYYY-MM-DD HH:mm:ss"),
     page: pagination.current,
     pageSize: pagination.pageSize,
   };

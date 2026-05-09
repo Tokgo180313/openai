@@ -20,9 +20,9 @@ const columns = [
   },
 
   {
-    title: "操作时间",
-    dataIndex: "updatedAt",
-    key: "updatedAt",
+    title: "创建时间",
+    dataIndex: "createdAt",
+    key: "createdAt",
   },
 ];
 export default { columns };

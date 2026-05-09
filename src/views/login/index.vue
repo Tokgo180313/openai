@@ -65,6 +65,10 @@ const onFinish = (values: any) => {
       userStore.setToken(res.data.access_token);
       userStore.setAccount(res.data.user.account);
       userStore.setRoleId(res.data.user.roleId);
+      const uid = res.data.user?.id;
+      if (uid != null && uid !== "") {
+        userStore.setUserId(String(uid));
+      }
       // 获取模型列表
       modelStore.fetchModelList({status: "1"});
       // 获取模型分类列表
