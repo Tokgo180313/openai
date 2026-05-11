@@ -39,13 +39,8 @@ export class AiModelConfigController {
   }
 
   @Post('/findAiModelConfigList')
-  async findAiModelConfigList(
-    @Body() dto: AiModelConfigQueryDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const list = await this.aiModelConfigService.findList(dto);
-    await this.operationLog.append(operatorId, 'AI模型配置列表查询');
-    return list;
+  async findAiModelConfigList(@Body() dto: AiModelConfigQueryDto) {
+    return await this.aiModelConfigService.findList(dto);
   }
 
   @Get('/findById')

@@ -26,13 +26,8 @@ export class RoleController {
   }
 
   @Post('/findRoleList')
-  async findRoleList(
-    @Body() roleDto: RoleDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const list = await this.roleService.findRoleList(roleDto);
-    await this.operationLog.append(operatorId, '角色列表查询');
-    return list;
+  async findRoleList(@Body() roleDto: RoleDto) {
+    return await this.roleService.findRoleList(roleDto);
   }
 
   @Post('/stop')

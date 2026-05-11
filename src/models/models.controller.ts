@@ -36,13 +36,8 @@ export class ModelController {
   }
 
   @Post('/findModellist')
-  async findModelList(
-    @Body() modelDto: ModelsDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const result = await this.modelService.findModelList(modelDto);
-    await this.operationLog.append(operatorId, '模型列表查询');
-    return result;
+  async findModelList(@Body() modelDto: ModelsDto) {
+    return await this.modelService.findModelList(modelDto);
   }
 
   @Get('/findById')
@@ -78,24 +73,12 @@ export class ModelController {
   }
 
   @Get('/findClassifyList')
-  async findClassifyList(@CurrentUser('id') operatorId: string) {
-    const list = await this.modelService.findClassifyList();
-    await this.operationLog.append(operatorId, '模型分类列表查询');
-    return list;
+  async findClassifyList() {
+    return await this.modelService.findClassifyList();
   }
 
   @Get('/openaiModelList')
-  async openaiModelList(
-    @Query('modelClassify') modelClassify: string,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const data =
-      await this.modelService.listOpenAIModelsByClassify(modelClassify);
-    await this.operationLog.append(
-      operatorId,
-      'OpenAI模型列表查询',
-      modelClassify ?? '',
-    );
-    return data;
+  async openaiModelList(@Query('modelClassify') modelClassify: string) {
+    return await this.modelService.listOpenAIModelsByClassify(modelClassify);
   }
 }

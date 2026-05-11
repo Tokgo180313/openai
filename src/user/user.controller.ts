@@ -57,14 +57,8 @@ export class UserController {
 
   @Post('/findAll')
   @UseGuards(JwtAuthGuard)
-  async findAll(
-    @Body() pagination: PaginationDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    console.log("operatorId",operatorId)
-    const result = await this.userService.findAll(pagination);
-    await this.appendOperationLog(operatorId, '用户列表查询');
-    return result;
+  async findAll(@Body() pagination: PaginationDto) {
+    return await this.userService.findAll(pagination);
   }
 
   @Post('/updateUser')

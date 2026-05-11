@@ -39,13 +39,8 @@ export class ScheduleController {
   }
 
   @Post('/findScheduleList')
-  async findScheduleList(
-    @Body() dto: ScheduleQueryDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const result = await this.scheduleService.findScheduleList(dto);
-    await this.operationLog.append(operatorId, '定时任务列表查询');
-    return result;
+  async findScheduleList(@Body() dto: ScheduleQueryDto) {
+    return await this.scheduleService.findScheduleList(dto);
   }
 
   @Get('/findById')

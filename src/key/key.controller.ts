@@ -32,13 +32,8 @@ export class KeyController {
   }
 
   @Post('/findKeyList')
-  async findKeyList(
-    @Body() dto: KeyQueryDto,
-    @CurrentUser('id') operatorId: string,
-  ) {
-    const list = await this.keyService.findKeyList(dto);
-    await this.operationLog.append(operatorId, 'API密钥列表查询');
-    return list;
+  async findKeyList(@Body() dto: KeyQueryDto) {
+    return await this.keyService.findKeyList(dto);
   }
 
   @Get('/findById')
