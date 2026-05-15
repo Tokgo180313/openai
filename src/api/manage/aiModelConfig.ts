@@ -24,6 +24,8 @@ export interface AiModelConfigCreateDto {
   supportedFormats?: string[];
   maxResolution?: string;
   fieldMappings?: FieldMappingsDto;
+  /** 为 true 时表示与 OpenAI 接口兼容，通常无需自定义字段映射 */
+  compatibleWithOpenAi?: boolean;
   defaultParams?: Record<string, unknown>;
   isEnabled?: boolean;
   sort?: number;

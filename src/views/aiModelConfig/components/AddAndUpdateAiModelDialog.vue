@@ -74,6 +74,12 @@
             <a-switch v-model:checked="formState.isEnabled" />
           </a-form-item>
         </a-col>
+        <a-col :span="24">
+          <a-form-item label="是否兼容 OpenAI" name="compatibleWithOpenAi">
+            <a-switch v-model:checked="formState.compatibleWithOpenAi" />
+            <span class="form-item-hint">开启后按 OpenAI 约定传参，无需配置下方字段映射</span>
+          </a-form-item>
+        </a-col>
       </a-row>
 
       <a-divider orientation="left">能力与默认值</a-divider>
@@ -153,39 +159,41 @@
         </a-col>
       </a-row>
 
-      <a-divider orientation="left">字段映射（请求参数字段名）</a-divider>
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="prompt">
-            <a-input v-model:value="formState.fieldMappings.prompt" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="imageList">
-            <a-input v-model:value="formState.fieldMappings.imageList" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="model">
-            <a-input v-model:value="formState.fieldMappings.model" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="imageSize">
-            <a-input v-model:value="formState.fieldMappings.imageSize" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="ImageRatio">
-            <a-input v-model:value="formState.fieldMappings.ImageRatio" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="imageNum">
-            <a-input v-model:value="formState.fieldMappings.imageNum" placeholder="可选" />
-          </a-form-item>
-        </a-col>
-      </a-row>
+      <template v-if="!formState.compatibleWithOpenAi">
+        <a-divider orientation="left">字段映射（请求参数字段名）</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="prompt">
+              <a-input v-model:value="formState.fieldMappings.prompt" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="imageList">
+              <a-input v-model:value="formState.fieldMappings.imageList" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="model">
+              <a-input v-model:value="formState.fieldMappings.model" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="imageSize">
+              <a-input v-model:value="formState.fieldMappings.imageSize" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="ImageRatio">
+              <a-input v-model:value="formState.fieldMappings.ImageRatio" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="imageNum">
+              <a-input v-model:value="formState.fieldMappings.imageNum" placeholder="可选" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </template>
 
       <a-divider orientation="left">默认参数（JSON）</a-divider>
       <a-form-item label="defaultParams" name="defaultParamsJson" :rules="defaultParamsJsonRules">
@@ -253,6 +261,8 @@ interface FormState {
   supportedFormats: string[];
   maxResolution: string | undefined;
   fieldMappings: FieldMappingsForm;
+  /** 默认 false：显示字段映射；true 时隐藏且不提交 fieldMappings */
+  compatibleWithOpenAi: boolean;
   defaultParamsJson: string;
   isEnabled: boolean;
   sort?: number | null;
@@ -281,6 +291,7 @@ const createEmptyForm = (): FormState => ({
   supportedFormats: [],
   maxResolution: undefined,
   fieldMappings: emptyFieldMappings(),
+  compatibleWithOpenAi: false,
   defaultParamsJson: "{}",
   isEnabled: true,
   sort: undefined,
@@ -504,6 +515,7 @@ const applyDetailToForm = (data: AiModelConfigRow) => {
   }
   formState.isEnabled = data.isEnabled ?? true;
   formState.sort = data.sort ?? undefined;
+  formState.compatibleWithOpenAi = data.compatibleWithOpenAi ?? false;
 };
 
 const resetForm = () => {
@@ -519,6 +531,7 @@ const buildCreateDto = (): AiModelConfigCreateDto => {
     modelType: formState.modelType.trim(),
     apiUrl: formState.apiUrl.trim(),
     isEnabled: formState.isEnabled,
+    compatibleWithOpenAi: formState.compatibleWithOpenAi,
   };
   if (formState.maxImageCount !== null && formState.maxImageCount !== undefined) {
     dto.maxImageCount = formState.maxImageCount;
@@ -533,8 +546,10 @@ const buildCreateDto = (): AiModelConfigCreateDto => {
   if (formState.supportedFormats?.length) dto.supportedFormats = formState.supportedFormats;
   const mr = trimOrUndefined(formState.maxResolution);
   if (mr) dto.maxResolution = mr;
-  const fm = buildFieldMappingsPayload(formState.fieldMappings);
-  if (fm) dto.fieldMappings = fm;
+  if (!formState.compatibleWithOpenAi) {
+    const fm = buildFieldMappingsPayload(formState.fieldMappings);
+    if (fm) dto.fieldMappings = fm;
+  }
   const dp = parseDefaultParams();
   if (dp) dto.defaultParams = dp;
   return dto;
@@ -603,6 +618,12 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped lang="scss">
+.form-item-hint {
+  margin-left: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
 .mono-textarea {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;

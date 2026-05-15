@@ -106,6 +106,25 @@ export const useTaskStore = defineStore("imageTask", {
       t.currentUrl = item.url;
       t.currentUrlCode = item.code;
     },
+    /** 用服务端返回的历史列表覆盖本地该任务的历史（如进入页面时拉取） */
+    setRemoteHistoryList(taskId: string, list: HistoryImage[]) {
+      this.ensureTask(taskId);
+      this.tasks[taskId].historyImageList = list;
+    },
+    /** 从持久化任务恢复结果预览（不写历史列表） */
+    setPersistedResultPreview(taskId: string, payload: { url: string; code: string }) {
+      this.ensureTask(taskId);
+      const t = this.tasks[taskId];
+      t.responseLoading = false;
+      t.showStatus = "2";
+      t.currentUrl = payload.url;
+      t.currentUrlCode = payload.code;
+      t.responseErrorText = "";
+      if (t.requestTimerId !== undefined) {
+        clearTimeout(t.requestTimerId);
+        t.requestTimerId = undefined;
+      }
+    },
     clearTaskImages(_taskId: string) {
       /* 预留：与后端缓存联动时可扩展 */
     },

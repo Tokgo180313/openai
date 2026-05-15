@@ -4,12 +4,23 @@ import api from "@/api/apiList";
 
 export type SelectOption = { label: string; value: string };
 
+/** 宽高比字符串统一为半角冒号，与配置页、接口一致 */
+export function normalizeAspectRatioToken(raw: string) {
+  return raw.replace(/\uFF1A/g, ":").trim();
+}
+
 /** 单个模型下拉项 + 该模型支持的比例、分辨率（来自接口） */
 export type ModelOption = {
   label: string;
   value: string;
+  /** 服务商，与 AI 模型配置一致 */
+  provider?: string;
   supportedAspectRatio: string[];
   supportedResolutions: string[];
+  /** 配置中的默认宽高比，用于切换模型时回填 */
+  defaultAspectRatio?: string;
+  /** 配置中的默认分辨率档位 */
+  defaultResolution?: string;
 };
 
 function normalizeStringArray(v: unknown): string[] {
@@ -48,9 +59,18 @@ export async function fetchImageModelOptions(): Promise<ModelOption[]> {
     .map((row: any) => ({
       displayName: row?.displayName,
       modelName: row?.modelName,
+      provider: row?.provider != null ? String(row.provider).trim() : "",
       sort: typeof row?.sort === "number" ? row.sort : 0,
-      supportedAspectRatio: normalizeStringArray(row?.supportedAspectRatio),
+      supportedAspectRatio: normalizeStringArray(row?.supportedAspectRatio).map((s) =>
+        normalizeAspectRatioToken(s),
+      ),
       supportedResolutions: normalizeStringArray(row?.supportedResolutions),
+      defaultAspectRatio: row?.defaultAspectRatio
+        ? normalizeAspectRatioToken(String(row.defaultAspectRatio))
+        : undefined,
+      defaultResolution: row?.defaultResolution
+        ? String(row.defaultResolution).trim()
+        : undefined,
     }))
     .filter(
       (row) =>
@@ -65,8 +85,11 @@ export async function fetchImageModelOptions(): Promise<ModelOption[]> {
   return rows.map((row) => ({
     label: String(row.displayName).trim(),
     value: String(row.modelName).trim(),
+    provider: row.provider || undefined,
     supportedAspectRatio: row.supportedAspectRatio,
     supportedResolutions: row.supportedResolutions,
+    defaultAspectRatio: row.defaultAspectRatio?.trim() || undefined,
+    defaultResolution: row.defaultResolution?.trim() || undefined,
   }));
 }
 

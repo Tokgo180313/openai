@@ -16,6 +16,7 @@ export interface AiModelConfigRow {
   supportedFormats?: string[];
   maxResolution?: string;
   fieldMappings?: FieldMappingsDto;
+  compatibleWithOpenAi?: boolean;
   defaultParams?: Record<string, unknown>;
   isEnabled?: boolean;
   sort?: number;

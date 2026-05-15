@@ -132,13 +132,13 @@
           <div
             class="submit-button button"
             :class="responseLoading ? 'diabled-use' : ''"
-            @click="submitBtn2"
+            @click="submitBtn"
           >
             {{ responseLoading ? "生成中" : "开始生成" }}
           </div>
           <div class="break-button button" @click="cancelBtn">中断</div>
           <div class="optimize-copy-button button" @click="optimizeCopyBtn">
-            优化文案
+            AI优化文案
           </div>
 
           <div
@@ -163,6 +163,7 @@
           <div class="download-button button" @click="downloadBtn">下载</div>
 
           <HistoryImageItem
+            :task-id="taskId"
             :history-image-list="historyImageList"
             :resolve-image-src="resolveImageSrc"
             :popover-width="historyPopoverWidth"
@@ -193,23 +194,22 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { message } from "ant-design-vue";
 import type { UploadChangeParam, UploadFile } from "ant-design-vue/es/upload/interface";
 import {
-  fuseImagesApi,
-  generateImagesByPromptApi,
-  generateImagesByPromptV2Api,
+  addTaskImageApi,
+  deleteInputImageApi,
+  fetchInputImageByLocalPathApi,
+  findTaskImageByTaskIdApi,
   getImageTaskResultApi,
-  linxfoxUploadByBase64Api,
-  linkfoxGetImageApi,
-  linkfoxGenerateApi,
-  qianwenImageApi,
+  taskImageGenerateApi,
+  updateTaskImageSourceImagesApi,
+  uploadImagesApi,
 } from "@/api/images";
 import { useTaskStore, type HistoryImage } from "@/stores/taskStore";
 import {
   fetchImageModelOptions,
-  lookupRecommendedSize,
   mapAspectStringsToOptions,
   mapResolutionStringsToOptions,
+  normalizeAspectRatioToken,
   ratioOptions,
-  recommendedSizeMap,
   sizeOptions,
   type ModelOption,
 } from "../js/config";
@@ -220,13 +220,49 @@ type SubmitParam = {
   modelName: string;
   imageRatio: string;
   imageSize: string;
+  /** 当前模型对应的服务商，与模型列表同步 */
+  provider?: string;
 };
 
 type UploadWithMeta = UploadFile & { base64?: string; mimeType?: string };
 
+type TaskImageCommonResp = {
+  code?: number;
+  message?: string;
+  data?: unknown;
+  timestamp?: number;
+  path?: string;
+};
+
+function isTaskImageApiSuccess(code: unknown): boolean {
+  return code === 200 || code === 0 || code === 201;
+}
+
+/** 根据 findTaskImageByTaskId 返回的 data 判断是否已有任务记录 */
+function taskImageRecordExists(data: unknown): boolean {
+  if (data == null) return false;
+  if (typeof data === "boolean") return data;
+  if (typeof data === "number") return Number.isFinite(data);
+  if (typeof data === "string") return data.trim().length > 0;
+  if (Array.isArray(data)) return data.length > 0;
+  if (typeof data === "object") {
+    const o = data as Record<string, unknown>;
+    if ("exists" in o && typeof o.exists === "boolean") return o.exists;
+    if (o.id != null && o.id !== "") return true;
+    return Object.keys(o).length > 0;
+  }
+  return false;
+}
+
 const props = defineProps<{
   taskId: number | string;
   param?: Partial<SubmitParam>;
+  /**
+   * 父页使用本地 taskId 渲染卡片；
+   * 为 true 时，在本组件内模型列表就绪并完成 submitForm 初始化后，先按 taskId 查询任务是否存在，
+   * 不存在再 POST /taskImage/addTaskImage（含 modelName、imageRatio、imageSize）。
+   */
+  shouldRegisterTaskImage?: boolean;
 }>();
 
 const textStorageKey = `image-task-text-${props.taskId}`;
@@ -236,6 +272,9 @@ const store = useTaskStore();
 const uploadSlots = ref<UploadWithMeta[][]>(
   Array.from({ length: 4 }, () => []),
 );
+
+/** 与 uploadSlots 下标对齐，服务端保存的图片路径/URL；空字符串表示该槽无图 */
+const sourceImages = ref<string[]>(["", "", "", ""]);
 const draggingSlot = ref<number | null>(null);
 /** 点击过的上传格，粘贴无空位时写入该格 */
 const focusedUploadSlot = ref<number | null>(null);
@@ -248,7 +287,15 @@ const submitForm = ref<SubmitParam>({
   modelName: "",
   imageRatio: ratioOptions[0]?.value ?? "3.4",
   imageSize: sizeOptions[0]?.value ?? "3K",
+  provider: "",
 });
+
+/** 与当前选中模型一致的服务商，用于登记任务与生成请求 */
+function syncProviderWithSelectedModel() {
+  const row = modelOptions.value.find((m) => m.value === submitForm.value.modelName);
+  const p = (row?.provider ?? "").trim();
+  submitForm.value.provider = p;
+}
 
 function syncModelNameWithList() {
   const opts = modelOptions.value;
@@ -268,6 +315,7 @@ watch(
       modelName: newVal.modelName ?? submitForm.value.modelName,
       imageRatio: newVal.imageRatio ?? submitForm.value.imageRatio,
       imageSize: newVal.imageSize ?? submitForm.value.imageSize,
+      provider: newVal.provider ?? submitForm.value.provider,
     };
   },
   { deep: true, immediate: true },
@@ -314,26 +362,387 @@ const showSizeOptions = computed(() => {
 });
 
 function syncRatioSizeWithModel() {
+  const row = modelOptions.value.find((m) => m.value === submitForm.value.modelName);
   const ratios = showRationOptions.value.map((o) => o.value);
   const sizes = showSizeOptions.value.map((o) => o.value);
-  if (
-    ratios.length &&
-    (!submitForm.value.imageRatio || !ratios.includes(submitForm.value.imageRatio))
-  ) {
+
+  let nextRatio: string | undefined;
+  if (ratios.length) {
+    const want = row?.defaultAspectRatio?.trim();
+    if (want) {
+      const nw = normalizeAspectRatioToken(want);
+      const picked =
+        ratios.find((r) => r === want) ??
+        ratios.find((r) => normalizeAspectRatioToken(r) === nw);
+      if (picked) nextRatio = picked;
+    }
+    if (nextRatio === undefined) {
+      nextRatio =
+        submitForm.value.imageRatio && ratios.includes(submitForm.value.imageRatio)
+          ? submitForm.value.imageRatio
+          : ratios[0];
+    }
+    submitForm.value.imageRatio = nextRatio;
+  }
+
+  let nextSize: string | undefined;
+  if (sizes.length) {
+    const want = row?.defaultResolution?.trim();
+    if (want) {
+      const wl = want.toLowerCase();
+      const picked = sizes.find((s) => s.toLowerCase() === wl);
+      if (picked) nextSize = picked;
+    }
+    if (nextSize === undefined) {
+      nextSize =
+        submitForm.value.imageSize && sizes.includes(submitForm.value.imageSize)
+          ? submitForm.value.imageSize
+          : sizes[0];
+    }
+    submitForm.value.imageSize = nextSize;
+  }
+}
+
+/** 仅将比例、分辨率限制在当前模型支持项内，不覆盖为模型配置里的默认值（用于回填持久化任务） */
+function clampSubmitFormRatioSizeToModelSupported() {
+  const ratios = showRationOptions.value.map((o) => o.value);
+  const sizes = showSizeOptions.value.map((o) => o.value);
+  if (ratios.length && !ratios.includes(submitForm.value.imageRatio)) {
     submitForm.value.imageRatio = ratios[0];
   }
-  if (
-    sizes.length &&
-    (!submitForm.value.imageSize || !sizes.includes(submitForm.value.imageSize))
-  ) {
+  if (sizes.length && !sizes.includes(submitForm.value.imageSize)) {
     submitForm.value.imageSize = sizes[0];
+  }
+}
+
+/** 将 findTaskImageByTaskId 的 data 规范为一条任务对象（兼容嵌套、数组首项） */
+function taskImageRecordAsObject(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    const first = raw[0];
+    if (first && typeof first === "object" && !Array.isArray(first)) {
+      return first as Record<string, unknown>;
+    }
+    return null;
+  }
+  if (typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const inner =
+    o.data ??
+    o.taskImage ??
+    o.task_image ??
+    o.task ??
+    o.record ??
+    o.result ??
+    o.payload;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner as Record<string, unknown>;
+  }
+  return o;
+}
+
+function strField(v: unknown): string {
+  return v != null ? String(v).trim() : "";
+}
+
+function isHttpUrlString(s: string) {
+  return /^https?:\/\//i.test(s);
+}
+
+/** 将接口 sourceImages 单项转为 UploadWithMeta，供 uploadSlots 展示 */
+function uploadFileFromSourceImageEntry(item: unknown, index: number): UploadWithMeta | null {
+  const uid = `persisted-${props.taskId}-${index}-${Date.now()}`;
+  if (item == null) return null;
+  if (typeof item === "string") {
+    const s = item.trim();
+    if (!s) return null;
+    if (isHttpUrlString(s)) {
+      return {
+        uid,
+        name: `ref-${index}.png`,
+        status: "done",
+        url: s,
+        thumbUrl: s,
+      } as UploadWithMeta;
+    }
+    const m = /^data:([^;]+);base64,(.+)$/i.exec(s);
+    if (m) {
+      const mime = m[1] || "image/png";
+      const b64 = m[2];
+      return {
+        uid,
+        name: `ref-${index}`,
+        status: "done",
+        url: s,
+        thumbUrl: s,
+        base64: b64,
+        mimeType: mime,
+      } as UploadWithMeta;
+    }
+    const mime = "image/png";
+    const dataUrl = `data:${mime};base64,${s}`;
+    return {
+      uid,
+      name: `ref-${index}.png`,
+      status: "done",
+      url: dataUrl,
+      thumbUrl: dataUrl,
+      base64: s,
+      mimeType: mime,
+    } as UploadWithMeta;
+  }
+  if (typeof item === "object" && !Array.isArray(item)) {
+    const ob = item as Record<string, unknown>;
+    const urlRaw = ob.url ?? ob.viewUrl ?? ob.imageUrl ?? ob.image_url;
+    if (typeof urlRaw === "string" && urlRaw.trim()) {
+      const u = urlRaw.trim();
+      if (isHttpUrlString(u)) {
+        return {
+          uid,
+          name: String(ob.name ?? `ref-${index}`),
+          status: "done",
+          url: u,
+          thumbUrl: u,
+        } as UploadWithMeta;
+      }
+      const m = /^data:([^;]+);base64,(.+)$/i.exec(u);
+      if (m) {
+        const mime = m[1] || "image/png";
+        const b64 = m[2];
+        return {
+          uid,
+          name: String(ob.name ?? `ref-${index}`),
+          status: "done",
+          url: u,
+          thumbUrl: u,
+          base64: b64,
+          mimeType: mime,
+        } as UploadWithMeta;
+      }
+    }
+    let b64Raw: string | undefined;
+    if (typeof ob.base64 === "string" && ob.base64.trim()) b64Raw = ob.base64.trim();
+    else if (typeof ob.binary_data_base64 === "string" && ob.binary_data_base64.trim()) {
+      b64Raw = ob.binary_data_base64.trim();
+    } else if (typeof ob.data === "string" && ob.data.trim()) {
+      b64Raw = ob.data.trim();
+    }
+    if (b64Raw) {
+      const mime = String(ob.mimeType ?? ob.contentType ?? ob.mime ?? "image/png");
+      const dataUrl = `data:${mime};base64,${b64Raw}`;
+      return {
+        uid,
+        name: String(ob.name ?? `ref-${index}`),
+        status: "done",
+        url: dataUrl,
+        thumbUrl: dataUrl,
+        base64: b64Raw,
+        mimeType: mime,
+      } as UploadWithMeta;
+    }
+  }
+  return null;
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("readAsDataURL failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** 将 GET 返回的图片 Blob 转为带 base64 的 UploadWithMeta，供 uploadSlots 展示 */
+async function uploadFileMetaFromImageBlob(
+  blob: Blob,
+  index: number,
+  pathHint: string,
+): Promise<UploadWithMeta> {
+  const dataUrl = await blobToDataUrl(blob);
+  const comma = dataUrl.indexOf(",");
+  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : "";
+  const mimeMatch = /^data:([^;]+)/.exec(comma >= 0 ? dataUrl.slice(0, comma) : "");
+  const mimeType = (blob.type && blob.type !== "application/octet-stream"
+    ? blob.type
+    : mimeMatch?.[1]) || "image/jpeg";
+  const name = pathHint.split(/[/\\]/).pop() || `ref-${index}.jpg`;
+  return {
+    uid: `fetched-${props.taskId}-${index}-${Date.now()}`,
+    name,
+    status: "done",
+    url: dataUrl,
+    thumbUrl: dataUrl,
+    base64: b64,
+    mimeType,
+  } as UploadWithMeta;
+}
+
+/** 已存在任务记录时，用接口返回填充表单与上传槽 */
+async function applyPersistedTaskImageFromApiData(raw: unknown) {
+  const o = taskImageRecordAsObject(raw);
+  if (!o) return;
+
+  for (const slot of uploadSlots.value) {
+    const u = slot[0]?.url;
+    if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
+  }
+
+  const mn = strField(o.modelName ?? o.model_name);
+  if (mn) submitForm.value.modelName = mn;
+
+  const prov = strField(o.provider ?? o.provider_name);
+  if (prov) submitForm.value.provider = prov;
+  else syncProviderWithSelectedModel();
+
+  const aspect = strField(
+    o.aspectRatio ?? o.aspect_ratio ?? o.imageRatio ?? o.image_ratio,
+  );
+  if (aspect) submitForm.value.imageRatio = normalizeAspectRatioToken(aspect);
+
+  const sz = strField(o.imageSize ?? o.image_size);
+  if (sz) submitForm.value.imageSize = sz;
+
+  const input = o.inputText ?? o.input_text ?? o.prompt;
+  if (input != null) {
+    const t = String(input);
+    currentText.value = t;
+    localStorage.setItem(textStorageKey, t);
+  }
+
+  const arr = o.sourceImages ?? o.source_images;
+  const paths = ["", "", "", ""];
+  if (Array.isArray(arr) && arr.length) {
+    for (let i = 0; i < Math.min(4, arr.length); i++) {
+      const el = arr[i];
+      if (typeof el === "string") paths[i] = el.trim();
+      else if (el && typeof el === "object") {
+        const ob = el as Record<string, unknown>;
+        paths[i] = strField(ob.url ?? ob.path ?? ob.fileUrl ?? ob.src);
+      }
+    }
+  }
+  sourceImages.value = paths;
+
+  const slots: UploadWithMeta[][] = Array.from({ length: 4 }, () => []);
+  for (let i = 0; i < 4; i++) {
+    const lp = (paths[i] ?? "").trim();
+    if (!lp) continue;
+    if (isHttpUrlString(lp) || lp.startsWith("data:")) {
+      const f = uploadFileFromSourceImageEntry(lp, i);
+      if (f) slots[i] = [f];
+      continue;
+    }
+    try {
+      const blob = (await fetchInputImageByLocalPathApi(lp)) as unknown;
+      if (!(blob instanceof Blob) || blob.size === 0) continue;
+      slots[i] = [await uploadFileMetaFromImageBlob(blob, i, lp)];
+    } catch (e) {
+      console.error(e);
+      message.warning(`加载参考图失败（槽位 ${i + 1}）`);
+    }
+  }
+  uploadSlots.value = slots;
+
+  const resultArr = o.resultImages ?? o.result_images;
+  if (Array.isArray(resultArr) && resultArr.length > 0) {
+    const first = resultArr[0];
+    let localPath = "";
+    if (typeof first === "string") localPath = first.trim();
+    else if (first && typeof first === "object") {
+      const ob = first as Record<string, unknown>;
+      localPath = strField(ob.url ?? ob.path ?? ob.localPath ?? ob.local_path);
+    }
+    if (localPath && !isHttpUrlString(localPath) && !localPath.startsWith("data:")) {
+      try {
+        const blob = (await fetchInputImageByLocalPathApi(localPath)) as unknown;
+        if (blob instanceof Blob && blob.size > 0) {
+          const dataUrl = await blobToDataUrl(blob);
+          store.setPersistedResultPreview(String(props.taskId), {
+            url: dataUrl,
+            code: "",
+          });
+        }
+      } catch (e) {
+        console.error(e);
+        message.warning("加载已生成结果图失败");
+      }
+    } else if (localPath) {
+      store.setPersistedResultPreview(String(props.taskId), {
+        url: localPath,
+        code: "",
+      });
+    }
+  }
+
+  void nextTick(() => {
+    clampSubmitFormRatioSizeToModelSupported();
+  });
+}
+
+/**
+ * 时机：findAiModelConfigList 已通过 fetchImageModelOptions 拿到列表（含 defaultAspectRatio / defaultResolution），
+ * 且 syncModelNameWithList + syncRatioSizeWithModel 已按模型默认值或支持项写入 submitForm。
+ * 先 GET 按 taskId 查询是否已有记录；已存在则用返回数据回填 submitForm、描述词与 uploadSlots 后返回；
+ * 不存在再 POST /taskImage/addTaskImage。
+ */
+async function registerTaskImageWithServer() {
+  if (!props.shouldRegisterTaskImage) return;
+  if (!submitForm.value.modelName?.trim()) return;
+
+  const payload: Record<string, unknown> = {
+    taskId: props.taskId,
+    modelName: submitForm.value.modelName,
+    imageRatio: submitForm.value.imageRatio,
+    imageSize: submitForm.value.imageSize,
+  };
+  const pv = (submitForm.value.provider ?? "").trim();
+  if (pv) payload.provider = pv;
+
+  try {
+    let alreadyExists = false;
+    let findPayload: unknown;
+    try {
+      const findResp = (await findTaskImageByTaskIdApi(props.taskId)) as TaskImageCommonResp;
+      findPayload = findResp.data;
+      if (isTaskImageApiSuccess(findResp.code)) {
+        alreadyExists = taskImageRecordExists(findResp.data);
+      } else {
+        message.warning(findResp.message ?? "查询图片任务失败，已跳过登记");
+        return;
+      }
+    } catch (findErr: unknown) {
+      const status = (findErr as { response?: { status?: number } })?.response?.status;
+      // 常见：HTTP 404 表示尚无记录 → 继续走新增
+      if (status !== 404) {
+        console.error(findErr);
+        message.warning("查询图片任务失败，已跳过登记");
+        return;
+      }
+    }
+
+    if (alreadyExists) {
+      await applyPersistedTaskImageFromApiData(findPayload);
+      return;
+    }
+
+    const addResp = (await addTaskImageApi(payload)) as TaskImageCommonResp;
+    if (!isTaskImageApiSuccess(addResp.code)) {
+      message.warning(addResp.message ?? "登记图片任务失败");
+    }
+  } catch (e) {
+    console.error(e);
+    message.error("登记图片任务请求失败");
   }
 }
 
 watch(
   () => submitForm.value.modelName,
   () => {
-    nextTick(syncRatioSizeWithModel);
+    nextTick(() => {
+      syncRatioSizeWithModel();
+      syncProviderWithSelectedModel();
+    });
   },
 );
 const textContentRef = ref<HTMLElement | null>(null);
@@ -389,20 +798,154 @@ function downloadFilenameSuffix() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
 }
 
+function ensureFourSourceImageSlots(paths: string[]): string[] {
+  const out = paths.slice(0, 4);
+  while (out.length < 4) out.push("");
+  return out;
+}
+
+function patchSourceImageAt(slotIndex: number, path: string) {
+  const next = ensureFourSourceImageSlots([...sourceImages.value]);
+  next[slotIndex] = path ?? "";
+  sourceImages.value = next;
+}
+
+/** 解析 /file/uploadImages 返回中的本地路径（写入 sourceImages）。
+ * 成功示例：{ code: 201, data: { localPath, fileName, mimeType }, ... } */
+function extractUrlsFromUploadImagesResponse(resp: unknown): string[] {
+  if (resp == null) return [];
+  if (Array.isArray(resp)) {
+    return resp
+      .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+      .map((s) => s.trim());
+  }
+  if (typeof resp !== "object") return [];
+  const r = resp as Record<string, unknown>;
+  const code = r.code;
+  if (code != null && code !== 200 && code !== 0 && code !== 201) return [];
+  const d = r.data ?? r.result;
+  if (Array.isArray(d)) {
+    return d
+      .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+      .map((s) => s.trim());
+  }
+  if (typeof d === "string" && d.trim()) return [d.trim()];
+  if (d && typeof d === "object" && !Array.isArray(d)) {
+    const o = d as Record<string, unknown>;
+    const localPath = o.localPath;
+    if (typeof localPath === "string" && localPath.trim()) {
+      return [localPath.trim()];
+    }
+    const arr = o.urls ?? o.list ?? o.paths ?? o.sourceImages ?? o.data;
+    if (Array.isArray(arr)) {
+      return arr
+        .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+        .map((s) => s.trim());
+    }
+    const single = o.url ?? o.path ?? o.fileUrl ?? o.file_url;
+    if (typeof single === "string" && single.trim()) return [single.trim()];
+  }
+  return [];
+}
+
+async function persistSourceImagesToServer(status = 1) {
+  if (!props.shouldRegisterTaskImage) return;
+  try {
+    const res = (await updateTaskImageSourceImagesApi({
+      taskId: props.taskId,
+      sourceImages: ensureFourSourceImageSlots([...sourceImages.value]),
+      status,
+    })) as TaskImageCommonResp;
+    if (!isTaskImageApiSuccess(res?.code)) {
+      message.warning(res?.message ?? "更新参考图记录失败");
+    }
+  } catch (e) {
+    console.error(e);
+    message.error("更新参考图记录失败");
+  }
+}
+
+/** 按槽位删除服务端文件（若有）、清空 sourceImages 该位并 POST updateSourceImages */
+async function removeSlotImageAndSyncServer(slotIndex: number) {
+  const paths = ensureFourSourceImageSlots([...sourceImages.value]);
+  const localPath = (paths[slotIndex] ?? "").trim();
+  const u = uploadSlots.value[slotIndex]?.[0]?.url;
+  if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
+  uploadSlots.value[slotIndex] = [];
+  if (!props.shouldRegisterTaskImage) {
+    patchSourceImageAt(slotIndex, "");
+    return;
+  }
+  if (localPath) {
+    try {
+      await deleteInputImageApi({ localPath });
+    } catch (e) {
+      console.error(e);
+      message.warning("删除服务端图片失败");
+    }
+  }
+  patchSourceImageAt(slotIndex, "");
+  await persistSourceImagesToServer();
+}
+
+async function uploadProcessedFileAndSyncServer(
+  slotIndex: number,
+  file: File,
+  previousLocalPath?: string,
+) {
+  if (!props.shouldRegisterTaskImage) return;
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  const resp = await uploadImagesApi(formData);
+  const urls = extractUrlsFromUploadImagesResponse(resp);
+  const path = urls[0]?.trim();
+  if (!path) {
+    throw new Error(
+      (resp as TaskImageCommonResp)?.message ||
+        (typeof resp === "object" && resp && "message" in resp
+          ? String((resp as { message?: string }).message)
+          : "") ||
+        "上传成功但未返回图片地址",
+    );
+  }
+  patchSourceImageAt(slotIndex, path);
+  await persistSourceImagesToServer();
+  const prev = (previousLocalPath ?? "").trim();
+  if (prev && prev !== path && props.shouldRegisterTaskImage) {
+    try {
+      await deleteInputImageApi({ localPath: prev });
+    } catch (e) {
+      console.error(e);
+      message.warning("新图已保存，但删除旧参考图文件失败");
+    }
+  }
+}
+
 async function handleChange(slotIndex: number, uploadFiles: UploadWithMeta[]) {
   uploadSlots.value[slotIndex] = uploadFiles.length ? [uploadFiles[0]] : [];
   const first = uploadFiles[0];
+  if (!first || !uploadFiles.length) {
+    await removeSlotImageAndSyncServer(slotIndex);
+    return;
+  }
   const rawFileObj = first?.originFileObj as File | undefined;
   if (rawFileObj) {
     const fileType = rawFileObj.type;
     const allowed = fileType === "image/jpeg" || fileType === "image/png";
     if (!allowed) {
+      const bu = first.url;
+      if (typeof bu === "string" && bu.startsWith("blob:")) URL.revokeObjectURL(bu);
       uploadSlots.value[slotIndex] = [];
+      await removeSlotImageAndSyncServer(slotIndex);
       store.setError(String(props.taskId), "仅支持上传 JPG/JPEG 或 PNG 格式图片");
       return;
     }
   }
   if (first && rawFileObj && !first.base64) {
+    const previousLocalPath = (
+      ensureFourSourceImageSlots([...sourceImages.value])[slotIndex] ?? ""
+    ).trim();
+
     const maxBytes = 1 * 1024 * 1024;
 
     let rawFile = rawFileObj as File;
@@ -468,6 +1011,14 @@ async function handleChange(slotIndex: number, uploadFiles: UploadWithMeta[]) {
     first.thumbUrl = dataUrl;
 
     if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
+
+    try {
+      await uploadProcessedFileAndSyncServer(slotIndex, rawFile, previousLocalPath);
+    } catch (e: unknown) {
+      console.error(e);
+      await removeSlotImageAndSyncServer(slotIndex);
+      message.error((e as Error)?.message || "图片上传失败");
+    }
   }
 }
 
@@ -488,6 +1039,12 @@ function swapUploadSlots(from: number, to: number) {
   next[from] = next[to];
   next[to] = a;
   uploadSlots.value = next;
+  const si = ensureFourSourceImageSlots([...sourceImages.value]);
+  const t = si[from];
+  si[from] = si[to];
+  si[to] = t;
+  sourceImages.value = si;
+  void persistSourceImagesToServer();
 }
 
 async function applyImageFileToSlot(slotIndex: number, imageFile: File) {
@@ -614,136 +1171,34 @@ function clearTextBtn() {
 }
 
 function clearImagesBtn() {
+  void clearAllSlotImagesAndSyncServer();
+}
+
+async function clearAllSlotImagesAndSyncServer() {
   for (const slot of uploadSlots.value) {
     const u = slot[0]?.url;
     if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
   }
   uploadSlots.value = Array.from({ length: 4 }, () => []);
+  if (props.shouldRegisterTaskImage) {
+    const paths = ensureFourSourceImageSlots([...sourceImages.value]);
+    for (let i = 0; i < 4; i++) {
+      const t = (paths[i] ?? "").trim();
+      if (!t) continue;
+      try {
+        await deleteInputImageApi({ localPath: t });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+  sourceImages.value = ["", "", "", ""];
   store.clearTaskImages(String(props.taskId));
+  await persistSourceImagesToServer();
 }
 
 function clearUploadSlot(slotIndex: number) {
-  const u = uploadSlots.value[slotIndex]?.[0]?.url;
-  if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
-  uploadSlots.value[slotIndex] = [];
-}
-
-async function collectImageBase64List() {
-  const slots = uploadSlots.value
-    .map((slot) => slot[0])
-    .filter(Boolean) as UploadWithMeta[];
-  const list = await Promise.all(
-    slots.map(async (file) => {
-      if (file.base64) return file.base64;
-      if (file.originFileObj) {
-        const dataUrl = await getBase64(file.originFileObj as File);
-        const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-        file.base64 = base64;
-        file.mimeType = (file.originFileObj as File).type;
-        file.url = dataUrl;
-        return base64;
-      }
-      return "";
-    }),
-  );
-  return list.filter((x) => !!x);
-}
-
-async function collectImageDataUrlList() {
-  const slots = uploadSlots.value
-    .map((slot) => slot[0])
-    .filter(Boolean) as UploadWithMeta[];
-
-  const list = await Promise.all(
-    slots.map(async (file) => {
-      if (file.url && /^data:image\/[^;]+;base64,/.test(file.url)) {
-        return file.url;
-      }
-      if (file.originFileObj) {
-        const dataUrl = await getBase64(file.originFileObj as File);
-        const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-        file.base64 = base64;
-        file.mimeType = (file.originFileObj as File).type;
-        file.url = dataUrl;
-        return dataUrl;
-      }
-      if (file.base64) {
-        const mime = file.mimeType || "image/png";
-        return `data:${mime};base64,${file.base64}`;
-      }
-      return "";
-    }),
-  );
-
-  return list.filter((x) => !!x);
-}
-
-async function collectImageUrlList() {
-  const slots = uploadSlots.value
-    .map((slot) => slot[0])
-    .filter(Boolean) as UploadWithMeta[];
-
-  const list = await Promise.all(
-    slots.map(async (file, idx) => {
-      if (file.url && isHttpUrl(file.url)) {
-        return file.url;
-      }
-
-      let fullBase64 = "";
-      if (file.url && /^data:image\/[^;]+;base64,/.test(file.url)) {
-        fullBase64 = file.url;
-      } else if (file.originFileObj) {
-        fullBase64 = await getBase64(file.originFileObj as File);
-      } else if (file.base64) {
-        const mime = file.mimeType || "image/png";
-        fullBase64 = `data:${mime};base64,${file.base64}`;
-      }
-
-      if (!fullBase64) return "";
-
-      const fileName =
-        file.name ||
-        (file.originFileObj instanceof File
-          ? file.originFileObj.name
-          : `upload-${Date.now()}-${idx}.png`);
-
-      const uploadResp = await linxfoxUploadByBase64Api({
-        fileName,
-        base64: fullBase64,
-      });
-
-      const outerCode = String((uploadResp as any)?.code ?? "");
-      const innerCode = Number((uploadResp as any)?.data?.code ?? NaN);
-      const viewUrl = String((uploadResp as any)?.data?.data?.viewUrl ?? "");
-      if (outerCode !== "0" || innerCode !== 200 || !viewUrl) {
-        const errMsg = String(
-          (uploadResp as any)?.data?.msg ?? (uploadResp as any)?.msg ?? "上传图片失败",
-        );
-        throw new Error(errMsg);
-      }
-      return viewUrl;
-    }),
-  );
-
-  return list.filter((x: string) => !!x);
-}
-
-function validateUploadSizeLimit(taskId: string) {
-  const maxBytes = 10 * 1024 * 1024;
-  const files = uploadSlots.value
-    .map((slot) => slot[0])
-    .filter(Boolean) as UploadWithMeta[];
-
-  for (const file of files) {
-    const raw = file.originFileObj as File | undefined;
-    if (!raw) continue;
-    if (raw.size > maxBytes) {
-      store.setError(taskId, "上传图片大小不能超过10MB");
-      return false;
-    }
-  }
-
-  return true;
+  void removeSlotImageAndSyncServer(slotIndex);
 }
 
 function extractTaskIdFromResp(resp: any) {
@@ -843,166 +1298,210 @@ function beginGeneration(taskId: string) {
   store.setRequestTimerId(taskId, timeoutId);
 }
 
-async function runClassicJimengPipeline(taskId: string) {
-  const sizeParam = (() => {
-    const sizeRaw = (submitForm.value.imageSize ?? "").toString().trim();
-    const sizeLower = sizeRaw.toLowerCase();
-    const ratioRaw = (submitForm.value.imageRatio ?? "").toString().trim();
+function extractFirstUrlFromUnifiedResp(resp: any): string {
+  const d = resp?.data;
+  if (d == null) return "";
+  if (typeof d === "string") {
+    const s = d.trim();
+    if (s.startsWith("http") || s.startsWith("data:image")) return s;
+    return "";
+  }
+  if (typeof d !== "object") return "";
 
-    if (/^\d+\s*x\s*\d+$/.test(sizeLower)) return sizeLower.replace(/\s+/g, "");
+  const direct =
+    d.url ??
+    d.imageUrl ??
+    d.image_url ??
+    d.viewUrl ??
+    "";
+  if (typeof direct === "string" && direct) return direct;
 
-    const recommended = lookupRecommendedSize(submitForm.value.imageSize, ratioRaw);
-    if (recommended) return recommended;
+  const nested = d.data;
+  if (nested && typeof nested === "object") {
+    const u = (nested as any).url ?? (nested as any).imageUrl;
+    if (typeof u === "string" && u) return u;
+  }
 
-    const ratioMatch = ratioRaw.match(/^(\d+)\s*:\s*(\d+)$/);
-    if (!ratioMatch) {
-      if (sizeLower === "2k") return "2048x2048";
-      if (sizeLower === "4k") return "4096x4096";
-      return "512x512";
+  const arr = d.images ?? d.image_urls ?? d.imageUrls ?? d.resultList;
+  if (Array.isArray(arr)) {
+    const first = arr[0];
+    if (typeof first === "string") return first;
+    if (first && typeof (first as any).url === "string") return (first as any).url;
+  }
+
+  if (Array.isArray(d) && d[0]) {
+    const first = d[0];
+    if (typeof first === "string") return first;
+    if (typeof (first as any)?.url === "string") return (first as any).url;
+  }
+
+  const legacy =
+    resp?.data?.[0]?.url ??
+    (Array.isArray(resp?.data) ? "" : resp?.data?.url) ??
+    resp?.url ??
+    "";
+  return typeof legacy === "string" ? legacy : "";
+}
+
+async function pollRemoteTaskUntilImage(uiTaskId: string, remoteTaskId: string) {
+  let firstImageUrl = "";
+  let imageCode = "";
+
+  for (let i = 0; i < 120; i++) {
+    const taskResp = (await getImageTaskResultApi(
+      { taskId: remoteTaskId, reqKey: submitForm.value.modelName },
+      abortController?.signal,
+    )) as any;
+    if (taskResp.code !== 0) {
+      store.setError(
+        uiTaskId,
+        `查询结果失败：${taskResp.message ?? "unknown error"}`,
+      );
+      return;
     }
 
-    const rw = Number(ratioMatch[1]);
-    const rh = Number(ratioMatch[2]);
-    if (!rw || !rh) return "512x512";
-
-    const longEdgeBySize: Record<string, number> = {
-      "2k": 2560,
-      "4k": 4096,
-    };
-    const longEdge = longEdgeBySize[sizeLower];
-    if (!longEdge) return "512x512";
-
-    let width = longEdge;
-    let height = longEdge;
-    if (rw >= rh) {
-      height = Math.max(1, Math.round((longEdge * rh) / rw));
-    } else {
-      width = Math.max(1, Math.round((longEdge * rw) / rh));
+    const taskStatus = extractTaskStatus(taskResp);
+    if (taskStatus === "not_found") {
+      store.setError(uiTaskId, "任务未找到，可能已过期（12小时）或不存在");
+      return;
     }
-    return `${width}x${height}`;
-  })();
+    if (taskStatus === "expired") {
+      store.setError(uiTaskId, "任务已过期，请重新提交任务");
+      return;
+    }
 
-  const [widthStr, heightStr] = sizeParam.split("x");
-  const width = Number(widthStr) || 512;
-  const height = Number(heightStr) || 512;
+    const extracted = extractImageFromTaskResult(taskResp.data);
+    firstImageUrl = extracted.url;
+    imageCode = extracted.code;
 
-  const payload = {
-    prompt: currentText.value.trim(),
-    size: sizeParam,
-    width,
-    height,
-    n: 1,
-    extra: { return_url: true },
-  };
+    if (taskStatus === "done") {
+      if (firstImageUrl) break;
+      store.setError(
+        uiTaskId,
+        `任务已完成但无图片结果：${taskResp.message ?? "unknown error"}`,
+      );
+      return;
+    }
+
+    if (firstImageUrl) break;
+    await waitWithAbort(1500, abortController?.signal);
+  }
+
+  if (!firstImageUrl) {
+    store.setError(uiTaskId, "生成失败：轮询超时，未获取到图片结果");
+    return;
+  }
+
+  store.completeTaskWithPlaceholder(uiTaskId, {
+    url: firstImageUrl,
+    code: imageCode,
+    context: currentText.value,
+  });
+}
+
+/** 生成接口返回 data.resultImages 时：取下标 0 的本地路径，拉取文件转 data URL 后完成展示 */
+async function completeTaskFromGenerateRespResultImages(
+  uiTaskId: string,
+  resp: any,
+): Promise<boolean> {
+  const data = resp?.data;
+  if (!data || typeof data !== "object") return false;
+  const arr = data.resultImages ?? data.result_images;
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  const first = arr[0];
+  let localPath = "";
+  if (typeof first === "string") localPath = first.trim();
+  else if (first && typeof first === "object") {
+    const ob = first as Record<string, unknown>;
+    localPath = strField(ob.url ?? ob.path ?? ob.localPath ?? ob.local_path);
+  }
+  if (!localPath) return false;
 
   try {
-    const isFuseModel =
-      submitForm.value.modelName === "jimeng_t2i_v40" ||
-      submitForm.value.modelName === "jimeng_seedream46_cvtob";
-    let firstImageUrl = "";
-    let imageCode = "";
-    let generatedTaskId = "";
-
-    if (isFuseModel) {
-      const imageBase64List = await collectImageBase64List();
-      if (imageBase64List.length === 0) {
-        store.setError(taskId, "请至少上传一张图片");
-        return;
-      }
-
-      const fuseResp = (await fuseImagesApi(
-        {
-          imageBase64List,
-          prompt: currentText.value.trim(),
-          size: sizeParam,
-          width,
-          height,
-          reqKey: submitForm.value.modelName,
-          extra: { return_url: true },
-        },
-        abortController?.signal,
-      )) as any;
-
-      if (fuseResp.code !== 0) {
-        store.setError(
-          taskId,
-          `融合失败：${fuseResp.message ?? "unknown error"}`,
-        );
-        return;
-      }
-      generatedTaskId = extractTaskIdFromResp(fuseResp);
-    } else {
-      const json = (await generateImagesByPromptApi(
-        payload,
-        abortController?.signal,
-      )) as any;
-
-      if (json.code !== 0) {
-        store.setError(taskId, `生成失败：${json.message ?? "unknown error"}`);
-        return;
-      }
-      generatedTaskId = extractTaskIdFromResp(json);
+    let previewUrl = localPath;
+    if (!isHttpUrlString(localPath) && !localPath.startsWith("data:")) {
+      const blob = (await fetchInputImageByLocalPathApi(localPath)) as unknown;
+      if (!(blob instanceof Blob) || blob.size === 0) return false;
+      previewUrl = await blobToDataUrl(blob);
     }
-
-    if (!generatedTaskId) {
-      store.setError(taskId, "生成失败：未获取到 task_id");
-      return;
-    }
-
-    for (let i = 0; i < 120; i++) {
-      const taskResp = (await getImageTaskResultApi(
-        { taskId: generatedTaskId, reqKey: submitForm.value.modelName },
-        abortController?.signal,
-      )) as any;
-      if (taskResp.code !== 0) {
-        store.setError(
-          taskId,
-          `查询结果失败：${taskResp.message ?? "unknown error"}`,
-        );
-        return;
-      }
-
-      const taskStatus = extractTaskStatus(taskResp);
-      if (taskStatus === "not_found") {
-        store.setError(taskId, "任务未找到，可能已过期（12小时）或不存在");
-        return;
-      }
-      if (taskStatus === "expired") {
-        store.setError(taskId, "任务已过期，请重新提交任务");
-        return;
-      }
-
-      const extracted = extractImageFromTaskResult(taskResp.data);
-      firstImageUrl = extracted.url;
-      imageCode = extracted.code;
-
-      if (taskStatus === "done") {
-        if (firstImageUrl) break;
-        store.setError(
-          taskId,
-          `任务已完成但无图片结果：${taskResp.message ?? "unknown error"}`,
-        );
-        return;
-      }
-
-      if (firstImageUrl) break;
-      await waitWithAbort(1500, abortController?.signal);
-    }
-
-    if (!firstImageUrl) {
-      store.setError(taskId, "生成失败：轮询超时，未获取到 images[0]");
-      return;
-    }
-
-    store.completeTaskWithPlaceholder(taskId, {
-      url: firstImageUrl,
-      code: imageCode,
+    store.completeTaskWithPlaceholder(uiTaskId, {
+      url: previewUrl,
+      code: "",
       context: currentText.value,
     });
+    return true;
+  } catch (e) {
+    console.error(e);
+    message.warning("加载生成结果图失败");
+    return false;
+  }
+}
+
+async function taskImageUnifiedGenerate(uiTaskId: string) {
+  try {
+    const text = currentText.value.trim();
+
+    const payload: Record<string, unknown> = {
+      taskId: uiTaskId,
+      inputText: text,
+      modelName: submitForm.value.modelName,
+      prompt: text,
+    };
+    const ratio = (submitForm.value.imageRatio ?? "").toString().trim();
+    const size = (submitForm.value.imageSize ?? "").toString().trim();
+    if (ratio) payload.imageRatio = ratio;
+    if (size) payload.imageSize = size;
+    const genPv = (submitForm.value.provider ?? "").trim();
+    if (genPv) payload.provider = genPv;
+
+    const resp = (await taskImageGenerateApi(
+      payload,
+      abortController?.signal,
+    )) as any;
+
+    const okCode = resp?.code;
+    if (okCode !== 200 && okCode !== 201 && okCode !== 0) {
+      store.setError(uiTaskId, `生成失败：${resp.message ?? "unknown error"}`);
+      return;
+    }
+
+    const ri = resp?.data?.resultImages ?? resp?.data?.result_images;
+    const expectsResultImage =
+      Array.isArray(ri) &&
+      ri.length > 0 &&
+      (typeof ri[0] === "string"
+        ? ri[0].trim().length > 0
+        : ri[0] != null && typeof ri[0] === "object");
+
+    if (expectsResultImage) {
+      if (await completeTaskFromGenerateRespResultImages(uiTaskId, resp)) {
+        return;
+      }
+      store.setError(uiTaskId, "生成失败：结果图加载失败");
+      return;
+    }
+
+    const directUrl = extractFirstUrlFromUnifiedResp(resp);
+    if (directUrl) {
+      store.completeTaskWithPlaceholder(uiTaskId, {
+        url: directUrl,
+        code: "",
+        context: currentText.value,
+      });
+      return;
+    }
+
+    const remoteTaskId = extractTaskIdFromResp(resp);
+    if (remoteTaskId) {
+      await pollRemoteTaskUntilImage(uiTaskId, remoteTaskId);
+      return;
+    }
+
+    store.setError(uiTaskId, "生成失败：未返回图片地址或任务 ID");
   } catch (err: any) {
     if (abortRequestedByUser) return;
     const msg = err?.message ?? "生成失败：请求已中断或超时";
-    store.setError(taskId, msg);
+    store.setError(uiTaskId, msg);
   }
 }
 
@@ -1012,269 +1511,12 @@ function submitBtn() {
   }
   const taskId = String(props.taskId);
   beginGeneration(taskId);
-  void runClassicJimengPipeline(taskId);
+  void taskImageUnifiedGenerate(taskId);
 }
 
-function submitBtn2() {
-  if (!currentText.value.trim()) {
-    return;
-  }
-
-  const taskId = String(props.taskId);
-  beginGeneration(taskId);
-
-  const selectedModel = submitForm.value.modelName;
-  const isDoubaoModel =
-    selectedModel === "doubao-seedream-4-5-251128" ||
-    selectedModel === "doubao-seedream-5-0-260128";
-
-  if (isDoubaoModel) {
-    void doubaoImageImpl(taskId);
-    return;
-  }
-
-  const isQianwenModel =
-    selectedModel === "qwen-image-2.0-pro" ||
-    selectedModel === "wan2.7-image-pro" ||
-    selectedModel === "wan2.7-image";
-
-  if (isQianwenModel) {
-    void qianwenImageImpl(taskId);
-    return;
-  }
-
-  const isLinkfoxModel = selectedModel === "BANANA_2" || selectedModel === "BANANA_PRO";
-
-  if (isLinkfoxModel) {
-    void linkfoxImageImpl(taskId);
-    return;
-  }
-
-  void runClassicJimengPipeline(taskId);
-}
-
-async function doubaoImageImpl(taskId: string) {
-  try {
-    if (!validateUploadSizeLimit(taskId)) return;
-
-    const imageDataUrlList = await collectImageDataUrlList();
-    const imageField =
-      imageDataUrlList.length <= 1 ? imageDataUrlList[0] : imageDataUrlList;
-    const sizeHint =
-      recommendedSizeMap[submitForm.value.imageSize]?.[submitForm.value.imageRatio] ??
-      "";
-    const payload = {
-      model: submitForm.value.modelName,
-      prompt:
-        currentText.value.trim() +
-        (sizeHint ? `。返回的图片宽高像素值为${sizeHint}。` : ""),
-      image: imageField,
-      size: submitForm.value.imageSize,
-    };
-    const resp = (await generateImagesByPromptV2Api(
-      payload,
-      abortController?.signal,
-    )) as any;
-    const firstUrl =
-      resp?.data?.[0]?.url ??
-      (Array.isArray(resp?.data) ? "" : resp?.data?.url) ??
-      resp?.url ??
-      "";
-    if (!firstUrl) {
-      store.setError(taskId, "生成失败：V2 接口未返回图片 URL");
-      return;
-    }
-
-    store.completeTaskWithPlaceholder(taskId, {
-      url: firstUrl,
-      code: "",
-      context: currentText.value,
-    });
-  } catch (err: any) {
-    if (abortRequestedByUser) return;
-    const msg = err?.message ?? "V2 生成失败：请求已中断或超时";
-    store.setError(taskId, msg);
-  }
-}
-
-async function qianwenImageImpl(taskId: string) {
-  try {
-    if (!validateUploadSizeLimit(taskId)) return;
-
-    const imageDataUrlList = await collectImageDataUrlList();
-    const size =
-      submitForm.value.modelName === "qwen-image-2.0-pro"
-        ? recommendedSizeMap[submitForm.value.imageSize]?.[submitForm.value.imageRatio]
-        : submitForm.value.imageSize;
-    const pxHint =
-      recommendedSizeMap[submitForm.value.imageSize]?.[submitForm.value.imageRatio] ??
-      "";
-    const content: Array<{ text: string } | { image: string }> = [
-      {
-        text:
-          currentText.value.trim() +
-          (pxHint ? `。返回的图片宽高像素值为${pxHint}。` : ""),
-      },
-    ];
-
-    imageDataUrlList.forEach((img) => {
-      content.push({ image: img });
-    });
-
-    const payload = {
-      model: submitForm.value.modelName,
-      input: {
-        messages: [
-          {
-            role: "user" as const,
-            content,
-          },
-        ],
-      },
-      parameters: {
-        prompt_extend: true,
-        watermark: false,
-        n: 1,
-        enable_interleave: false,
-        size: String(size ?? "").replace("x", "*"),
-      },
-    };
-
-    const resp = (await qianwenImageApi(payload, abortController?.signal)) as any;
-    const firstUrl =
-      resp?.output?.choices?.[0]?.message?.content?.find(
-        (item: any) => item?.type === "image" && typeof item?.image === "string",
-      )?.image ??
-      resp?.output?.choices?.[0]?.message?.content?.[0]?.image ??
-      "";
-
-    if (!firstUrl) {
-      store.setError(taskId, "生成失败：千问接口未返回图片 URL");
-      return;
-    }
-
-    store.completeTaskWithPlaceholder(taskId, {
-      url: firstUrl,
-      code: "",
-      context: currentText.value,
-    });
-  } catch (err: any) {
-    if (abortRequestedByUser) return;
-    const msg = err?.message ?? "千问生成失败：请求已中断或超时";
-    store.setError(taskId, msg);
-  }
-}
-
-async function linkfoxResultImage(taskId: string, id: string): Promise<string> {
-  for (let i = 0; i < 120; i++) {
-    const queryResp = (await linkfoxGetImageApi(
-      { id: String(id) },
-      abortController?.signal,
-    )) as any;
-
-    const outerCode = String(queryResp?.code ?? "");
-    const innerCode = Number(queryResp?.data?.code ?? NaN);
-    if (outerCode !== "0" || innerCode !== 200) {
-      const errMsg = String(queryResp?.data?.msg ?? queryResp?.msg ?? "unknown error");
-      store.setError(taskId, `Linkfox 查询失败：${errMsg}`);
-      return "";
-    }
-
-    const resultData = queryResp?.data?.data ?? {};
-    const firstUrl =
-      resultData?.resultList?.find(
-        (item: any) => item?.status === 1 && typeof item?.url === "string",
-      )?.url ??
-      resultData?.resultList?.[0]?.url ??
-      "";
-
-    const taskStatus = Number(resultData?.status ?? NaN);
-    if (taskStatus === 3 && firstUrl) {
-      return firstUrl;
-    }
-
-    if (taskStatus === 4) {
-      const errMsg =
-        resultData?.errorMsg ||
-        resultData?.resultList?.[0]?.errorMsg ||
-        "任务失败";
-      store.setError(taskId, `Linkfox 任务失败：${errMsg}`);
-      return "";
-    }
-
-    if (taskStatus === 3) {
-      store.setError(taskId, "Linkfox 任务完成但未返回图片URL");
-      return "";
-    }
-
-    if (taskStatus !== 1 && taskStatus !== 2) {
-      store.setError(taskId, `Linkfox 任务状态异常：${String(taskStatus || "unknown")}`);
-      return "";
-    }
-
-    await waitWithAbort(1500, abortController?.signal);
-  }
-
-  store.setError(taskId, "Linkfox 查询超时：未获取到图片URL");
-  return "";
-}
-
-async function linkfoxImageImpl(taskId: string) {
-  try {
-    if (!validateUploadSizeLimit(taskId)) return;
-
-    const imageList = await collectImageUrlList();
-    if (!imageList.length) {
-      store.setError(taskId, "请至少上传一张图片");
-      return;
-    }
-    const payload = {
-      imageList,
-      prompt: currentText.value.trim(),
-      provider: submitForm.value.modelName,
-      outputNum: 1,
-      resolution: submitForm.value.imageSize,
-      aspectRatio: submitForm.value.imageRatio,
-    };
-
-    const resp = (await linkfoxGenerateApi(payload, abortController?.signal)) as any;
-    const outerCode = String(resp?.code ?? "");
-    const innerCode = Number(resp?.data?.code ?? NaN);
-    if (outerCode !== "0" || innerCode !== 200) {
-      store.setError(
-        taskId,
-        `Linkfox 生成失败：${resp?.data?.msg ?? resp?.msg ?? "unknown error"}`,
-      );
-      return;
-    }
-
-    const id = resp?.data?.data?.id;
-    if (!id) {
-      store.setError(taskId, "Linkfox 生成失败：未返回任务ID");
-      return;
-    }
-
-    const firstUrl = await linkfoxResultImage(taskId, String(id));
-
-    if (!firstUrl) {
-      return;
-    }
-
-    store.completeTaskWithPlaceholder(taskId, {
-      url: firstUrl,
-      code: "",
-      context: currentText.value,
-    });
-  } catch (err: any) {
-    if (abortRequestedByUser) return;
-    const msg = err?.message ?? "Linkfox 生成失败：请求已中断或超时";
-    store.setError(taskId, msg);
-  }
-}
 
 defineExpose({
   submitBtn,
-  submitBtn2,
   downloadBtn,
   clearTextBtn,
   clearImagesBtn,
@@ -1287,13 +1529,19 @@ onMounted(async () => {
   nextTick(syncHistoryPopoverWidth);
   window.addEventListener("resize", syncHistoryPopoverWidth);
   try {
+    // findAiModelConfigList（封装在 fetchImageModelOptions）→ 模型下拉与比例/分辨率约束
     modelOptions.value = await fetchImageModelOptions();
     if (!modelOptions.value.length) {
       message.warning("暂无启用的 AI 模型配置，请先在「AI 模型配置」中维护并启用。");
-    } else {
-      syncModelNameWithList();
-      nextTick(syncRatioSizeWithModel);
+      return;
     }
+    syncModelNameWithList();
+    await nextTick();
+    syncRatioSizeWithModel();
+    syncProviderWithSelectedModel();
+    await nextTick();
+
+    await registerTaskImageWithServer();
   } catch (e) {
     console.error(e);
     message.error("加载模型列表失败，请稍后重试");
