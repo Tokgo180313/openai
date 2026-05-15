@@ -25,6 +25,9 @@ export class TaskImageHistory {
   @Column({ name: 'input_text', type: 'text' })
   inputText: string;
 
+  @Column({ name: 'prompt', type: 'text', nullable: true })
+  prompt: string | null;
+
   @Column({ name: 'source_images', type: 'json', nullable: true })
   sourceImages: string[];
 
@@ -43,7 +46,7 @@ export class TaskImageHistory {
   @Column({ name: 'image_size', nullable: true })
   imageSize: string;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 1 })
   status: number;
 
   @Column({

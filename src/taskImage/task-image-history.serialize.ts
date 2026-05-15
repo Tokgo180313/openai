@@ -1,3 +1,4 @@
+import { TaskImageDocument } from 'src/schemas/task-image/task-image.schema';
 import { TaskImageHistory } from './entities/task-image-history.entity';
 
 function pad(n: number): string {
@@ -9,22 +10,46 @@ export function formatHistoryDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+/** Mongo task_image 集合文档，字段形状与历史表接口对齐（JSON 驼峰） */
+export function toTaskImageMongoRow(doc: TaskImageDocument) {
+  return {
+    id: String(doc._id),
+    userId: doc.userId,
+    taskId: doc.taskId,
+    modelName: doc.modelName ?? null,
+    inputText: doc.inputText,
+    prompt: doc.prompt ?? null,
+    sourceImages: doc.sourceImages ?? [],
+    resultImages: doc.resultImages ?? [],
+    coverImage: doc.coverImage ?? null,
+    imageCount: doc.imageCount,
+    aspectRatio: doc.aspectRatio ?? null,
+    imageSize: doc.imageSize ?? null,
+    provider: doc.provider ?? null,
+    status: doc.status,
+    cost: doc.cost,
+    createdAt: formatHistoryDate(doc.get('createdAt') as Date),
+    updatedAt: formatHistoryDate(doc.get('updatedAt') as Date),
+  };
+}
+
 export function toTaskImageHistoryRow(e: TaskImageHistory) {
   return {
     id: e.id,
-    user_id: e.userId,
-    task_id: e.taskId,
-    model_name: e.modelName,
-    input_text: e.inputText,
-    source_images: e.sourceImages ?? [],
-    result_images: e.resultImages ?? [],
-    cover_image: e.coverImage ?? null,
-    image_count: e.imageCount,
-    aspect_ratio: e.aspectRatio ?? null,
-    image_size: e.imageSize ?? null,
+    userId: e.userId,
+    taskId: e.taskId,
+    modelName: e.modelName,
+    inputText: e.inputText,
+    prompt: e.prompt ?? null,
+    sourceImages: e.sourceImages ?? [],
+    resultImages: e.resultImages ?? [],
+    coverImage: e.coverImage ?? null,
+    imageCount: e.imageCount,
+    aspectRatio: e.aspectRatio ?? null,
+    imageSize: e.imageSize ?? null,
     status: e.status,
     cost: e.cost,
-    created_at: formatHistoryDate(e.createdAt),
-    updated_at: formatHistoryDate(e.updatedAt),
+    createdAt: formatHistoryDate(e.createdAt),
+    updatedAt: formatHistoryDate(e.updatedAt),
   };
 }

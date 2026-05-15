@@ -97,6 +97,11 @@ export class AiModelConfigCreateDto {
   @IsBoolean()
   isEnabled?: boolean;
 
+  /** 是否兼容 OpenAI */
+  @IsOptional()
+  @IsBoolean()
+  compatibleWithOpenAi?: boolean;
+
   @IsOptional()
   @IsNumber()
   sort?: number;
@@ -203,6 +208,11 @@ export class AiModelConfigUpdateDto {
   @IsOptional()
   @IsBoolean()
   isEnabled?: boolean;
+
+  /** 是否兼容 OpenAI */
+  @IsOptional()
+  @IsBoolean()
+  compatibleWithOpenAi?: boolean;
 
   @IsOptional()
   @IsNumber()

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Post,
   UploadedFile,
   Get,
@@ -15,9 +16,11 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { FileService } from './file.service';
+import { DeleteInputImageDto } from './dto/delete-input-image.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -85,6 +88,65 @@ export class FileController {
       throw new BadRequestException('uploadId is required');
     }
     return this.fileService.getUploadStatus(uploadId, userId);
+  }
+
+  /** 上传图片到本地 inputImages 目录，返回绝对路径 localPath */
+  @Post('/uploadImages')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  public async uploadInputImage(
+    @UploadedFile()
+    file: { buffer: Buffer; originalname?: string; mimetype?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('file is required');
+    }
+    return this.fileService.uploadInputImage(file, userId);
+  }
+
+  /** 根据上传接口返回的本地路径删除文件 */
+  @Delete('/inputImages')
+  public async deleteInputImage(
+    @Body() dto: DeleteInputImageDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.fileService.deleteInputImageByLocalPath(dto.localPath, userId);
+  }
+
+  /** 根据 localPath 读取图片流（inputImages 或 resultImages 下当前用户目录）；查询参数需 URL 编码 */
+  @Get('/inputImages/by-local-path')
+  @ApiQuery({
+    name: 'localPath',
+    required: true,
+    description:
+      '绝对路径：POST /file/uploadImages 的 localPath，或 task_image.resultImages 中的路径',
+  })
+  public async getInputImageByLocalPath(
+    @Query('localPath') localPath: string,
+    @CurrentUser('id') userId: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.fileService.getInputImageFileByLocalPath(
+      localPath,
+      userId,
+    );
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(file.filename)}"`,
+    );
+    res.setHeader('Content-Length', String(file.length));
+    file.stream.pipe(res);
   }
 
   @Get('/:fileId/download')

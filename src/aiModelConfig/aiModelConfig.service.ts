@@ -45,6 +45,7 @@ export class AiModelConfigService {
       fieldMappings: (dto.fieldMappings ?? {}) as FieldMappingsJson,
       defaultParams: dto.defaultParams ?? {},
       isEnabled: dto.isEnabled ?? true,
+      compatibleWithOpenAi: dto.compatibleWithOpenAi ?? false,
       sort: dto.sort ?? 0,
     });
 
@@ -162,6 +163,9 @@ export class AiModelConfigService {
     }
     if (isDefined(dto.defaultParams)) patch.defaultParams = dto.defaultParams;
     if (isDefined(dto.isEnabled)) patch.isEnabled = dto.isEnabled;
+    if (isDefined(dto.compatibleWithOpenAi)) {
+      patch.compatibleWithOpenAi = dto.compatibleWithOpenAi;
+    }
     if (isDefined(dto.sort)) patch.sort = dto.sort;
 
     if (Object.keys(patch).length === 0) {

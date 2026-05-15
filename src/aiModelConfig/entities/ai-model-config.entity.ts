@@ -67,6 +67,10 @@ export class AiModelConfigEntity {
   @Column({ default: true })
   isEnabled: boolean;
 
+  /** 是否与 OpenAI 接口/协议兼容 */
+  @Column({ default: false })
+  compatibleWithOpenAi: boolean;
+
   @Column({ type: 'int', default: 0 })
   sort: number;
 

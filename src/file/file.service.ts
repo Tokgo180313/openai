@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -8,9 +9,17 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { Binary, Collection, GridFSBucket, ObjectId } from 'mongodb';
-import { mkdir, writeFile, access } from 'node:fs/promises';
+import {
+  mkdir,
+  writeFile,
+  access,
+  unlink,
+  realpath,
+  stat,
+  readFile,
+} from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
-import { join, basename } from 'node:path';
+import { basename, extname, join, resolve, sep } from 'node:path';
 
 type UploadChunkFile = {
   buffer: Buffer;
@@ -56,6 +65,17 @@ export class FileService implements OnModuleInit {
   private uploadChunkCollection: Collection;
   private fileMappingCollection: Collection<FileMappingDoc>;
   private readonly localUploadRoot = join(process.cwd(), 'uploads');
+  private readonly inputImagesRoot = join(process.cwd(), 'inputImages');
+  private readonly resultImagesRoot = join(process.cwd(), 'resultImages');
+
+  private static readonly INPUT_IMAGE_MIMES = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+    'image/svg+xml',
+  ]);
 
   constructor(
     @InjectConnection() private readonly connection: Connection,
@@ -81,6 +101,208 @@ export class FileService implements OnModuleInit {
     );
     await this.uploadChunkCollection.createIndex({ uploadId: 1 });
     await this.fileMappingCollection.createIndex({ userId: 1, url: 1 }, { unique: true });
+  }
+
+  /** 上传图片到本地 inputImages/{userId}/，返回绝对路径 */
+  public async uploadInputImage(
+    file: UploadChunkFile | undefined,
+    userId: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    const mimeType = String(file.mimetype ?? '').trim().toLowerCase();
+    if (!FileService.INPUT_IMAGE_MIMES.has(mimeType)) {
+      throw new BadRequestException('only image files are allowed');
+    }
+
+    const ext =
+      extname(this.sanitizeFileName(file.originalname ?? '')) ||
+      this.extFromImageMime(mimeType);
+    const safeName = `${randomUUID()}${ext || '.bin'}`;
+    const userDir = join(this.inputImagesRoot, this.sanitizePathSegment(userId));
+    await mkdir(userDir, { recursive: true });
+    const localPath = join(userDir, safeName);
+    await writeFile(localPath, file.buffer);
+
+    return {
+      localPath,
+      fileName: safeName,
+      mimeType,
+    };
+  }
+
+  /** 读取当前用户 inputImages 下的文件，返回 data URL（供多模态接口 image_url.url） */
+  public async readInputImageAsDataUrl(
+    localPath: string,
+    userId: string,
+  ): Promise<string> {
+    const resolved = await this.resolveInputImagePathForUser(localPath, userId);
+    const buf = await readFile(resolved);
+    const contentType = this.mimeTypeFromImagePath(resolved);
+    if (!FileService.INPUT_IMAGE_MIMES.has(contentType)) {
+      throw new BadRequestException('only image files are allowed');
+    }
+    return `data:${contentType};base64,${buf.toString('base64')}`;
+  }
+
+  /** 解析并校验 localPath 必须落在当前用户的 inputImages 目录下 */
+  private async resolveInputImagePathForUser(
+    localPath: string,
+    userId: string,
+  ): Promise<string> {
+    const raw = String(localPath ?? '').trim();
+    if (!raw) {
+      throw new BadRequestException('localPath is required');
+    }
+
+    const userDir = join(this.inputImagesRoot, this.sanitizePathSegment(userId));
+    let resolvedTarget = resolve(raw);
+    try {
+      resolvedTarget = await realpath(resolvedTarget);
+    } catch {
+      throw new NotFoundException('file not found');
+    }
+
+    let resolvedRoot: string;
+    try {
+      resolvedRoot = await realpath(userDir);
+    } catch {
+      throw new NotFoundException('file not found');
+    }
+
+    if (
+      resolvedTarget !== resolvedRoot &&
+      !resolvedTarget.startsWith(resolvedRoot + sep)
+    ) {
+      throw new ForbiddenException('invalid path');
+    }
+
+    return resolvedTarget;
+  }
+
+  /**
+   * 解析并校验 localPath 落在当前用户的 inputImages 或 resultImages 子目录下
+   *（与 taskImage 写入的 resultImages/{userId}/ 一致）。
+   */
+  private async resolveInputOrResultImagePathForUser(
+    localPath: string,
+    userId: string,
+  ): Promise<string> {
+    const raw = String(localPath ?? '').trim();
+    if (!raw) {
+      throw new BadRequestException('localPath is required');
+    }
+
+    const safeUser = this.sanitizePathSegment(userId);
+    const candidateRoots = [
+      join(this.inputImagesRoot, safeUser),
+      join(this.resultImagesRoot, safeUser),
+    ];
+
+    let resolvedTarget = resolve(raw);
+    try {
+      resolvedTarget = await realpath(resolvedTarget);
+    } catch {
+      throw new NotFoundException('file not found');
+    }
+
+    for (const userDir of candidateRoots) {
+      let resolvedRoot: string;
+      try {
+        resolvedRoot = await realpath(userDir);
+      } catch {
+        continue;
+      }
+      if (
+        resolvedTarget === resolvedRoot ||
+        resolvedTarget.startsWith(resolvedRoot + sep)
+      ) {
+        return resolvedTarget;
+      }
+    }
+
+    throw new ForbiddenException('invalid path');
+  }
+
+  /** 根据本地路径读取 inputImages 或 resultImages 下的图片流（仅限当前用户对应子目录） */
+  public async getInputImageFileByLocalPath(localPath: string, userId: string) {
+    const resolvedTarget = await this.resolveInputOrResultImagePathForUser(
+      localPath,
+      userId,
+    );
+
+    let st;
+    try {
+      st = await stat(resolvedTarget);
+    } catch (e: unknown) {
+      const err = e as { code?: string };
+      if (err?.code === 'ENOENT') {
+        throw new NotFoundException('file not found');
+      }
+      throw e;
+    }
+    if (!st.isFile()) {
+      throw new BadRequestException('not a file');
+    }
+
+    const contentType = this.mimeTypeFromImagePath(resolvedTarget);
+    if (!FileService.INPUT_IMAGE_MIMES.has(contentType)) {
+      throw new BadRequestException('only image files are allowed');
+    }
+
+    return {
+      filename: basename(resolvedTarget),
+      contentType,
+      length: st.size,
+      stream: createReadStream(resolvedTarget),
+    };
+  }
+
+  /** 根据本地路径删除图片（仅限当前用户 inputImages 目录下） */
+  public async deleteInputImageByLocalPath(localPath: string, userId: string) {
+    const resolvedTarget = await this.resolveInputImagePathForUser(
+      localPath,
+      userId,
+    );
+
+    try {
+      await unlink(resolvedTarget);
+    } catch (e: unknown) {
+      const err = e as { code?: string };
+      if (err?.code === 'ENOENT') {
+        throw new NotFoundException('file not found');
+      }
+      throw e;
+    }
+
+    return { ok: true, localPath: resolvedTarget };
+  }
+
+  private mimeTypeFromImagePath(filePath: string): string {
+    const ext = extname(filePath).toLowerCase();
+    const map: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+    };
+    return map[ext] ?? 'application/octet-stream';
+  }
+
+  private extFromImageMime(mime: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+      'image/bmp': '.bmp',
+      'image/svg+xml': '.svg',
+    };
+    return map[mime] ?? '';
   }
 
   public async uploadFileChunk(input: UploadChunkInput, userId: string) {
