@@ -1,0 +1,345 @@
+<template>
+  <div class="image-preview-container">
+    <div v-if="displayItems.length === 0" class="empty-state">暂无附件</div>
+    <div v-else class="image-grid">
+      <div
+        v-for="(item, index) in displayItems"
+        :key="item.id || index"
+        class="image-item"
+        :class="{ 'file-item': item.type === 'input_file' }"
+      >
+        <span
+          v-if="showRemove"
+          class="image-remove-badge"
+          @click.stop="$emit('remove', item)"
+        >
+          <i class="iconfont icon-cuo"></i>
+        </span>
+        <img
+          v-if="item.type === 'input_url'"
+          :src="getImageSrc(item)"
+          :alt="item.name || '预览图片'"
+          @click="previewImage(item)"
+        />
+        <div
+          v-if="item.type === 'input_url' && item.uploading"
+          class="upload-progress-circle image-progress"
+        >
+          <a-progress
+            type="circle"
+            :percent="item.uploadProgress || 0"
+            :width="30"
+            :stroke-width="10"
+            status="active"
+          />
+        </div>
+        <div
+          v-else-if="item.type === 'input_file'"
+          class="file-card"
+          @click="downloadFile(item)"
+        >
+          <div
+            class="file-icon-wrap"
+            :style="{ backgroundColor: getFileBackgroundColor(item.name) }"
+          >
+            <i class="iconfont" :class="getFileIcon(item.name)"></i>
+          </div>
+          <div class="file-name-wrap">
+            <a-tooltip :title="item.name || ''" placement="topLeft">
+              <span class="file-name">{{ item.name }}</span>
+            </a-tooltip>
+            <div class="file-type-line">
+              <span class="file-type-text">{{ getFileTypeText(item.name) }}</span>
+              <div v-if="item.uploading" class="upload-progress-circle">
+                <a-progress
+                  type="circle"
+                  :percent="item.uploadProgress || 0"
+                  :width="28"
+                  :stroke-width="10"
+                  status="active"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="item.type === 'input_text'" class="text-card">
+          <span class="text-content">{{ item.content }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "ImagePreviewCopy",
+  props: {
+    items: {
+      type: Array,
+      default() {
+        return [];
+      },
+    },
+    showRemove: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  computed: {
+    displayItems() {
+      return this.items || [];
+    },
+  },
+  methods: {
+    previewImage(item) {
+      const src = this.getImageSrc(item);
+      if (!src) return;
+      window.open(src, "_blank");
+    },
+    getImageSrc(item) {
+      if (typeof item.file === "string" && item.file.length > 0) {
+        return item.file;
+      }
+      return item.url || item.uploadedUrl || "";
+    },
+    downloadFile(item) {
+      const downloadUrl = item.uploadedUrl || item.url;
+      if (!downloadUrl) return;
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = item.name || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+    getFileExt(name) {
+      if (!name || !name.includes(".")) return "";
+      const parts = name.split(".");
+      return (parts.pop() || "").toLowerCase();
+    },
+    getFileIcon(name) {
+      const ext = this.getFileExt(name);
+      if (["pdf"].includes(ext)) return "icon-PDFwenjian";
+      if (["doc", "docx"].includes(ext)) return "icon-weibiaoti-2_huaban1";
+      if (["xls", "xlsx"].includes(ext)) return "icon-xlswenjian";
+      if (["csv"].includes(ext)) return "icon-csv";
+      if (["ppt", "pptx"].includes(ext)) return "icon-weibiaoti-2_huaban11";
+      if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
+        return "icon-yasuobao";
+      if (
+        ["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(
+          ext,
+        )
+      ) {
+        return "icon-s12";
+      }
+      return "icon-file";
+    },
+    getFileBackgroundColor(name) {
+      const ext = this.getFileExt(name);
+      if (["pdf"].includes(ext)) return "#7f1d1d";
+      if (["doc", "docx"].includes(ext)) return "#1e3a8a";
+      if (["xls", "xlsx", "csv"].includes(ext)) return "#14532d";
+      if (["ppt", "pptx"].includes(ext)) return "#9a3412";
+      if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "#581c87";
+      if (
+        ["js", "ts", "tsx", "vue", "json", "md", "py", "java", "go", "txt"].includes(
+          ext,
+        )
+      ) {
+        return "#0f3d5e";
+      }
+      return "#374151";
+    },
+    getFileTypeText(name) {
+      const ext = this.getFileExt(name);
+      if (!ext) return "文件";
+      if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext))
+        return "图片";
+      if (["pdf"].includes(ext)) return "PDF 文档";
+      if (["doc", "docx", "txt", "md"].includes(ext)) return "文档";
+      if (["xls", "xlsx", "csv"].includes(ext)) return "表格";
+      if (["ppt", "pptx"].includes(ext)) return "演示文稿";
+      if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "压缩包";
+      return "文件";
+    },
+  },
+};
+</script>
+
+<style scoped lang="scss">
+.image-preview-container {
+  padding: 4px 0;
+}
+.empty-state {
+  text-align: center;
+  color: #999;
+  padding: 12px;
+  border: 1px dashed #eee;
+  border-radius: 8px;
+}
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.image-item {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: visible;
+  transition: transform 0.2s;
+}
+.image-item:not(.file-item) {
+  width: 72px;
+  height: 72px;
+}
+.image-item.file-item {
+  border-radius: 12px;
+  width: 240px;
+  min-width: 190px;
+  max-width: 100%;
+}
+.text-card {
+  max-width: 260px;
+  padding: 8px 10px;
+  background: #f7f7f7;
+  border-radius: 10px;
+}
+.text-content {
+  font-size: 12px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.image-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  border-radius: 12px;
+}
+.file-card {
+  height: 72px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  gap: 8px;
+  background: #f3f3f3;
+  border-radius: 12px;
+}
+.file-icon-wrap {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #1677ff;
+}
+.file-icon-wrap .iconfont {
+  font-size: 2rem;
+  color: #fff !important;
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.file-name-wrap {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+.file-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111;
+  display: inline-block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 20px;
+}
+.file-type-text {
+  font-size: 10px;
+  color: #666;
+  line-height: 20px;
+}
+.image-remove-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.image-remove-badge .iconfont {
+  font-size: 11px;
+}
+.file-type-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.upload-progress-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-progress {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+}
+.upload-progress-circle ::v-deep .ant-progress-text {
+  font-size: 10px;
+}
+.image-info {
+  padding: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+  gap: 8px;
+}
+.image-info span {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.action-btn,
+.remove-btn {
+  padding: 0;
+  height: auto;
+  font-size: 11px;
+}
+</style>

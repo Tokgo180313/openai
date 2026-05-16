@@ -59,12 +59,17 @@
         :pagination="false"
       >
         <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'modelType'">
+            {{ getModelTypeLabel(record.modelType) }}
+          </template>
           <template v-if="column.key === 'status'">
             <a-tag :color="record.status === '1' ? 'green' : 'red'">{{
               record.status === "1" ? "启用" : "禁用"
             }}</a-tag>
           </template>
           <template v-if="column.key === 'action'">
+            <a @click="handleEdit(record)">编辑</a>
+            <span class="divider">|</span>
             <a @click="handleDelete(record)">删除</a>
             <span class="divider">|</span>
             <a-popconfirm
@@ -99,13 +104,20 @@
       </a-pagination>
     </div>
     <add-model-dialog :visible="showAddVisible" @close="handleSuccess" />
+    <edit-model-dialog
+      :visible="showEditVisible"
+      :record="editRecord"
+      @close="showEditVisible = false"
+      @success="handleEditSuccess"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import AddModelDialog from "./components/AddModelDialog.vue";
-import UpdateApiKeyDialog from "./components/UpdateApiKeyDialog.vue";
+import EditModelDialog from "./components/EditModelDialog.vue";
+import type { EditModelRecord } from "./components/EditModelDialog.vue";
 import api from "@/api/apiList";
 let {
   findModelListInterface,
@@ -118,6 +130,8 @@ import config from "./config";
 const { columns } = config;
 import { useModelStore } from "@/stores/modelStore";
 import { message } from "ant-design-vue";
+import type { ModelItem } from "@/types/model.type";
+import { getModelTypeLabel } from "@/types/model.type";
 const modelStore = useModelStore();
 const modelClassifyList = computed(() => modelStore.modelClassifyList);
 interface searchFormType {
@@ -133,15 +147,7 @@ const searchForm = reactive<searchFormType>({
   createTime: [],
   status: "",
 });
-interface modelType {
-  id: string;
-  modelName: string;
-  modelClassify: string;
-  createdAt: Date;
-  status: string;
-}
-
-const modelList = ref<modelType[]>();
+const modelList = ref<ModelItem[]>();
 const columnsList = ref(columns);
 const handleSearch = () => {
   getModelList();
@@ -173,7 +179,7 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
 });
-const handleDelete = (record: modelType) => {
+const handleDelete = (record: ModelItem) => {
   Modal.confirm({
     title: "删除模型",
     content: "确定要删除该模型吗？",
@@ -193,14 +199,30 @@ const handleDelete = (record: modelType) => {
   });
 };
 const showAddVisible = ref(false);
+const showEditVisible = ref(false);
+const editRecord = ref<EditModelRecord | null>(null);
 const handleAdd = () => {
   showAddVisible.value = true;
+};
+const handleEdit = (record: ModelItem) => {
+  editRecord.value = {
+    id: record.id,
+    modelName: record.modelName,
+    status: record.status,
+    modelType: record.modelType,
+  };
+  showEditVisible.value = true;
+};
+const handleEditSuccess = () => {
+  showEditVisible.value = false;
+  editRecord.value = null;
+  getModelList();
 };
 const handleSuccess = () => {
   showAddVisible.value = false;
   getModelList();
 };
-const handleEnable = (record: modelType) => {
+const handleEnable = (record: ModelItem) => {
   enableModelInterface({ id: record.id }).then((res) => {
     if (res.code === 200) {
       getModelList();
@@ -210,7 +232,7 @@ const handleEnable = (record: modelType) => {
     }
   });
 };
-const handleStop = (record: modelType) => {
+const handleStop = (record: ModelItem) => {
   disableModelInterface({ id: record.id }).then((res) => {
     if (res.code === 200) {
       getModelList();

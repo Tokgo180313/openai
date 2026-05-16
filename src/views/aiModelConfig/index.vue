@@ -145,6 +145,7 @@ const filterProviderSearchOption = (input: string, option: { label?: string; val
 interface ModelStoreRow {
   modelName?: string;
   modelClassify?: string;
+  modelType?: string;
 }
 
 const modelNameSearchOptions = computed(() => {

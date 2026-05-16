@@ -55,6 +55,13 @@ const disableModelInterface = function(param){
         params:param
     })
 }
+const updateModelInterface = function(param){
+    return request({
+        url:"/model/update",
+        method:"put",
+        data:param
+    })
+}
 export default{
     findModelListInterface,
     addModelInterface,
@@ -64,4 +71,5 @@ export default{
     findOpenaiModelListInterface,
     enableModelInterface,
     disableModelInterface,
+    updateModelInterface,
 }

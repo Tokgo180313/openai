@@ -125,9 +125,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/views/aiModelConfig/index.vue"),
         meta: {
           title: "AI模型配置",
-          icon: "iconfont icon-aiModelConfig",
+          icon: "iconfont icon-model",
         },
       },
+      {
+        path: "/historyRecord",
+        name: "/historyRecord",
+        title: "历史记录",
+        component: () => import("@/views/history-record/index.vue"),
+        meta: {
+          title: "历史记录",
+          icon: "iconfont icon-lishijilu",
+        },
+      }
     ],
     meta: {
       title: "用户管理",

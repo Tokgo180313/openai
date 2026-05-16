@@ -162,6 +162,25 @@ export function taskImageHistoryByTaskIdApi(
   });
 }
 
+/** 分页查询当前用户图片任务历史（筛选：current、pageSize、status、modelName、roleId） */
+export function taskImageHistoryRecordApi(
+  data: {
+    current: number;
+    pageSize: number;
+    status?: number;
+    modelName?: string;
+    roleId?: string | null;
+  },
+  signal?: AbortSignal,
+) {
+  return request({
+    url: "/taskImage/history-record",
+    method: "post",
+    data,
+    signal,
+  });
+}
+
 /** 删除服务端本地参考图；DELETE，body 字段名与后端一致：locallocalPath */
 export function deleteInputImageApi(
   param: { localPath: string },

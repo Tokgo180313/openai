@@ -55,13 +55,14 @@ const questionType = ref(modelStore.getCurrentModel|| null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
 const { id } = storeToRefs(store);
-const modelList = computed(() => modelStore.modelList);
-console.log(modelList.value);
+const modelList = computed(() => modelStore.getChatModelList);
 const handleQuestionTypeChange = function () {
   useRequestStore().updateQuestionTye(questionType.value);
   modelStore.setCurrentModel(questionType.value);
-  let model = modelList.value.find(item=>item.modelName === questionType.value);
-  modelStore.setCurrentModelClassify(model.modelClassify);
+  const model = modelList.value.find(
+    (item) => item.modelName === questionType.value,
+  );
+  modelStore.setCurrentModelClassify(model?.modelClassify ?? null);
 };
 const removeChatTitleId = ref(null);
 const showRemoveEvent = function () {
