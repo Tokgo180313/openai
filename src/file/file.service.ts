@@ -103,7 +103,15 @@ export class FileService implements OnModuleInit {
     await this.fileMappingCollection.createIndex({ userId: 1, url: 1 }, { unique: true });
   }
 
-  /** 上传图片到本地 inputImages/{userId}/，返回绝对路径 */
+  /** YYYY-MM-DD（按服务器本地日历），用于 inputImages/resultImages 下按日分子目录 */
+  public getImageStorageDateFolder(d: Date = new Date()): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  /** 上传图片到 inputImages/{userId}/{YYYY-MM-DD}/，返回绝对路径 */
   public async uploadInputImage(
     file: UploadChunkFile | undefined,
     userId: string,
@@ -120,7 +128,12 @@ export class FileService implements OnModuleInit {
       extname(this.sanitizeFileName(file.originalname ?? '')) ||
       this.extFromImageMime(mimeType);
     const safeName = `${randomUUID()}${ext || '.bin'}`;
-    const userDir = join(this.inputImagesRoot, this.sanitizePathSegment(userId));
+    const dateFolder = this.getImageStorageDateFolder();
+    const userDir = join(
+      this.inputImagesRoot,
+      this.sanitizePathSegment(userId),
+      dateFolder,
+    );
     await mkdir(userDir, { recursive: true });
     const localPath = join(userDir, safeName);
     await writeFile(localPath, file.buffer);
@@ -132,12 +145,14 @@ export class FileService implements OnModuleInit {
     };
   }
 
-  /** 读取当前用户 inputImages 下的文件，返回 data URL（供多模态接口 image_url.url） */
+  /**
+   * 读取 inputImages 或 resultImages 任意子路径下的图片为 data URL（仅校验落在根目录下，不按登录用户限制）。
+   */
   public async readInputImageAsDataUrl(
     localPath: string,
-    userId: string,
+    _userId?: string,
   ): Promise<string> {
-    const resolved = await this.resolveInputImagePathForUser(localPath, userId);
+    const resolved = await this.resolveReadableImagePathUnderRoots(localPath);
     const buf = await readFile(resolved);
     const contentType = this.mimeTypeFromImagePath(resolved);
     if (!FileService.INPUT_IMAGE_MIMES.has(contentType)) {
@@ -146,7 +161,7 @@ export class FileService implements OnModuleInit {
     return `data:${contentType};base64,${buf.toString('base64')}`;
   }
 
-  /** 解析并校验 localPath 必须落在当前用户的 inputImages 目录下 */
+  /** 解析并校验 localPath 落在当前用户 inputImages 整棵子树下（含按日子目录），用于删除 */
   private async resolveInputImagePathForUser(
     localPath: string,
     userId: string,
@@ -182,23 +197,15 @@ export class FileService implements OnModuleInit {
   }
 
   /**
-   * 解析并校验 localPath 落在当前用户的 inputImages 或 resultImages 子目录下
-   *（与 taskImage 写入的 resultImages/{userId}/ 一致）。
+   * 解析并校验 localPath 落在 inputImages 或 resultImages 根目录之下（任意账号子目录均可，防路径穿越）。
    */
-  private async resolveInputOrResultImagePathForUser(
+  private async resolveReadableImagePathUnderRoots(
     localPath: string,
-    userId: string,
   ): Promise<string> {
     const raw = String(localPath ?? '').trim();
     if (!raw) {
       throw new BadRequestException('localPath is required');
     }
-
-    const safeUser = this.sanitizePathSegment(userId);
-    const candidateRoots = [
-      join(this.inputImagesRoot, safeUser),
-      join(this.resultImagesRoot, safeUser),
-    ];
 
     let resolvedTarget = resolve(raw);
     try {
@@ -207,10 +214,11 @@ export class FileService implements OnModuleInit {
       throw new NotFoundException('file not found');
     }
 
-    for (const userDir of candidateRoots) {
+    const roots = [this.inputImagesRoot, this.resultImagesRoot];
+    for (const root of roots) {
       let resolvedRoot: string;
       try {
-        resolvedRoot = await realpath(userDir);
+        resolvedRoot = await realpath(root);
       } catch {
         continue;
       }
@@ -225,12 +233,13 @@ export class FileService implements OnModuleInit {
     throw new ForbiddenException('invalid path');
   }
 
-  /** 根据本地路径读取 inputImages 或 resultImages 下的图片流（仅限当前用户对应子目录） */
-  public async getInputImageFileByLocalPath(localPath: string, userId: string) {
-    const resolvedTarget = await this.resolveInputOrResultImagePathForUser(
-      localPath,
-      userId,
-    );
+  /** 根据本地路径读取 inputImages 或 resultImages 下的图片流（不按登录用户限制） */
+  public async getInputImageFileByLocalPath(
+    localPath: string,
+    _userId?: string,
+  ) {
+    const resolvedTarget =
+      await this.resolveReadableImagePathUnderRoots(localPath);
 
     let st;
     try {

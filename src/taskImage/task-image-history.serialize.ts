@@ -47,6 +47,7 @@ export function toTaskImageHistoryRow(e: TaskImageHistory) {
     imageCount: e.imageCount,
     aspectRatio: e.aspectRatio ?? null,
     imageSize: e.imageSize ?? null,
+    roleId: e.roleId ?? null,
     status: e.status,
     cost: e.cost,
     createdAt: formatHistoryDate(e.createdAt),

@@ -360,4 +360,58 @@ export class UserService {
       throw new BadRequestException((error as Error).message);
     }
   }
+
+  /**
+   * 在 parent 链上能追溯到 ancestorId 的用户中，筛选 roleId=subordinateRoleId 的用户 id。
+   * 用于上级查看指定角色的下级数据范围。
+   */
+  async findSubordinateUserIdsWithRole(
+    ancestorId: string,
+    subordinateRoleId: string,
+  ): Promise<string[]> {
+    const aid = ancestorId?.trim();
+    const wantRole = String(subordinateRoleId ?? '').trim();
+    if (!aid || !this.isUuid(aid) || !wantRole) {
+      return [];
+    }
+
+    const users = await this.userRepo.find({
+      select: ['id', 'parentId', 'roleId'],
+    });
+    const parentById = new Map<string, string | null>();
+    for (const u of users) {
+      parentById.set(u.id, u.parentId ?? null);
+    }
+
+    const out: string[] = [];
+    for (const u of users) {
+      if (String(u.roleId ?? '').trim() !== wantRole) {
+        continue;
+      }
+      if (UserService.isUserUnderAncestor(u.parentId, aid, parentById)) {
+        out.push(u.id);
+      }
+    }
+    return out;
+  }
+
+  private static isUserUnderAncestor(
+    startParentId: string | null,
+    ancestorId: string,
+    parentById: Map<string, string | null>,
+  ): boolean {
+    const seen = new Set<string>();
+    let cur: string | null = startParentId;
+    while (cur) {
+      if (cur === ancestorId) {
+        return true;
+      }
+      if (seen.has(cur)) {
+        break;
+      }
+      seen.add(cur);
+      cur = parentById.get(cur) ?? null;
+    }
+    return false;
+  }
 }

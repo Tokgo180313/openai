@@ -23,6 +23,9 @@ export class ModelRecord {
   @Column({ length: 8, default: '1' })
   status: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  modelType: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -39,7 +39,7 @@ export class TaskImageController {
   }
 
   /** 分页查询当前登录用户的历史记录 */
-  @Post('/page')
+  @Post('/history-record')
   @UseGuards(JwtAuthGuard)
   async page(
     @Body() query: QueryTaskImageHistoryDto,

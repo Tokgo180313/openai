@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model, Types } from 'mongoose';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import OpenAI from 'openai';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -17,6 +17,7 @@ import { UsageService } from 'src/usage/usage.service';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
 import { KeyService } from 'src/key/key.service';
 import { EncryptionService } from 'src/common/utils/encryption.service';
+import { UserService } from 'src/user/user.service';
 import {
   normalizeOpenAIBaseURL,
   OPENAI_DEFAULT_BASE_URL,
@@ -51,6 +52,7 @@ export class TaskImageService {
     private readonly usageService: UsageService,
     private readonly keyService: KeyService,
     private readonly encryptionService: EncryptionService,
+    private readonly userService: UserService,
   ) {}
 
   async create(dto: CreateTaskImageHistoryDto, userId: string) {
@@ -325,9 +327,11 @@ export class TaskImageService {
       await this.usageService.addUsage(usageEntity, userId);
     }
 
+    const dateFolder = this.fileService.getImageStorageDateFolder();
     const userDir = join(
       this.resultImagesRoot,
       this.sanitizePathSegment(userId),
+      dateFolder,
     );
     await mkdir(userDir, { recursive: true });
 
@@ -559,12 +563,25 @@ export class TaskImageService {
     const pageSize = query.pageSize ?? 10;
     const skip = (current - 1) * pageSize;
 
-    const qb = this.repo
-      .createQueryBuilder('h')
-      .where('h.userId = :userId', { userId })
-      .orderBy('h.createdAt', 'DESC')
-      .skip(skip)
-      .take(pageSize);
+    const scope = await this.resolveTaskImageHistoryViewerScope(userId);
+
+    const qb = this.repo.createQueryBuilder('h').orderBy('h.createdAt', 'DESC');
+
+    if (scope.mode === 'all') {
+      // 角色 0、1：不限制 h.userId
+    } else if (scope.mode === 'self') {
+      qb.andWhere('h.userId = :scopedUserId', { scopedUserId: userId });
+    } else {
+      if (scope.userIds.length === 0) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('h.userId IN (:...scopedUserIds)', {
+          scopedUserIds: scope.userIds,
+        });
+      }
+    }
+
+    qb.skip(skip).take(pageSize);
 
     if (query.task_id) {
       qb.andWhere('h.taskId = :taskId', { taskId: query.task_id });
@@ -586,6 +603,37 @@ export class TaskImageService {
   }
 
   /**
+   * 角色 0/1：可查全部；2/4：仅本人；3：本人 + roleId=4 且 parent 链上属于本人下级的用户；其它：仅本人。
+   */
+  private async resolveTaskImageHistoryViewerScope(userId: string): Promise<
+    | { mode: 'all' }
+    | { mode: 'self' }
+    | { mode: 'subordinates'; userIds: string[] }
+  > {
+    const viewer = await this.userService.findById(userId);
+    if (!viewer) {
+      throw new NotFoundException('用户不存在');
+    }
+    const role = String(viewer.roleId ?? '').trim();
+    if (role === '0' || role === '1') {
+      return { mode: 'all' };
+    }
+    if (role === '2' || role === '4') {
+      return { mode: 'self' };
+    }
+    if (role === '3') {
+      const subIds = await this.userService.findSubordinateUserIdsWithRole(
+        userId,
+        '4',
+      );
+      const merged = new Set<string>(subIds);
+      merged.add(userId);
+      return { mode: 'subordinates', userIds: [...merged] };
+    }
+    return { mode: 'self' };
+  }
+
+  /**
    * 按当前用户、taskId、status=1 查询 task_image_history，不分页。
    * （表上 userId+taskId 唯一时最多一条，仍返回 list 便于扩展）
    */
@@ -598,10 +646,27 @@ export class TaskImageService {
       throw new BadRequestException('taskId is required');
     }
 
-    const rows = await this.repo.find({
-      where: { userId, taskId, status: 1 },
-      order: { createdAt: 'DESC' },
-    });
+    const scope = await this.resolveTaskImageHistoryViewerScope(userId);
+
+    let rows: TaskImageHistory[];
+    if (scope.mode === 'all') {
+      rows = await this.repo.find({
+        where: { taskId, status: 1 },
+        order: { createdAt: 'DESC' },
+      });
+    } else if (scope.mode === 'self') {
+      rows = await this.repo.find({
+        where: { userId, taskId, status: 1 },
+        order: { createdAt: 'DESC' },
+      });
+    } else if (scope.userIds.length === 0) {
+      rows = [];
+    } else {
+      rows = await this.repo.find({
+        where: { taskId, status: 1, userId: In(scope.userIds) },
+        order: { createdAt: 'DESC' },
+      });
+    }
 
     return {
       list: rows.map(toTaskImageHistoryRow),

@@ -90,7 +90,7 @@ export class FileController {
     return this.fileService.getUploadStatus(uploadId, userId);
   }
 
-  /** 上传图片到本地 inputImages 目录，返回绝对路径 localPath */
+  /** 上传到 inputImages/{userId}/{YYYY-MM-DD}/，返回绝对路径 localPath */
   @Post('/uploadImages')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -123,7 +123,7 @@ export class FileController {
     return this.fileService.deleteInputImageByLocalPath(dto.localPath, userId);
   }
 
-  /** 根据 localPath 读取图片流（inputImages 或 resultImages 下当前用户目录）；查询参数需 URL 编码 */
+  /** 根据 localPath 读取图片流；路径须在项目 inputImages 或 resultImages 根下（不按用户隔离读取）；查询参数需 URL 编码 */
   @Get('/inputImages/by-local-path')
   @ApiQuery({
     name: 'localPath',

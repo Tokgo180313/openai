@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 import { ModelsEntity } from './entity/models.entity';
 import { ModelRecord } from './entities/model-record.entity';
+import { UpdateModelDto } from './dto/update-model.dto';
 
 function rowErrorMessage(error: unknown): string {
   if (error == null) return '创建模型失败';
@@ -55,6 +56,7 @@ export class ModelService {
         modelClassify: modelDto.modelClassify,
         description: modelDto.description,
         status: modelDto.status,
+        modelType: modelDto.modelType ?? null,
       });
       return await this.modelRepo.save(entity);
     } catch (error) {
@@ -117,6 +119,42 @@ export class ModelService {
       currentPage: page,
       totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
     };
+  }
+
+  async updateModel(dto: UpdateModelDto): Promise<ModelRecord> {
+    const nid = parsePositiveIntId(dto.id);
+    if (nid == null) {
+      throw new BadRequestException('无效 id');
+    }
+    if (
+      dto.modelName === undefined &&
+      dto.status === undefined &&
+      dto.modelType === undefined
+    ) {
+      throw new BadRequestException('至少提供 modelName、status、modelType 中的一项');
+    }
+    const row = await this.modelRepo.findOne({ where: { id: nid } });
+    if (!row) {
+      throw new NotFoundException('model not found');
+    }
+    if (dto.modelName !== undefined) {
+      row.modelName = dto.modelName;
+    }
+    if (dto.status !== undefined) {
+      row.status = dto.status;
+    }
+    if (dto.modelType !== undefined) {
+      row.modelType = dto.modelType === '' ? null : dto.modelType;
+    }
+    try {
+      return await this.modelRepo.save(row);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('updateModel error:', error);
+      throw new BadRequestException(rowErrorMessage(error));
+    }
   }
 
   async findModelById(id: string): Promise<ModelRecord | null> {
@@ -248,6 +286,7 @@ export class ModelService {
             modelName: openaiId,
             modelClassify: classify,
             status: '0',
+            modelType: null,
           });
           await this.modelRepo.save(entity);
           added += 1;

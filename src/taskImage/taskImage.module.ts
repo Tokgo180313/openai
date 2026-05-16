@@ -5,6 +5,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { FileModule } from 'src/file/file.module';
 import { UsageModule } from 'src/usage/usage.module';
 import { KeyModule } from 'src/key/key.module';
+import { UserModule } from 'src/user/user.module';
 import {
   TaskImage,
   TaskImageSchema,
@@ -23,6 +24,7 @@ import { TaskImageService } from './taskImage.service';
     FileModule,
     UsageModule,
     KeyModule,
+    UserModule,
   ],
   controllers: [TaskImageController],
   providers: [TaskImageService],

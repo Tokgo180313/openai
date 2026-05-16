@@ -46,6 +46,9 @@ export class TaskImageHistory {
   @Column({ name: 'image_size', nullable: true })
   imageSize: string;
 
+  @Column({ name: 'role_id', type: 'varchar', length: 64, nullable: true })
+  roleId?: string;
+
   @Column({ type: 'int', default: 1 })
   status: number;
 

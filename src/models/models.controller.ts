@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ModelService } from './models.service';
 import { ModelsDto } from './dto/models.dto';
+import { UpdateModelDto } from './dto/update-model.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { ModelsEntity } from './entity/models.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -32,6 +33,16 @@ export class ModelController {
   ) {
     const row = await this.modelService.createModel(modelDto);
     await this.operationLog.append(operatorId, '模型添加', String(row.id));
+    return row;
+  }
+
+  @Put('/update')
+  async updateModel(
+    @Body() dto: UpdateModelDto,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    const row = await this.modelService.updateModel(dto);
+    await this.operationLog.append(operatorId, '模型编辑', String(row.id));
     return row;
   }
 
