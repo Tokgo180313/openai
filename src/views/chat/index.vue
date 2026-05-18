@@ -20,6 +20,9 @@
           role="assistant"
         ></MarkdownRenderer>
       </div>
+      <div class="current-content stream-thinking" v-else-if="showStreamThinking">
+        <span class="stream-thinking-text">正在思考</span>
+      </div>
     </div>
     <div>
       <!-- 上传组件 -->
@@ -121,6 +124,10 @@ const disabledSendBtn = computed(() => {
 const isSendDisabled = computed(() => {
   return !isStreamingResponse.value && disabledSendBtn.value;
 });
+/** 流式请求已发出、尚未收到首段内容时展示「正在思考」 */
+const showStreamThinking = computed(
+  () => isStreamingResponse.value && !markdownContent.value.trim(),
+);
 // 只要输入框里存在任何字符（包括换行符）就隐藏 placeholder
 const isInputEmpty = computed(() => markdownInputContent.value.length === 0);
 const markdownContentList = ref([]);
@@ -278,6 +285,23 @@ const handleSendOrStopEvent = () => {
   }
   sendMessageEvent();
 };
+
+/** 流式结束后将当前回复写入历史并清空流式缓冲区 */
+const commitStreamingMarkdownToList = () => {
+  const text = markdownContent.value.trim();
+  if (!text) {
+    markdownContent.value = "";
+    return;
+  }
+  markdownContentList.value.push({
+    id: nanoid(),
+    role: "assistant",
+    content: markdownContent.value,
+    type: "input_text",
+  });
+  markdownContent.value = "";
+};
+
 const generateContentStreamImpl = (param: MessageType[]) => {
   // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
   // （axios 的封装通常不会以流式方式暴露数据流）
@@ -476,6 +500,7 @@ const generateContentStreamImpl = (param: MessageType[]) => {
         message.error("流式响应失败，请稍后重试");
       }
     } finally {
+      commitStreamingMarkdownToList();
       isStreamingResponse.value = false;
       streamAbortController.value = null;
     }
@@ -725,6 +750,9 @@ onMounted(() => {
 watch(markdownContent, () => {
   scrollToBottom(true);
 });
+watch(showStreamThinking, (visible) => {
+  if (visible) scrollToBottom(true);
+});
 watch(
   () => markdownContentList.value.length,
   () => {
@@ -865,5 +893,41 @@ watch(
   outline: none;
   white-space: pre-wrap;
   line-height: 30px;
+}
+
+.stream-thinking {
+  text-align: left;
+  padding: 8px 0 16px;
+}
+
+.stream-thinking-text {
+  display: inline-block;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  background: linear-gradient(
+    90deg,
+    #2b2b2b 0%,
+    #4a4a4a 22%,
+    #9a9a9a 52%,
+    #d4d4d4 78%,
+    #f0f0f0 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: stream-thinking-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes stream-thinking-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 </style>
