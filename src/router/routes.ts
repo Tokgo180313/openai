@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from "vue-router";
 import AppLayout from "../layout/AppLayout.vue";
 import ManageLayout from "../layout/ManageLayout.vue";
+import { ROLE } from "@/constants/role";
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
@@ -29,7 +30,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: "首页",
       requiredAuth: true,
-      roleId: ["2"],
+      roleId: [ROLE.NORMAL_USER],
     },
   },
   {
@@ -142,7 +143,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: "用户管理",
       requiredAuth: true,
-      roleId: ["1", "0"],
+      roleId: [ROLE.SUPER_ADMIN, ROLE.ADMIN],
     },
   },
 ];

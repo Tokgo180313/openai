@@ -18,12 +18,7 @@
     <a-table :dataSource="dataSource" :columns="columns" :pagination="false" size="small" bordered height="500px">
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex == 'roleId'">
-          <span v-if="record.roleId == '0'"> 超级管理员 </span>
-          <span v-else-if="record.roleId == '1'"> 管理员 </span>
-          <span v-else-if="record.roleId == '2'"> 普通用户 </span>
-          <span v-else-if="record.roleId == '3'"> 团队管理者 </span>
-          <span v-else-if="record.roleId == '4'"> 团队成员 </span>
-          <span v-else>{{ record.roleId }}</span>
+          <span>{{ getRoleName(record.roleId) }}</span>
         </template>
         <template v-if="column.key == 'action'">
           <a-popconfirm
@@ -70,6 +65,7 @@ import { UserType, columnType, searchFormType } from "./types/UserType";
 import { PaginationType } from "@/types/pagination";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
+import { getRoleName, isNormalUser } from "@/constants/role";
 let {
   updateUserInfoInterface,
   findAllUserInfoInterface,
@@ -85,7 +81,8 @@ const searchForm = ref<searchFormType>({
 });
 const showAddUserVisible = ref<boolean>(false);
 const showRemoveIcon = computed(() => {
-  return sessionStorage.getItem("role_id") !== "2";
+  const roleId = authStore.getRoleId ?? sessionStorage.getItem("role_id");
+  return !isNormalUser(roleId);
 });
 const pagination = ref<PaginationType>({
   current: 1,

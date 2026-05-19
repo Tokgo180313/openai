@@ -50,6 +50,8 @@ const router = useRouter();
 import { message } from "ant-design-vue";
 import { useAuthStore } from "../../stores/authStore.ts";
 import { useModelStore } from "../../stores/modelStore.ts";
+import { isManageRole } from "@/constants/role";
+import type { LoginResponseData } from "@/types/auth.type";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
 let { loginInterface } = api;
@@ -60,22 +62,22 @@ let submitForm = reactive<FormState>({
 const onFinish = (values: any) => {
   loginInterface(submitForm).then((res) => {
     if (res.code == 200) {
+      const data = res.data as LoginResponseData;
       message.success("登录成功");
-      userStore.setNickName(res.data.user.nickName);
-      userStore.setToken(res.data.access_token);
-      userStore.setAccount(res.data.user.account);
-      userStore.setRoleId(res.data.user.roleId);
-      const uid = res.data.user?.id;
+      userStore.setNickName(data.user.nickName);
+      userStore.setToken(data.access_token);
+      userStore.setAccount(data.user.account);
+      userStore.setRoleId(data.user.roleId);
+      userStore.setRoleIds(data.user.roleIds);
+      userStore.setMenus(data.menus);
+      const uid = data.user?.id;
       if (uid != null && uid !== "") {
         userStore.setUserId(String(uid));
       }
-      // 获取模型列表
-      modelStore.fetchModelList({status: "1"});
-      // 获取模型分类列表
+      modelStore.fetchModelList({ status: "1" });
       modelStore.fetchModelClassifyList({});
-      if (res.data.user.roleId === "1"|| res.data.user.roleId === "0") {
+      if (isManageRole(data.user.roleId)) {
         router.push("/user");
-        // 获取角色列表
         modelStore.fetchRoleList({});
       } else {
         router.push("/chat");

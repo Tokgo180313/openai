@@ -33,6 +33,7 @@
 import { computed, ref } from "vue";
 import api from "@/api/apiList.ts";
 import { message } from "ant-design-vue";
+import { ROLE } from "@/constants/role";
 const { addRoleInterface } = api;
 
 interface Props{
@@ -46,7 +47,7 @@ interface RoleType {
   status: string;
 }
 let submitForm = ref<RoleType>({
-  roleId: 2,
+  roleId: Number(ROLE.NORMAL_USER),
   name: "普通用户",
   status: "1",
 });

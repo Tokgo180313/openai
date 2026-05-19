@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import api from "@/api/apiList";
 import type { ModelItem } from "@/types/model.type";
 import { isEnabledChatModel } from "@/types/model.type";
+import { ROLE } from "@/constants/role";
 
 let {
   findModelListInterface,
@@ -69,7 +70,7 @@ export const useModelStore = defineStore("model", {
         if (res.code === 201) {
           let roleList = res.data.list || res.data || [];
           roleList = roleList.filter(
-            (item: { roleId: string }) => item.roleId !== "0",
+            (item: { roleId: string }) => String(item.roleId) !== ROLE.SUPER_ADMIN,
           );
           this.setRoleList(roleList);
           return roleList;

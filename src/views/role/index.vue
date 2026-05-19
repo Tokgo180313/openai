@@ -47,7 +47,7 @@
               record.status === "1" ? "启用" : "禁用"
             }}</a-tag>
           </template>
-          <template v-if="column.key === 'action' && record.roleId != '0'">
+          <template v-if="column.key === 'action' && String(record.roleId) !== ROLE.SUPER_ADMIN">
             <a-button
               type="primary"
               danger
@@ -84,6 +84,7 @@ const { getRoleListInterface, stopRoleInterface, startRoleInterface } = api;
 import config from "./config";
 const { columns } = config;
 import { Modal } from "ant-design-vue";
+import { ROLE } from "@/constants/role";
 interface submitFormType {
   name: string;
   status: string;

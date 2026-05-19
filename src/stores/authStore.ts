@@ -1,78 +1,104 @@
 import { defineStore } from "pinia";
-import api from "@/api/apiList"
-let {validateTokenInterface} = api;
-export const useAuthStore =  defineStore("auth",{
-    state:()=>({
-        token:null,
-        nickName:null,
-        roleId:null,
-        account:null,
-        userId:null as string | null,
-    }),
-    persist:true,
-    getters:{
-        getToken(){
-            return this.token;
-        },
-        getNickName(){
-            return this.nickName;
-        },
-        getRoleId(){
-            return this.roleId;
-        },
-        getAccount(){
-            return this.account;
-        },
-        getUserId(){
-            return this.userId ?? sessionStorage.getItem("user_id");
-        },
-        
-    },
+import api from "@/api/apiList";
+import { normalizeRoleId, normalizeRoleIds } from "@/constants/role";
+import type { LoginMenuItem } from "@/types/auth.type";
 
-    actions:{
-        validateToken(){
-            return validateTokenInterface().then(res=>{
-                if(res.code ===200){
-                    return true;
-                }else{
-                    return false
-                }
-            }).catch(()=>{
-                return false
-            })
-        },
-        setToken(token){
-            sessionStorage.setItem("access_token", token);
-            this.token = token
-        },
-        setNickName(nickName){
-            sessionStorage.setItem("nick_name", nickName);
-            this.nickName = nickName;
-        },
-        setRoleId(roleId){
-            sessionStorage.setItem("role_id", roleId);
-            this.roleId = roleId;
-        },
-        setAccount(account){
-            sessionStorage.setItem("account", account);
-            this.account = account;
-        },
-        setUserId(userId: string | null){
-            if (userId != null && userId !== "") {
-                sessionStorage.setItem("user_id", userId);
-                this.userId = userId;
-            } else {
-                sessionStorage.removeItem("user_id");
-                this.userId = null;
-            }
-        },
-        clearToken(){
-            this.token = null;
-            this.nickName = null;
-            this.roleId = null;
-            this.account = null;
-            this.userId = null;
-            sessionStorage.removeItem("user_id");
-        }
-    }
-})
+let { validateTokenInterface } = api;
+
+export const useAuthStore = defineStore("auth", {
+  state: () => ({
+    token: null as string | null,
+    nickName: null as string | null,
+    roleId: null as string | null,
+    roleIds: [] as string[],
+    account: null as string | null,
+    userId: null as string | null,
+    menus: [] as LoginMenuItem[],
+  }),
+  persist: true,
+  getters: {
+    getToken() {
+      return this.token;
+    },
+    getNickName() {
+      return this.nickName;
+    },
+    getRoleId() {
+      return this.roleId;
+    },
+    getRoleIds() {
+      return this.roleIds;
+    },
+    getAccount() {
+      return this.account;
+    },
+    getUserId() {
+      return this.userId ?? sessionStorage.getItem("user_id");
+    },
+    getMenus() {
+      return this.menus;
+    },
+  },
+
+  actions: {
+    validateToken() {
+      return validateTokenInterface()
+        .then((res) => {
+          if (res.code === 200) {
+            return true;
+          } else {
+            return false;
+          }
+        })
+        .catch(() => {
+          return false;
+        });
+    },
+    setToken(token: string) {
+      sessionStorage.setItem("access_token", token);
+      this.token = token;
+    },
+    setNickName(nickName: string) {
+      sessionStorage.setItem("nick_name", nickName);
+      this.nickName = nickName;
+    },
+    setRoleId(roleId: string | number | null | undefined) {
+      const normalized = normalizeRoleId(roleId);
+      sessionStorage.setItem("role_id", normalized);
+      this.roleId = normalized || null;
+    },
+    setRoleIds(roleIds: (string | number)[] | null | undefined) {
+      this.roleIds = normalizeRoleIds(roleIds);
+      sessionStorage.setItem("role_ids", JSON.stringify(this.roleIds));
+    },
+    setMenus(menus: LoginMenuItem[] | null | undefined) {
+      this.menus = menus ?? [];
+      sessionStorage.setItem("menus", JSON.stringify(this.menus));
+    },
+    setAccount(account: string) {
+      sessionStorage.setItem("account", account);
+      this.account = account;
+    },
+    setUserId(userId: string | null) {
+      if (userId != null && userId !== "") {
+        sessionStorage.setItem("user_id", userId);
+        this.userId = userId;
+      } else {
+        sessionStorage.removeItem("user_id");
+        this.userId = null;
+      }
+    },
+    clearToken() {
+      this.token = null;
+      this.nickName = null;
+      this.roleId = null;
+      this.roleIds = [];
+      this.account = null;
+      this.userId = null;
+      this.menus = [];
+      sessionStorage.removeItem("user_id");
+      sessionStorage.removeItem("role_ids");
+      sessionStorage.removeItem("menus");
+    },
+  },
+});

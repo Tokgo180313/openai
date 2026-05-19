@@ -28,6 +28,7 @@ import api from "@/api/apiList";
 const { updateNickNameInterface } = api;
 import { message } from "ant-design-vue";
 import { useAuthStore } from "../stores/authStore";
+import { getRoleName } from "@/constants/role";
 const userStore = useAuthStore();
 const props = defineProps<Props>();
 const emits = defineEmits(["close-modal"]);
@@ -41,12 +42,7 @@ const submitForm = ref<SubmitForm>({
   nickName: userStore.getNickName || "",
 });
 const loading = ref(false);
-const roleName = computed(() => {
-  if (userStore.getRoleId == "0") {
-    return "超级管理员";
-  }
-  return "普通用户";
-});
+const roleName = computed(() => getRoleName(userStore.getRoleId));
 watch(
   () => props.visible,
   (value) => {

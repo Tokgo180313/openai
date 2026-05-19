@@ -66,6 +66,7 @@ import { message } from "ant-design-vue";
 import type { FormInstance } from "ant-design-vue/es/form";
 let { addUserInfoInterface, findAllUserInfoInterface } = api;
 import { useModelStore } from "../stores/modelStore";
+import { ROLE } from "@/constants/role";
 import type { UserType } from "@/views/user/types/UserType";
 const modelStore = useModelStore();
 const roleList = computed(() => modelStore.getRoleList);
@@ -88,7 +89,7 @@ const parentOptions = ref<{ label: string; value: string }[]>([]);
 
 let submitForm = ref<UserInfoDtoType>({
   account: "",
-  roleId: "2",
+  roleId: ROLE.NORMAL_USER,
   nickName: "",
   parentId: "",
 });
@@ -166,7 +167,7 @@ const onFinishFailed = function () {};
 const resetForm = function () {
   submitForm.value = {
     account: "",
-    roleId: "2",
+    roleId: ROLE.NORMAL_USER,
     nickName: "",
     parentId: props.defaultParentId ?? "",
   };
