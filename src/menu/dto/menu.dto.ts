@@ -1,4 +1,11 @@
-import { IsArray, IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class MenuDto {
   @IsOptional()
@@ -23,6 +30,80 @@ export class MenuDto {
 
   @IsOptional()
   @IsString()
+  status?: string;
+}
+
+/** 新增菜单 */
+export class CreateMenuDto {
+  @IsNotEmpty()
+  @IsString()
+  code: string;
+
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsInt()
+  parentId?: number | null;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  /** 0 目录 1 菜单页 */
+  @IsOptional()
+  @IsIn([0, 1])
+  type?: number;
+
+  @IsOptional()
+  @IsInt()
+  sort?: number;
+
+  @IsOptional()
+  @IsIn(['0', '1'])
+  status?: string;
+}
+
+/** 编辑菜单 */
+export class UpdateMenuDto {
+  @IsInt()
+  id: number;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsInt()
+  parentId?: number | null;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @IsOptional()
+  @IsIn([0, 1])
+  type?: number;
+
+  @IsOptional()
+  @IsInt()
+  sort?: number;
+
+  @IsOptional()
+  @IsIn(['0', '1'])
   status?: string;
 }
 
