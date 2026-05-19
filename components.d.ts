@@ -43,6 +43,7 @@ declare module 'vue' {
     ATag: typeof import('ant-design-vue/es')['Tag']
     ATextarea: typeof import('ant-design-vue/es')['Textarea']
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
+    ATreeSelect: typeof import('ant-design-vue/es')['TreeSelect']
     AUpload: typeof import('ant-design-vue/es')['Upload']
     CodeBlock: typeof import('./src/components/CodeBlock.vue')['default']
     CodeHighLight: typeof import('./src/components/CodeHighLight.vue')['default']

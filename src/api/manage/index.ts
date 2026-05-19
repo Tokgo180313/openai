@@ -6,6 +6,7 @@ import usage from "./usage.ts"
 import key from "./key.ts"
 import schedule from "./schedule.ts"
 import aiModelConfig from "./aiModelConfig.ts"
+import menu from "./menu.ts"
 export default {
     ...user,
     ...record,
@@ -15,4 +16,5 @@ export default {
     ...key,
     ...schedule,
     ...aiModelConfig,
+    ...menu,
 }

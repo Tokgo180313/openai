@@ -100,6 +100,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: "/menu",
+        name: "/menu",
+        title: "菜单管理",
+        component: () => import("@/views/menu/index.vue"),
+        meta: {
+          title: "菜单管理",
+          icon: "iconfont icon-shezhi",
+        },
+      },
+      {
         path: "/key",
         name: "/key",
         title: "Key管理",
