@@ -4,9 +4,10 @@ import { RecordService } from './record.service';
 import { RecordController } from './record.controller';
 import { OperationRecord } from './entities/operation-record.entity';
 import { User } from 'src/user/entities/user.entity';
+import { RbacModule } from 'src/rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OperationRecord, User])],
+  imports: [TypeOrmModule.forFeature([OperationRecord, User]), RbacModule],
   controllers: [RecordController],
   providers: [RecordService],
   exports: [RecordService],

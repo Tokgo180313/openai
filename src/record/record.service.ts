@@ -7,16 +7,17 @@ import { RecordEntity } from './entity/record.entity';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
 import { OperationRecord } from './entities/operation-record.entity';
 import { User } from 'src/user/entities/user.entity';
+import { RbacService } from 'src/rbac/rbac.service';
+import { FULL_ACCESS_ROLE_IDS } from 'src/rbac/constants/role.constants';
 
 @Injectable()
 export class RecordService {
-  private static readonly FULL_ACCESS_ROLE_IDS = new Set(['0', '1']);
-
   constructor(
     @InjectRepository(OperationRecord)
     private readonly recordRepo: Repository<OperationRecord>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly rbacService: RbacService,
   ) {}
 
   async createRecord(recordDto: RecordEntity): Promise<OperationRecord> {
@@ -55,7 +56,7 @@ export class RecordService {
   ): Promise<PaginationResponse<OperationRecord>> {
     const viewer = await this.userRepo.findOne({
       where: { id: viewerUserId },
-      select: ['id', 'roleId'],
+      select: ['id'],
     });
     if (!viewer) {
       throw new NotFoundException('用户不存在');
@@ -63,7 +64,8 @@ export class RecordService {
 
     const qb = this.recordRepo.createQueryBuilder('r');
 
-    const scopeAll = RecordService.FULL_ACCESS_ROLE_IDS.has(viewer.roleId);
+    const roleId = await this.rbacService.getPrimaryRoleId(viewerUserId);
+    const scopeAll = roleId != null && FULL_ACCESS_ROLE_IDS.has(roleId);
     if (!scopeAll) {
       const visibleIds = await this.collectSelfAndDescendantIds(viewer.id);
       const users = await this.userRepo.find({

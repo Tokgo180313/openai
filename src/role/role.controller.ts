@@ -2,6 +2,7 @@ import { Body, Controller, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { RoleService } from './role.service';
 import { ApiTags } from '@nestjs/swagger';
 import { CreateRoleDto, RoleDto } from './dto/role.dto';
+import { AssignRoleMenusDto } from 'src/menu/dto/menu.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { OperationLogService } from 'src/common/operation-log/operation-log.service';
@@ -46,5 +47,23 @@ export class RoleController {
   ) {
     await this.roleService.startRole(id);
     await this.operationLog.append(operatorId, '角色启用', id);
+  }
+
+  @Post('/menus')
+  async getRoleMenus(@Body('roleId') roleId: number) {
+    return this.roleService.getRoleMenus(roleId);
+  }
+
+  @Put('/assignMenus')
+  async assignRoleMenus(
+    @Body() dto: AssignRoleMenusDto,
+    @CurrentUser('id') operatorId: string,
+  ) {
+    await this.roleService.assignRoleMenus(dto.roleId, dto.menuIds);
+    await this.operationLog.append(
+      operatorId,
+      '角色菜单授权',
+      String(dto.roleId),
+    );
   }
 }

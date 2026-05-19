@@ -13,6 +13,24 @@ import { PaginationDto } from './dto/PaginationDto';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
 import { RecordService } from 'src/record/record.service';
 import { RecordEntity } from 'src/record/entity/record.entity';
+import { RbacService } from 'src/rbac/rbac.service';
+import {
+  RoleId,
+  ROLE_IDS_WITHOUT_HIERARCHY,
+} from 'src/rbac/constants/role.constants';
+
+export type UserWithRoles = {
+  id: string;
+  account: string;
+  passwordType: string;
+  nickName: string;
+  avatar?: string;
+  parentId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  roleId: number | null;
+  roleIds: number[];
+};
 
 @Injectable()
 export class UserService {
@@ -20,23 +38,16 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private recordService: RecordService,
+    private readonly rbacService: RbacService,
   ) {}
 
   /** 新建用户未传 roleId 时的默认角色 */
-  private static readonly ORDINARY_ROLE_ID = '2';
+  private static readonly ORDINARY_ROLE_ID = RoleId.MEMBER;
 
-  /** 超级管理员等角色不参与上下级，不可绑定 parentId */
-  private static readonly ROLE_IDS_WITHOUT_HIERARCHY = new Set(['0', '1']);
-
-  private hierarchyApplies(roleId: string): boolean {
-    return !UserService.ROLE_IDS_WITHOUT_HIERARCHY.has(roleId);
+  private hierarchyApplies(roleId: number): boolean {
+    return !ROLE_IDS_WITHOUT_HIERARCHY.has(roleId);
   }
 
-  /**
-   * 校验「标准 hyphenated 外形」8-4-4-4-12 十六进制。
-   * 注意：`uuid` 包的 validate() 还会限制版本位与 RFC variant（第 4 段须以 8/9/a/b 开头），
-   * 许多库生成的「形似 UUID」的主键若 variant 不符会误判；此处仅做字符串形态校验。
-   */
   private static readonly UUID_STRING_SHAPE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -55,15 +66,14 @@ export class UserService {
     return v;
   }
 
-  /** 除 roleId 为 0、1 外均可绑定 parentId */
   private assertParentAllowedForRole(
-    roleId: string,
+    roleId: number,
     parentId: string | null,
   ): void {
     if (parentId == null) return;
     if (!this.hierarchyApplies(roleId)) {
       throw new BadRequestException(
-        '角色 0、1 不参与上下级，不可设置 parentId',
+        '超级管理员、管理员不参与上下级，不可设置 parentId',
       );
     }
   }
@@ -100,7 +110,22 @@ export class UserService {
     }
   }
 
-  async create(userDto: UserDto): Promise<User> {
+  async enrichUser(user: User): Promise<UserWithRoles> {
+    const roleIds = await this.rbacService.getUserRoleIds(user.id);
+    const roleId = this.rbacService.pickPrimaryRoleId(roleIds);
+    return { ...user, roleId, roleIds };
+  }
+
+  async enrichUsers(users: User[]): Promise<UserWithRoles[]> {
+    if (users.length === 0) return [];
+    const map = await this.rbacService.getUserPrimaryRoleIdMap();
+    return users.map((u) => {
+      const roleId = map.get(u.id) ?? null;
+      return { ...u, roleId, roleIds: roleId != null ? [roleId] : [] };
+    });
+  }
+
+  async create(userDto: UserDto): Promise<UserWithRoles> {
     try {
       if (!userDto.account) {
         throw new BadRequestException('账号必填');
@@ -124,21 +149,23 @@ export class UserService {
       const entity = this.userRepo.create({
         account: userDto.account,
         password: hashed,
-        roleId,
         passwordType: '0',
         nickName: userDto.nickName,
         avatar: userDto.avatar,
         parentId,
       });
       const savedUser = await this.userRepo.save(entity);
-      return savedUser;
+      await this.rbacService.setUserRole(savedUser.id, roleId);
+      return this.enrichUser(savedUser);
     } catch (error) {
       if (error instanceof ConflictException) throw error;
       throw new BadRequestException((error as Error).message);
     }
   }
 
-  async findAll(pagination: PaginationDto): Promise<PaginationResponse<User>> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginationResponse<UserWithRoles>> {
     const { skip, limit, name } = pagination;
     const qb = this.userRepo.createQueryBuilder('user').skip(skip).take(limit);
     if (name) {
@@ -146,21 +173,20 @@ export class UserService {
     }
     const [data, total] = await qb.getManyAndCount();
     return {
-      list: data,
+      list: await this.enrichUsers(data),
       total,
       currentPage: skip / limit + 1,
       totalPages: Math.ceil(total / limit),
     };
   }
 
-  async findOne(userDto: UserDto): Promise<User | null> {
+  async findOne(userDto: UserDto): Promise<UserWithRoles | null> {
     const where: FindOptionsWhere<User> = {};
     if (userDto.id !== undefined && userDto.id !== '') {
       const id = userDto.id.trim();
       if (this.isUuid(id)) where.id = id;
     }
     if (userDto.account !== undefined) where.account = userDto.account;
-    if (userDto.roleId !== undefined) where.roleId = userDto.roleId;
     if (userDto.nickName !== undefined) where.nickName = userDto.nickName;
     if (userDto.parentId !== undefined && userDto.parentId !== '') {
       const p = userDto.parentId.trim();
@@ -169,7 +195,16 @@ export class UserService {
     if (Object.keys(where).length === 0) {
       return null;
     }
-    return this.userRepo.findOne({ where });
+    const user = await this.userRepo.findOne({ where });
+    if (!user) return null;
+    const enriched = await this.enrichUser(user);
+    if (
+      userDto.roleId !== undefined &&
+      enriched.roleId !== userDto.roleId
+    ) {
+      return null;
+    }
+    return enriched;
   }
 
   async findUserByAccountWithPassword(account: string): Promise<User | null> {
@@ -180,12 +215,18 @@ export class UserService {
       .getOne();
   }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: string): Promise<UserWithRoles | null> {
     const v = id?.trim();
     if (!v || !this.isUuid(v)) {
       return null;
     }
-    return this.userRepo.findOne({ where: { id: v } });
+    const user = await this.userRepo.findOne({ where: { id: v } });
+    if (!user) return null;
+    return this.enrichUser(user);
+  }
+
+  async getPrimaryRoleId(userId: string): Promise<number | null> {
+    return this.rbacService.getPrimaryRoleId(userId);
   }
 
   async deleteById(id: string, _operatorId: string): Promise<string> {
@@ -193,7 +234,7 @@ export class UserService {
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
-    if (user.roleId === '0') {
+    if (user.roleId === RoleId.SUPER_ADMIN) {
       throw new ConflictException('超级管理员不能删除');
     }
     const childCount = await this.userRepo.count({
@@ -230,7 +271,7 @@ export class UserService {
     }
   }
 
-  async updateUser(userDto: UserDto, operatorId: string): Promise<User> {
+  async updateUser(userDto: UserDto, operatorId: string): Promise<UserWithRoles> {
     if (!userDto.id) {
       throw new BadRequestException('用户 id 必填');
     }
@@ -245,7 +286,9 @@ export class UserService {
     }
 
     const nextRoleId =
-      userDto.roleId !== undefined ? userDto.roleId : existingBefore.roleId;
+      userDto.roleId !== undefined
+        ? userDto.roleId
+        : (existingBefore.roleId ?? UserService.ORDINARY_ROLE_ID);
 
     let nextParentId = existingBefore.parentId;
     if (userDto.parentId !== undefined) {
@@ -260,7 +303,6 @@ export class UserService {
 
     const payload: Partial<User> = {};
     if (userDto.account !== undefined) payload.account = userDto.account;
-    if (userDto.roleId !== undefined) payload.roleId = userDto.roleId;
     if (userDto.passwordType !== undefined) payload.passwordType = userDto.passwordType;
     if (userDto.nickName !== undefined) payload.nickName = userDto.nickName;
     if (userDto.avatar !== undefined) payload.avatar = userDto.avatar;
@@ -273,16 +315,17 @@ export class UserService {
       payload.passwordType = '1';
     }
 
-    if (Object.keys(payload).length === 0) {
-      const existing = await this.findById(userId);
-      if (!existing) throw new NotFoundException('用户不存在');
-      return existing;
+    if (Object.keys(payload).length > 0) {
+      const result = await this.userRepo.update(userId, payload);
+      if (!result.affected) {
+        throw new NotFoundException('用户不存在');
+      }
     }
 
-    const result = await this.userRepo.update(userId, payload);
-    if (!result.affected) {
-      throw new NotFoundException('用户不存在');
+    if (userDto.roleId !== undefined) {
+      await this.rbacService.setUserRole(userId, userDto.roleId);
     }
+
     const updateUser = await this.findById(userId);
     if (!updateUser) {
       throw new NotFoundException('用户不存在');
@@ -290,7 +333,7 @@ export class UserService {
     return updateUser;
   }
 
-  async resetUser(userDto: UserDto): Promise<User> {
+  async resetUser(userDto: UserDto): Promise<UserWithRoles> {
     if (!userDto.id) {
       throw new BadRequestException('用户 id 必填');
     }
@@ -314,17 +357,17 @@ export class UserService {
     return updateUser;
   }
 
-  async validateUser(account: string, password: string): Promise<User | null> {
+  async validateUser(account: string, password: string): Promise<UserWithRoles | null> {
     const user = await this.findUserByAccountWithPassword(account);
     if (user && (await PasswordUtil.compare(password, user.password))) {
       const { password: _p, ...rest } = user;
       void _p;
-      return rest as User;
+      return this.enrichUser(rest as User);
     }
     return null;
   }
 
-  async updateNickName(id: string, nickName: string): Promise<User> {
+  async updateNickName(id: string, nickName: string): Promise<UserWithRoles> {
     const existing = await this.findById(id);
     if (!existing) {
       throw new NotFoundException('用户不存在');
@@ -361,23 +404,19 @@ export class UserService {
     }
   }
 
-  /**
-   * 在 parent 链上能追溯到 ancestorId 的用户中，筛选 roleId=subordinateRoleId 的用户 id。
-   * 用于上级查看指定角色的下级数据范围。
-   */
   async findSubordinateUserIdsWithRole(
     ancestorId: string,
-    subordinateRoleId: string,
+    subordinateRoleId: number,
   ): Promise<string[]> {
     const aid = ancestorId?.trim();
-    const wantRole = String(subordinateRoleId ?? '').trim();
-    if (!aid || !this.isUuid(aid) || !wantRole) {
+    if (!aid || !this.isUuid(aid) || subordinateRoleId == null) {
       return [];
     }
 
     const users = await this.userRepo.find({
-      select: ['id', 'parentId', 'roleId'],
+      select: ['id', 'parentId'],
     });
+    const roleByUserId = await this.rbacService.getUserPrimaryRoleIdMap();
     const parentById = new Map<string, string | null>();
     for (const u of users) {
       parentById.set(u.id, u.parentId ?? null);
@@ -385,7 +424,7 @@ export class UserService {
 
     const out: string[] = [];
     for (const u of users) {
-      if (String(u.roleId ?? '').trim() !== wantRole) {
+      if (roleByUserId.get(u.id) !== subordinateRoleId) {
         continue;
       }
       if (UserService.isUserUnderAncestor(u.parentId, aid, parentById)) {

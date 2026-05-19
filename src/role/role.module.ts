@@ -4,11 +4,13 @@ import { OperationLogModule } from "src/common/operation-log/operation-log.modul
 import { RoleController } from "./role.controller";
 import { RoleService } from "./role.service";
 import { Role } from "./entities/role.entity";
+import { RbacModule } from "src/rbac/rbac.module";
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Role]),
         OperationLogModule,
+        RbacModule,
     ],
     controllers: [RoleController],
     providers: [RoleService],

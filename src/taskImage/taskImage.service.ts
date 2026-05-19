@@ -18,6 +18,7 @@ import { UsageEntity } from 'src/usage/entity/usage.entity';
 import { KeyService } from 'src/key/key.service';
 import { EncryptionService } from 'src/common/utils/encryption.service';
 import { UserService } from 'src/user/user.service';
+import { RoleId } from 'src/rbac/constants/role.constants';
 import {
   normalizeOpenAIBaseURL,
   OPENAI_DEFAULT_BASE_URL,
@@ -568,7 +569,7 @@ export class TaskImageService {
     const qb = this.repo.createQueryBuilder('h').orderBy('h.createdAt', 'DESC');
 
     if (scope.mode === 'all') {
-      // 角色 0、1：不限制 h.userId
+      // 超管、管理员：不限制 h.userId
     } else if (scope.mode === 'self') {
       qb.andWhere('h.userId = :scopedUserId', { scopedUserId: userId });
     } else {
@@ -603,7 +604,7 @@ export class TaskImageService {
   }
 
   /**
-   * 角色 0/1：可查全部；2/4：仅本人；3：本人 + roleId=4 且 parent 链上属于本人下级的用户；其它：仅本人。
+   * 角色 1/2：可查全部；3/5：仅本人；4：本人 + 团队成员(5) 且 parent 链属下级；其它：仅本人。
    */
   private async resolveTaskImageHistoryViewerScope(userId: string): Promise<
     | { mode: 'all' }
@@ -614,17 +615,17 @@ export class TaskImageService {
     if (!viewer) {
       throw new NotFoundException('用户不存在');
     }
-    const role = String(viewer.roleId ?? '').trim();
-    if (role === '0' || role === '1') {
+    const role = viewer.roleId;
+    if (role === RoleId.SUPER_ADMIN || role === RoleId.ADMIN) {
       return { mode: 'all' };
     }
-    if (role === '2' || role === '4') {
+    if (role === RoleId.MEMBER || role === RoleId.TEAM_MEMBER) {
       return { mode: 'self' };
     }
-    if (role === '3') {
+    if (role === RoleId.TEAM_MANAGER) {
       const subIds = await this.userService.findSubordinateUserIdsWithRole(
         userId,
-        '4',
+        RoleId.TEAM_MEMBER,
       );
       const merged = new Set<string>(subIds);
       merged.add(userId);

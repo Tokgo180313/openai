@@ -7,9 +7,8 @@ export class RoleDto{
     pageSize?: number;
 }
 
-/** 新增角色请求体（对应原 Mongoose Role 字段） */
+/** 新增角色 */
 export class CreateRoleDto {
-    roleId: string;
     name: string;
     status: string;
 }

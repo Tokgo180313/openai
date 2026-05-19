@@ -7,21 +7,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { CreateRoleDto, RoleDto } from './dto/role.dto';
+import { RbacService } from 'src/rbac/rbac.service';
+import { RoleId } from 'src/rbac/constants/role.constants';
 
 @Injectable()
 export class RoleService {
   constructor(
     @InjectRepository(Role)
     private readonly roleRepo: Repository<Role>,
+    private readonly rbacService: RbacService,
   ) {}
 
   async createRole(roleDto: CreateRoleDto): Promise<Role> {
-    const existed = await this.roleRepo.findOne({
-      where: { roleId: roleDto.roleId },
-    });
-    if (existed) {
-      throw new ConflictException('角色编码已存在');
-    }
     const entity = this.roleRepo.create(roleDto);
     return await this.roleRepo.save(entity);
   }
@@ -50,11 +47,10 @@ export class RoleService {
     if (!role) {
       throw new NotFoundException('角色不存在');
     }
-    if (role.roleId === '0') {
+    if (role.id === RoleId.SUPER_ADMIN) {
       throw new ConflictException('超级管理员不能停止');
     }
-    const numId = Number(id);
-    await this.roleRepo.update(numId, { status: '0' });
+    await this.roleRepo.update(role.id, { status: '0' });
   }
 
   async startRole(id: string): Promise<void> {
@@ -63,5 +59,17 @@ export class RoleService {
       return;
     }
     await this.roleRepo.update(numId, { status: '1' });
+  }
+
+  async getRoleMenus(roleId: number): Promise<number[]> {
+    return this.rbacService.getRoleMenuIds(roleId);
+  }
+
+  async assignRoleMenus(roleId: number, menuIds: number[]): Promise<void> {
+    const role = await this.roleRepo.findOne({ where: { id: roleId } });
+    if (!role) {
+      throw new NotFoundException('角色不存在');
+    }
+    await this.rbacService.assignRoleMenus(roleId, menuIds);
   }
 }

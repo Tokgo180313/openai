@@ -23,6 +23,7 @@ import { KeyModule } from './key/key.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { TaskImageModule } from './taskImage/taskImage.module';
 import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
+import { MenuModule } from './menu/menu.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -60,6 +61,7 @@ import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
     ScheduleModule,
     TaskImageModule,
     AiModelConfigModule,
+    MenuModule,
   ],
   controllers: [AppController],
   providers: [

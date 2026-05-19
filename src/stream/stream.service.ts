@@ -192,7 +192,6 @@ export class StreamService {
         documentId,
         item,
       );
-      console.dir(content, { depth: null });
       if (content.length > 0) {
         messages.push({
           role,
@@ -200,16 +199,13 @@ export class StreamService {
         });
       }
     }
-    console.dir(messages, { depth: null });
     const mergedMessages = this.mergeMessagesByRole(messages);
 
     if (mergedMessages.length === 0) {
       throw new BadRequestException('messages is empty');
     }
     const openaiMessages = this.toOpenAIChatMessages(mergedMessages);
-    console.dir(openaiMessages, { depth: null });
     try {
-      // TODO: 先临时停用 AI 接口调用，后续按新接口方案恢复。
       const stream = await openai.chat.completions.create(
         {
           model,

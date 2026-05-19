@@ -11,10 +11,13 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  // 请确保这里的地址与你本地代理软件（如 Clash, v2ray 等）的 HTTP 端口一致
-  const proxyUrl = 'http://127.0.0.1:7890'; 
-  const dispatcher = new ProxyAgent(proxyUrl);
-  setGlobalDispatcher(dispatcher);
+  // 仅当配置了代理地址时才走代理（Clash 等默认 HTTP 端口常为 7890）
+  const proxyUrl = String(
+    process.env.HTTP_PROXY ?? process.env.HTTPS_PROXY ?? '',
+  ).trim();
+  if (proxyUrl) {
+    setGlobalDispatcher(new ProxyAgent(proxyUrl));
+  }
   // swagger
   const config = new DocumentBuilder()
                   .setTitle("接口文档")

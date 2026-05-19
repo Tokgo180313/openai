@@ -7,9 +7,11 @@ import { UserModule } from 'src/user/user.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
+import { RbacModule } from 'src/rbac/rbac.module';
 @Module({
   imports: [
     UserModule,
+    RbacModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

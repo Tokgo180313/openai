@@ -2,17 +2,18 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from 'src/login/dto/LoginDto';
 import { UserDto } from 'src/user/dto/UserDto';
-import { User } from 'src/user/entities/user.entity';
-import { UserService } from 'src/user/user.service';
+import { UserService, UserWithRoles } from 'src/user/user.service';
+import { RbacService } from 'src/rbac/rbac.service';
+import { MenuTreeNode } from 'src/menu/dto/menu.dto';
 
-/** 不含 password 字段的登录用户（TypeORM User 经 validateUser 剥离密码） */
-export type AuthUser = Omit<User, 'password'>;
+export type AuthUser = UserWithRoles;
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
+    private rbacService: RbacService,
   ) {}
   // 用户登录验证
   async validateUser(loginDto: LoginDto): Promise<AuthUser> {
@@ -34,9 +35,11 @@ export class AuthService {
       account: user.account,
       sub: String(user.id),
     });
+    const menus = await this.rbacService.getUserMenuTree(user.id);
     return {
       access_token: token,
       user,
+      menus,
     };
   }
   // 用户注册
@@ -46,13 +49,19 @@ export class AuthService {
       account: user.account,
       sub: String(user.id),
     });
+    const menus = await this.rbacService.getUserMenuTree(user.id);
     return {
       access_token: token,
       user,
+      menus,
     };
   }
+
+  async getMyMenus(userId: string): Promise<MenuTreeNode[]> {
+    return this.rbacService.getUserMenuTree(userId);
+  }
   // 生成 Jwt Token
-  async generateToken(user: Pick<User, 'id' | 'account'>) {
+  async generateToken(user: Pick<AuthUser, 'id' | 'account'>) {
     return this.jwtService.sign({
       account: user.account,
       sub: String(user.id),
