@@ -24,6 +24,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { TaskImageModule } from './taskImage/taskImage.module';
 import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
 import { MenuModule } from './menu/menu.module';
+import { OptimizationModule } from './optimization/optimization.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -62,6 +63,7 @@ import { MenuModule } from './menu/menu.module';
     TaskImageModule,
     AiModelConfigModule,
     MenuModule,
+    OptimizationModule,
   ],
   controllers: [AppController],
   providers: [
