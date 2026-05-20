@@ -5,6 +5,13 @@ import type { LoginMenuItem } from "@/types/auth.type";
 
 let { validateTokenInterface } = api;
 
+/** 迁移：auth 持久化已从 localStorage 改为 sessionStorage */
+try {
+  localStorage.removeItem("auth");
+} catch {
+  // ignore
+}
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: null as string | null,
@@ -15,7 +22,10 @@ export const useAuthStore = defineStore("auth", {
     userId: null as string | null,
     menus: [] as LoginMenuItem[],
   }),
-  persist: true,
+  persist: {
+    storage: sessionStorage,
+    key: "auth",
+  },
   getters: {
     getToken() {
       return this.token;
@@ -96,9 +106,14 @@ export const useAuthStore = defineStore("auth", {
       this.account = null;
       this.userId = null;
       this.menus = [];
-      sessionStorage.removeItem("user_id");
+      sessionStorage.removeItem("auth");
+      sessionStorage.removeItem("access_token");
+      sessionStorage.removeItem("nick_name");
+      sessionStorage.removeItem("role_id");
       sessionStorage.removeItem("role_ids");
       sessionStorage.removeItem("menus");
+      sessionStorage.removeItem("account");
+      sessionStorage.removeItem("user_id");
     },
   },
 });

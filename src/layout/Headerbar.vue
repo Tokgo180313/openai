@@ -17,6 +17,13 @@
       </a-select>
     </div>
     <div class="system-operation">
+      <a-tooltip v-if="hasManageAccess" title="控制台" placement="bottom">
+        <i
+          style="margin: 0 1em; cursor: pointer"
+          class="iconfont icon-zonghekongzhitai"
+          @click="goToConsole"
+        ></i>
+      </a-tooltip>
       <a-tooltip title="分享" placement="bottom">
         <i
           style="margin: 0 1em; cursor: pointer"
@@ -42,15 +49,43 @@
 
 <script lang="ts" setup>
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import { message } from "ant-design-vue";
 import { useRequestStore } from "../stores/requestStore";
 import RemoveChatDialog from "../components/RemoveChatDialog.vue";
 import { storeToRefs } from "pinia";
-import {useModelStore} from "@/stores/modelStore";
-const modelStore = useModelStore();
+import { useModelStore } from "@/stores/modelStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useEventsBus } from "@/stores/event-bus";
+import { useAuthStore } from "@/stores/authStore";
+import {
+  getFirstMenuPath,
+  hasManageMenus,
+  setupManageRoutes,
+} from "@/router/dynamicRoutes";
+
+const modelStore = useModelStore();
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
+const router = useRouter();
+const authStore = useAuthStore();
+
+const hasManageAccess = computed(() => hasManageMenus(authStore.getMenus));
+
+const goToConsole = () => {
+  const menus = authStore.getMenus;
+  if (!hasManageMenus(menus)) {
+    message.warning("暂无后台管理权限");
+    return;
+  }
+  setupManageRoutes(router, menus);
+  const targetPath = getFirstMenuPath(menus);
+  if (targetPath) {
+    router.push(targetPath);
+  } else {
+    message.warning("暂无可访问的后台页面");
+  }
+};
 const questionType = ref(modelStore.getCurrentModel|| null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
