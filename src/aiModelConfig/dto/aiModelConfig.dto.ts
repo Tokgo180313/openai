@@ -35,6 +35,18 @@ export class FieldMappingsDto {
   @IsOptional()
   @IsString()
   imageNum?: string;
+
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @IsOptional()
+  @IsString()
+  outputNum?: string;
+
+  @IsOptional()
+  @IsString()
+  resolution?: string;
 }
 
 export class AiModelConfigCreateDto {

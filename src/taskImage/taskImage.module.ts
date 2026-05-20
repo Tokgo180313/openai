@@ -11,6 +11,8 @@ import {
   TaskImageSchema,
 } from 'src/schemas/task-image/task-image.schema';
 import { TaskImageHistory } from './entities/task-image-history.entity';
+import { AdapterModule } from 'src/adapter/adapter.module';
+import { AiModelConfigModule } from 'src/aiModelConfig/aiModelConfig.module';
 import { TaskImageController } from './taskImage.controller';
 import { TaskImageService } from './taskImage.service';
 
@@ -25,6 +27,8 @@ import { TaskImageService } from './taskImage.service';
     UsageModule,
     KeyModule,
     UserModule,
+    AdapterModule,
+    AiModelConfigModule,
   ],
   controllers: [TaskImageController],
   providers: [TaskImageService],

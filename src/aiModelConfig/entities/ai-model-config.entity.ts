@@ -14,6 +14,9 @@ export type FieldMappingsJson = {
   imageSize?: string;
   ImageRatio?: string;
   imageNum?: string;
+  provider?: string;
+  outputNum?: string;
+  resolution?: string;
 };
 
 @Entity('ai_model_configs')

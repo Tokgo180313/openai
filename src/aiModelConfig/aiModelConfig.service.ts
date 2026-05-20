@@ -95,6 +95,26 @@ export class AiModelConfigService {
     };
   }
 
+  /**
+   * 按服务商品 provider + 模型名查询配置（启用状态，provider/modelName 不区分大小写）。
+   */
+  async findByProviderAndModelName(
+    provider: string,
+    modelName: string,
+  ): Promise<AiModelConfigEntity | null> {
+    const p = String(provider ?? '').trim();
+    const mn = String(modelName ?? '').trim();
+    if (!p || !mn) {
+      return null;
+    }
+    return this.repo
+      .createQueryBuilder('c')
+      .where('LOWER(c.provider) = LOWER(:p)', { p })
+      .andWhere('LOWER(c.modelName) = LOWER(:mn)', { mn })
+      .andWhere('c.isEnabled = :en', { en: true })
+      .getOne();
+  }
+
   async findById(id: string): Promise<AiModelConfigEntity> {
     const nid = parsePositiveIntId(id);
     if (nid == null) {

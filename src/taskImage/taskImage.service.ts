@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model, Types } from 'mongoose';
@@ -39,6 +40,10 @@ import {
   toTaskImageHistoryRow,
   toTaskImageMongoRow,
 } from './task-image-history.serialize';
+import { RequestParamAdapterService } from 'src/adapter/request-param.adapter';
+import { extractImageUrlsFromLinkfoxResponse } from 'src/adapter/linkfox-response.util';
+import { AiModelConfigService } from 'src/aiModelConfig/aiModelConfig.service';
+import type { AdaptedImageRequest } from 'src/adapter/adapter.types';
 
 @Injectable()
 export class TaskImageService {
@@ -54,6 +59,9 @@ export class TaskImageService {
     private readonly keyService: KeyService,
     private readonly encryptionService: EncryptionService,
     private readonly userService: UserService,
+    private readonly requestParamAdapter: RequestParamAdapterService,
+    private readonly aiModelConfigService: AiModelConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(dto: CreateTaskImageHistoryDto, userId: string) {
@@ -230,36 +238,69 @@ export class TaskImageService {
     }
 
     const rawSources = Array.isArray(row.sourceImages) ? row.sourceImages : [];
-    const localPaths = rawSources
+    const sourcePaths = rawSources
       .map((s) => String(s ?? '').trim())
       .filter((s) => !!s);
 
-    const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
-      { type: 'text', text: inputText },
-    ];
-    for (const p of localPaths) {
+    const serviceProduct = String(dto.provider ?? row.provider ?? '').trim();
+    if (!serviceProduct) {
+      throw new BadRequestException('provider (服务商品) is required');
+    }
+
+    const modelConfig =
+      await this.aiModelConfigService.findByProviderAndModelName(
+        serviceProduct,
+        modelName,
+      );
+
+    const promptText = String(row.prompt ?? row.inputText ?? inputText).trim();
+    const imageDataUrls: string[] = [];
+    const imageHttpUrls: string[] = [];
+
+    for (const p of sourcePaths) {
+      if (p.startsWith('http://') || p.startsWith('https://')) {
+        imageHttpUrls.push(p);
+        const dataUrl = await this.fetchImageAsDataUrl(p);
+        if (dataUrl) {
+          imageDataUrls.push(dataUrl);
+        }
+        continue;
+      }
       const dataUrl = await this.fileService.readInputImageAsDataUrl(p, userId);
-      userContent.push({
-        type: 'image_url',
-        image_url: { url: dataUrl },
-      });
+      imageDataUrls.push(dataUrl);
+      const publicUrl = this.buildPublicInputImageUrl(p);
+      if (publicUrl) {
+        imageHttpUrls.push(publicUrl);
+      }
     }
 
-    const providerForKey = String(dto.provider ?? row.provider ?? '').trim();
-    if (!providerForKey) {
-      throw new BadRequestException('provider is required');
-    }
+    const adapted = this.requestParamAdapter.adaptImageGenerate({
+      serviceProduct,
+      modelName,
+      prompt: promptText,
+      imageDataUrls,
+      imageHttpUrls,
+      aspectRatio,
+      imageSize,
+      linkfoxProvider: String(row.provider ?? '').trim() || undefined,
+      fieldMappings: modelConfig?.fieldMappings,
+      defaultParams: modelConfig?.defaultParams,
+      compatibleWithOpenAi: modelConfig?.compatibleWithOpenAi,
+    });
 
-    const keyDoc = await this.keyService.findKeyByModelClassify(providerForKey);
-    if (!keyDoc?.apiKey) {
-      throw new NotFoundException(
-        `no api key configured for provider: ${providerForKey}`,
+    if (adapted.format === 'linkfox' && imageHttpUrls.length === 0) {
+      throw new BadRequestException(
+        'linkfox 需要 http(s) 图片地址；请在 sourceImages 中传入可访问 URL，或配置 APP_PUBLIC_URL 以暴露本地图片',
       );
     }
-    const rawBase = String(keyDoc.baseURL ?? '').trim();
-    if (!rawBase) {
+
+    const keyClassify = String(
+      dto.modelClassify ?? serviceProduct,
+    ).trim();
+    const keyDoc = await this.keyService.findKeyByModelClassify(keyClassify);
+    if (!keyDoc?.apiKey) {
       throw new NotFoundException(
-        `no baseURL configured for provider: ${providerForKey}`,
+        `no api key configured for provider: ${keyClassify}`,
       );
     }
 
@@ -270,62 +311,33 @@ export class TaskImageService {
       throw new BadRequestException('failed to decrypt stored apiKey');
     }
 
-    const baseURL = normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
-
-    const openai = new OpenAI({ apiKey, baseURL });
-
-    const modelClassify = String(keyDoc.modelClassify ?? providerForKey).trim();
-    const requestBody = {
-      model: modelName,
-      stream: false as const,
-      messages: [
-        {
-          role: 'user' as const,
-          content: userContent,
-        },
-      ],
-      extra_body: {
-        google: {
-          image_config: {
-            aspect_ratio: aspectRatio,
-            image_size: imageSize,
-          },
-        },
+    const modelClassify = String(keyDoc.modelClassify ?? keyClassify).trim();
+    const { imageItems, responseModel, usage } = await this.invokeImageModel(
+      adapted,
+      {
+        apiKey,
+        baseURL: String(keyDoc.baseURL ?? '').trim(),
+        apiUrl: String(modelConfig?.apiUrl ?? keyDoc.baseURL ?? '').trim(),
       },
-    };
+    );
 
-    let response: OpenAI.ChatCompletion;
-    try {
-      response = (await openai.chat.completions.create(
-        requestBody as OpenAI.ChatCompletionCreateParamsNonStreaming,
-      )) as OpenAI.ChatCompletion;
-    } catch (e: unknown) {
-      const err = e as { message?: string };
-      throw new BadRequestException(
-        String(err?.message ?? e ?? 'OpenAI request failed'),
-      );
-    }
-
-    const choice = response?.choices?.[0];
-    const message = choice?.message as OpenAI.ChatCompletionMessage | undefined;
-
-    const imageItems = await this.extractGeneratedImagesFromMessage(message);
-    if (imageItems.length === 0) {
-      throw new BadRequestException(
-        'model response did not contain a usable image (data URL / image_url / markdown URL)',
-      );
-    }
-    if (response.usage) {
+    if (usage) {
       const usageEntity: UsageEntity = {
-        modelName: response.model ?? modelName,
+        modelName: usage.modelName ?? modelName,
         modelClassify,
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
-        totalTokens: response.usage.total_tokens,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        totalTokens: usage.totalTokens,
         status: '0',
         description: `taskImage generate taskId=${taskId}`,
       };
       await this.usageService.addUsage(usageEntity, userId);
+    }
+
+    if (imageItems.length === 0) {
+      throw new BadRequestException(
+        'model response did not contain a usable image',
+      );
     }
 
     const dateFolder = this.fileService.getImageStorageDateFolder();
@@ -352,7 +364,7 @@ export class TaskImageService {
       userId,
       saved,
       newPaths,
-      String(response.model ?? modelName ?? '').trim() || modelName,
+      String(responseModel ?? modelName ?? '').trim() || modelName,
     );
 
     return toTaskImageMongoRow(saved);
@@ -397,6 +409,148 @@ export class TaskImageService {
       cost: 0,
     } as TaskImageHistory);
     await this.repo.save(created);
+  }
+
+  private buildPublicInputImageUrl(localPath: string): string | null {
+    const base = String(
+      this.configService.get<string>('APP_PUBLIC_URL') ??
+        process.env['APP_PUBLIC_URL'] ??
+        '',
+    ).trim();
+    if (!base) {
+      return null;
+    }
+    const root = base.replace(/\/$/, '');
+    return `${root}/file/inputImages/by-local-path?localPath=${encodeURIComponent(localPath)}`;
+  }
+
+  private async fetchImageAsDataUrl(url: string): Promise<string | null> {
+    const buf = await this.fetchImageBuffer(url);
+    if (!buf?.length) {
+      return null;
+    }
+    const ext = this.inferExtFromBuffer(buf);
+    const mime =
+      ext === '.jpg'
+        ? 'image/jpeg'
+        : ext === '.png'
+          ? 'image/png'
+          : ext === '.gif'
+            ? 'image/gif'
+            : ext === '.webp'
+              ? 'image/webp'
+              : 'image/png';
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  }
+
+  private async invokeImageModel(
+    adapted: AdaptedImageRequest,
+    creds: { apiKey: string; baseURL: string; apiUrl: string },
+  ): Promise<{
+    imageItems: Array<{ buffer: Buffer; ext: string }>;
+    responseModel?: string;
+    usage?: {
+      modelName?: string;
+      promptTokens?: number;
+      completionTokens?: number;
+      totalTokens?: number;
+    };
+  }> {
+    if (adapted.format === 'openai') {
+      const rawBase = creds.baseURL;
+      if (!rawBase) {
+        throw new NotFoundException('no baseURL configured for OpenAI provider');
+      }
+      const baseURL =
+        normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
+      const openai = new OpenAI({ apiKey: creds.apiKey, baseURL });
+      let response: OpenAI.ChatCompletion;
+      try {
+        response = (await openai.chat.completions.create(
+          adapted.body as OpenAI.ChatCompletionCreateParamsNonStreaming,
+        )) as OpenAI.ChatCompletion;
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        throw new BadRequestException(
+          String(err?.message ?? e ?? 'OpenAI request failed'),
+        );
+      }
+      const message = response?.choices?.[0]?.message as
+        | OpenAI.ChatCompletionMessage
+        | undefined;
+      const imageItems =
+        await this.extractGeneratedImagesFromMessage(message);
+      return {
+        imageItems,
+        responseModel: response.model,
+        usage: response.usage
+          ? {
+              modelName: response.model ?? undefined,
+              promptTokens: response.usage.prompt_tokens,
+              completionTokens: response.usage.completion_tokens,
+              totalTokens: response.usage.total_tokens,
+            }
+          : undefined,
+      };
+    }
+
+    const endpoint = String(creds.apiUrl ?? '').trim();
+    if (!endpoint) {
+      throw new NotFoundException('no apiUrl configured for linkfox provider');
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${creds.apiKey}`,
+        },
+        body: JSON.stringify(adapted.body),
+      });
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      throw new BadRequestException(
+        String(err?.message ?? e ?? 'linkfox request failed'),
+      );
+    }
+
+    const text = await res.text();
+    let payload: unknown = text;
+    try {
+      payload = JSON.parse(text) as unknown;
+    } catch {
+      /* plain text */
+    }
+
+    if (!res.ok) {
+      const msg =
+        typeof payload === 'object' && payload && 'message' in payload
+          ? String((payload as { message?: string }).message)
+          : text.slice(0, 500);
+      throw new BadRequestException(
+        msg || `linkfox request failed with status ${res.status}`,
+      );
+    }
+
+    const urls = extractImageUrlsFromLinkfoxResponse(payload);
+    const imageItems: Array<{ buffer: Buffer; ext: string }> = [];
+    for (const url of urls) {
+      if (url.startsWith('data:image')) {
+        this.pushDataUrlBase64(imageItems, url);
+        continue;
+      }
+      const buf = await this.fetchImageBuffer(url);
+      if (buf?.length) {
+        imageItems.push({ buffer: buf, ext: this.inferExtFromBuffer(buf) });
+      }
+    }
+
+    const prov = adapted.body.provider;
+    const modelFromBody =
+      typeof prov === 'string' && prov.trim() ? prov.trim() : undefined;
+    return { imageItems, responseModel: modelFromBody };
   }
 
   private sanitizePathSegment(input: string): string {
