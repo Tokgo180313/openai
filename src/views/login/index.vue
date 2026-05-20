@@ -50,8 +50,12 @@ const router = useRouter();
 import { message } from "ant-design-vue";
 import { useAuthStore } from "../../stores/authStore.ts";
 import { useModelStore } from "../../stores/modelStore.ts";
-import { isManageRole } from "@/constants/role";
 import type { LoginResponseData } from "@/types/auth.type";
+import {
+  getFirstMenuPath,
+  resetManageRoutes,
+  setupManageRoutes,
+} from "@/router/dynamicRoutes";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
 let { loginInterface } = api;
@@ -76,9 +80,13 @@ const onFinish = (values: any) => {
       }
       modelStore.fetchModelList({ status: "1" });
       modelStore.fetchModelClassifyList({});
-      if (isManageRole(data.user.roleId)) {
-        router.push("/user");
+      resetManageRoutes(router);
+      const menus = data.menus ?? [];
+      if (menus.length) {
+        setupManageRoutes(router, menus);
         modelStore.fetchRoleList({});
+        const firstPath = getFirstMenuPath(menus);
+        router.push(firstPath || "/chat");
       } else {
         router.push("/chat");
       }

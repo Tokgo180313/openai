@@ -12,10 +12,11 @@ import "reset-css"
 import "normalize.css"
 import App from './App.vue'
 import "ant-design-vue/dist/reset.css"
-import router from './router'
+import router, { initManageRoutesFromStore } from './router'
 const app = createApp(App)
 // 使用pinia
 app.use(pinia)
+initManageRoutesFromStore()
 // 路由
 app.use(router)
 // 安装指令

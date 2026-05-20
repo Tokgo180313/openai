@@ -15,6 +15,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/authStore";
+import { resetManageRoutes } from "@/router/dynamicRoutes";
 interface Props {
   visible: boolean;
 }
@@ -27,6 +28,7 @@ let openModal = computed(() => props.visible);
 const confirmEvent = function () {
   sessionStorage.clear();
   userStore.clearToken();
+  resetManageRoutes(router);
   router.replace("/login");
 };
 const cancelEvent = function () {

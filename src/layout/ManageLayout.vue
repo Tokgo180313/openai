@@ -1,30 +1,29 @@
 <template>
   <a-layout style="min-height: 100vh; min-width: 100vw; text-align: left">
     <a-layout-sider v-model:collapsed="collapsed" collapsible>
-      <div class="logo"> <i class="iconfont icon-gpt"></i> 后台管理</div>
+      <div class="logo">
+        <i class="iconfont icon-gpt"></i> 后台管理
+      </div>
 
-      <a-menu v-model:selectedKeys="selectedKeys" theme="dark" mode="inline">
-        <a-menu-item
-          v-for="menu in routerList"
-          :key="menu.path"
-          @click="selectedKeysChange(menu.path)"
-        >
-          <template #icon>
-            <i :class="menu.meta.icon"></i>
-            <!-- 直接使用字符串名称 -->
-          </template>
-          <span> {{ menu.title }}</span>
-        </a-menu-item>
+      <a-menu
+        v-model:selectedKeys="selectedKeys"
+        v-model:openKeys="openKeys"
+        theme="dark"
+        mode="inline"
+        @click="handleMenuClick"
+      >
+        <ManageSideMenu v-if="menus.length" :menus="menus" />
+        <a-menu-item v-else disabled key="empty">暂无菜单权限</a-menu-item>
       </a-menu>
     </a-layout-sider>
     <a-layout>
-      <a-layout-header style="background: #fff; padding: 0" >
+      <a-layout-header style="background: #fff; padding: 0">
         <ManageHeader />
       </a-layout-header>
       <a-layout-content style="margin: 0 16px">
         <a-breadcrumb style="margin: 16px 0">
           <a-breadcrumb-item>{{
-            router.currentRoute.value.meta.title
+            (route.meta.title as string) || "管理"
           }}</a-breadcrumb-item>
         </a-breadcrumb>
         <div
@@ -45,30 +44,69 @@
     </a-layout>
   </a-layout>
 </template>
+
 <script lang="ts" setup>
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { MenuProps } from "ant-design-vue";
 import ManageHeader from "./ManageHeader.vue";
-import {
-  PieChartOutlined,
-  DesktopOutlined,
-  UserOutlined,
-  TeamOutlined,
-  FileOutlined,
-} from "@ant-design/icons-vue";
-import { ref, h } from "vue";
+import ManageSideMenu from "./components/ManageSideMenu.vue";
+import { useAuthStore } from "@/stores/authStore";
+import type { LoginMenuItem } from "@/types/auth.type";
+
 const collapsed = ref<boolean>(false);
-const selectedKeys = ref<string[]>(["/user"]);
-import { useRouter } from "vue-router";
+const selectedKeys = ref<string[]>([]);
+const openKeys = ref<string[]>([]);
+
 const router = useRouter();
-const itemName = ref(router.currentRoute.value.meta.title);
-const routerList =
-  router.getRoutes().find((item) => item.path === "/manage")?.children || [];
-console.log(routerList);
-const selectedKeysChange = (path: string) => {
-  selectedKeys.value = [path];
+const route = useRoute();
+const authStore = useAuthStore();
+
+const menus = computed(() => authStore.getMenus);
+
+function collectDirectoryOpenKeys(
+  items: LoginMenuItem[],
+  keys: string[] = [],
+): string[] {
+  for (const item of items) {
+    if (item.type === 0 && item.children?.length) {
+      keys.push(`dir-${item.id}`);
+      collectDirectoryOpenKeys(item.children, keys);
+    }
+  }
+  return keys;
+}
+
+function syncMenuState(path: string) {
+  selectedKeys.value = path ? [path] : [];
+  if (!openKeys.value.length && menus.value.length) {
+    openKeys.value = collectDirectoryOpenKeys(menus.value);
+  }
+}
+
+watch(
+  () => route.path,
+  (path) => {
+    syncMenuState(path);
+  },
+  { immediate: true },
+);
+
+watch(menus, (list) => {
+  if (list.length) {
+    openKeys.value = collectDirectoryOpenKeys(list);
+  }
+});
+
+const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
+  const path = String(key);
+  if (!path.startsWith("/")) {
+    return;
+  }
   router.push(path);
-  itemName.value = router.currentRoute.value.meta.title;
 };
 </script>
+
 <style lang="scss" scoped>
 .logo {
   height: 32px;
@@ -77,37 +115,23 @@ const selectedKeysChange = (path: string) => {
   line-height: 32px;
   text-align: center;
 }
-/* 移除或修改现有样式 */
-#components-layout-demo-side .logo {
-  height: 32px;
-  margin: 16px;
-  background: rgba(255, 255, 255, 0.3);
-}
 
-/* 确保内容区域占满剩余宽度 */
-.site-layout {
-  width: 100%;
-}
-
-.site-layout .site-layout-background {
+.site-layout-background {
   background: #fff;
   width: 100%;
   box-sizing: border-box;
-  /* 添加溢出处理 */
   overflow-x: auto;
 }
 
-/* 让 router-view 容器也占满宽度 */
 .site-layout-background > :deep(*) {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* 响应式处理 */
 @media screen and (max-width: 768px) {
   .site-layout-background {
-    padding: 12px; /* 小屏幕减少内边距 */
+    padding: 12px;
   }
 }
 </style>

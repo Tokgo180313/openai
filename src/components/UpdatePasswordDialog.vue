@@ -22,6 +22,7 @@ import { computed, ref } from "vue";
 import api from "@/api/apiList";
 const { updatePasswordInterface } = api;
 import { message } from "ant-design-vue";
+import { resetManageRoutes } from "@/router/dynamicRoutes";
 const formRules = {
   oldPassword: [{ required: true, message: "请输入旧密码", trigger: "blur" }],
   newPassword: [{ required: true, message: "请输入新密码", trigger: "blur" }],
@@ -70,6 +71,7 @@ const handleOk = () => {
       open.value = false;
       emit("close-modal");
       userStore.clearToken();
+      resetManageRoutes(router);
       router.replace("/login");
       message.success("密码修改成功，请重新登录");
       
