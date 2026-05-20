@@ -47,7 +47,7 @@
               record.status === "1" ? "启用" : "禁用"
             }}</a-tag>
           </template>
-          <template v-if="column.key === 'action' && String(record.roleId) !== ROLE.SUPER_ADMIN">
+          <template v-if="column.key === 'action' && String(record.id) !== ROLE.SUPER_ADMIN">
             <a-button
               type="primary"
               danger
@@ -95,7 +95,6 @@ const submitForm = ref<submitFormType>({
 });
 interface RoleType {
   id: number;
-  roleId?: number;
   name: string;
   status: string;
 }

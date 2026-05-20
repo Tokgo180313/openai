@@ -9,16 +9,22 @@ import {
   hasManageMenus,
   setupManageRoutes,
 } from "./dynamicRoutes";
+import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 
-export function initManageRoutesFromStore() {
+export async function initManageRoutesFromStore() {
   const authStore = useAuthStore();
-  if (authStore.getToken && authStore.getMenus?.length) {
-    setupManageRoutes(router, authStore.getMenus);
+  if (!authStore.getToken) {
+    return;
+  }
+  const menus = await resolveLoginMenus(authStore.getRoleId, authStore.getMenus);
+  authStore.setMenus(menus);
+  if (menus.length) {
+    setupManageRoutes(router, menus);
   }
 }
 
@@ -35,9 +41,13 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
     }
   }
 
-  if (to.matched.length === 0 && hasManageMenus(authStore.getMenus)) {
-    setupManageRoutes(router, authStore.getMenus);
-    return to.fullPath;
+  if (to.matched.length === 0 && authStore.getToken) {
+    const menus = await resolveLoginMenus(authStore.getRoleId, authStore.getMenus);
+    if (menus.length) {
+      authStore.setMenus(menus);
+      setupManageRoutes(router, menus);
+      return to.fullPath;
+    }
   }
 
   return true;

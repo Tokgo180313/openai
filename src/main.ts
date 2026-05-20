@@ -13,13 +13,14 @@ import "normalize.css"
 import App from './App.vue'
 import "ant-design-vue/dist/reset.css"
 import router, { initManageRoutesFromStore } from './router'
-const app = createApp(App)
-// 使用pinia
-app.use(pinia)
-initManageRoutesFromStore()
-// 路由
-app.use(router)
-// 安装指令
-app.use(clickOutsidePlugin)
-// createApp(App).mount('#app')
-app.mount("#app")
+
+async function bootstrap() {
+  const app = createApp(App)
+  app.use(pinia)
+  app.use(router)
+  app.use(clickOutsidePlugin)
+  await initManageRoutesFromStore()
+  app.mount("#app")
+}
+
+bootstrap()

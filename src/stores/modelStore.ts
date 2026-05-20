@@ -14,7 +14,7 @@ export const useModelStore = defineStore("model", {
   state: () => ({
     modelList: [] as ModelItem[],
     modelClassifyList: [] as string[],
-    roleList: [] as { name: string; roleId: string }[],
+    roleList: [] as { id: number; name: string }[],
     currentModel: null as string | null,
     currentModelClassify: null as string | null,
   }),
@@ -33,7 +33,7 @@ export const useModelStore = defineStore("model", {
     getRoleList() {
       return this.roleList.map((item) => ({
         label: item.name,
-        value: item.roleId,
+        value: String(item.id),
       }));
     },
     getCurrentModel(): string | null {
@@ -59,7 +59,7 @@ export const useModelStore = defineStore("model", {
     setCurrentModelClassify(modelClassify: string | null) {
       this.currentModelClassify = modelClassify;
     },
-    setRoleList(roleList: { name: string; roleId: string }[]) {
+    setRoleList(roleList: { id: number; name: string }[]) {
       this.roleList = roleList;
     },
     setModelClassifyList(modelClassifyList: string[]) {
@@ -68,9 +68,14 @@ export const useModelStore = defineStore("model", {
     fetchRoleList(param: Record<string, unknown>) {
       return getRoleListInterface(param).then((res) => {
         if (res.code === 201) {
-          let roleList = res.data.list || res.data || [];
+          let roleList = (res.data.list || res.data || []).map(
+            (item: { id: number | string; name: string }) => ({
+              id: Number(item.id),
+              name: item.name,
+            }),
+          );
           roleList = roleList.filter(
-            (item: { roleId: string }) => String(item.roleId) !== ROLE.SUPER_ADMIN,
+            (item) => String(item.id) !== ROLE.SUPER_ADMIN,
           );
           this.setRoleList(roleList);
           return roleList;

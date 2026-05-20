@@ -17,6 +17,7 @@ export interface MenuRow {
   type: number;
   sort: number;
   status: string;
+  roleIds?: number[];
   updatedAt?: string;
   children?: MenuRow[];
 }
@@ -34,6 +35,7 @@ export interface CreateMenuDto {
   type?: number;
   sort?: number;
   status?: string;
+  roleIds?: number[];
 }
 
 export interface UpdateMenuDto {
@@ -46,6 +48,7 @@ export interface UpdateMenuDto {
   type?: number;
   sort?: number;
   status?: string;
+  roleIds?: number[];
 }
 
 export interface ParentTreeOption {

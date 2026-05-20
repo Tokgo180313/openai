@@ -63,6 +63,7 @@ import {
   hasManageMenus,
   setupManageRoutes,
 } from "@/router/dynamicRoutes";
+import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
 
 const modelStore = useModelStore();
 const eventBus = useEventsBus();
@@ -72,12 +73,13 @@ const authStore = useAuthStore();
 
 const hasManageAccess = computed(() => hasManageMenus(authStore.getMenus));
 
-const goToConsole = () => {
-  const menus = authStore.getMenus;
+const goToConsole = async () => {
+  const menus = await resolveLoginMenus(authStore.getRoleId, authStore.getMenus);
   if (!hasManageMenus(menus)) {
     message.warning("暂无后台管理权限");
     return;
   }
+  authStore.setMenus(menus);
   setupManageRoutes(router, menus);
   const targetPath = getFirstMenuPath(menus);
   if (targetPath) {

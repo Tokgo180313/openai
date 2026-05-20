@@ -15,6 +15,7 @@ export const MENU_CODE_COMPONENT_MAP: Record<string, LazyComponent> = {
   "record.usage": () => import("@/views/usage/index.vue"),
   "record.history": () => import("@/views/history-record/index.vue"),
   "system.schedule": () => import("@/views/schedule/index.vue"),
+  "configuration.optimization": () => import("@/views/optimization/index.vue"),
 };
 
 /** 菜单 path -> 页面组件（兜底） */
@@ -29,6 +30,7 @@ export const MENU_PATH_COMPONENT_MAP: Record<string, LazyComponent> = {
   "/record/usage": () => import("@/views/usage/index.vue"),
   "/record/history": () => import("@/views/history-record/index.vue"),
   "/system/schedule": () => import("@/views/schedule/index.vue"),
+  "/configuration/optimization": () => import("@/views/optimization/index.vue"),
   // 兼容旧路径
   "/user": () => import("@/views/user/index.vue"),
   "/role": () => import("@/views/role/index.vue"),

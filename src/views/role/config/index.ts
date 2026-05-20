@@ -1,13 +1,8 @@
 const columns = [
     {
-        title:"ID",
+        title:"角色ID",
         dataIndex:"id",
         key:"id"
-    },
-    {
-        title:"角色ID",
-        dataIndex:"roleId",
-        key:"roleId"
     },
     {
         title:"角色名称",

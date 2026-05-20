@@ -65,6 +65,17 @@
           <a-select-option value="0">停用</a-select-option>
         </a-select>
       </a-form-item>
+      <a-form-item label="菜单权限" name="roleIds">
+        <a-select
+          v-model:value="formState.roleIds"
+          mode="multiple"
+          placeholder="请选择可访问该菜单的角色"
+          allow-clear
+          :options="roleOptions"
+          :loading="roleListLoading"
+          style="width: 100%"
+        />
+      </a-form-item>
     </a-form>
   </a-modal>
 </template>
@@ -74,9 +85,11 @@ import { computed, reactive, ref, watch } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
+import { useModelStore } from "@/stores/modelStore";
 import type { CreateMenuDto, MenuRow, ParentTreeOption, UpdateMenuDto } from "../types";
 
 const { addMenuInterface, updateMenuInterface } = api;
+const modelStore = useModelStore();
 
 const props = defineProps<{
   open: boolean;
@@ -93,7 +106,9 @@ const emit = defineEmits<{
 
 const formRef = ref<FormInstance>();
 const submitLoading = ref(false);
+const roleListLoading = ref(false);
 
+const roleOptions = computed(() => modelStore.getRoleList);
 const defaultFormState = () => ({
   parentId: undefined as number | undefined,
   code: "",
@@ -103,6 +118,7 @@ const defaultFormState = () => ({
   type: 1,
   sort: 0,
   status: "1",
+  roleIds: [] as string[],
 });
 
 const formState = reactive(defaultFormState());
@@ -137,12 +153,32 @@ const fillForm = (record?: MenuRow | null) => {
   formState.type = record.type ?? 1;
   formState.sort = record.sort ?? 0;
   formState.status = record.status ?? "1";
+  formState.roleIds = normalizeRoleIds(record.roleIds);
+};
+
+function normalizeRoleIds(
+  roleIds: (number | string)[] | null | undefined,
+): string[] {
+  if (!roleIds?.length) {
+    return [];
+  }
+  return roleIds.map((id) => String(id));
+}
+
+const loadRoleList = async () => {
+  roleListLoading.value = true;
+  try {
+    await modelStore.fetchRoleList({});
+  } finally {
+    roleListLoading.value = false;
+  }
 };
 
 watch(
   () => props.open,
-  (visible) => {
+  async (visible) => {
     if (visible) {
+      await loadRoleList();
       fillForm(props.isEditMode ? props.initialRecord : null);
     }
   },
@@ -162,6 +198,9 @@ const buildPayload = (): CreateMenuDto | UpdateMenuDto => {
     type: formState.type,
     sort: formState.sort,
     status: formState.status,
+    roleIds: formState.roleIds
+      .map((id) => Number(id))
+      .filter((id) => !Number.isNaN(id)),
   };
 
   if (props.isEditMode && props.initialRecord) {

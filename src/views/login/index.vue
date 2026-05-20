@@ -56,6 +56,7 @@ import {
   resetManageRoutes,
   setupManageRoutes,
 } from "@/router/dynamicRoutes";
+import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
 let { loginInterface } = api;
@@ -63,37 +64,40 @@ let submitForm = reactive<FormState>({
   account: "",
   password: "",
 });
-const onFinish = (values: any) => {
-  loginInterface(submitForm).then((res) => {
-    if (res.code == 200) {
-      const data = res.data as LoginResponseData;
-      message.success("登录成功");
-      userStore.setNickName(data.user.nickName);
-      userStore.setToken(data.access_token);
-      userStore.setAccount(data.user.account);
-      userStore.setRoleId(data.user.roleId);
-      userStore.setRoleIds(data.user.roleIds);
-      userStore.setMenus(data.menus);
-      const uid = data.user?.id;
-      if (uid != null && uid !== "") {
-        userStore.setUserId(String(uid));
-      }
-      modelStore.fetchModelList({ status: "1" });
-      modelStore.fetchModelClassifyList({});
-      resetManageRoutes(router);
-      const menus = data.menus ?? [];
-      if (menus.length) {
-        setupManageRoutes(router, menus);
-        modelStore.fetchRoleList({});
-        const firstPath = getFirstMenuPath(menus);
-        router.push(firstPath || "/chat");
-      } else {
-        router.push("/chat");
-      }
-    } else {
+const onFinish = async () => {
+  try {
+    const res = await loginInterface(submitForm);
+    if (res.code != 200) {
       message.error(res.message);
+      return;
     }
-  });
+    const data = res.data as LoginResponseData;
+    message.success("登录成功");
+    userStore.setNickName(data.user.nickName);
+    userStore.setToken(data.access_token);
+    userStore.setAccount(data.user.account);
+    userStore.setRoleId(data.user.roleId);
+    userStore.setRoleIds(data.user.roleIds);
+    const uid = data.user?.id;
+    if (uid != null && uid !== "") {
+      userStore.setUserId(String(uid));
+    }
+    const menus = await resolveLoginMenus(data.user.roleId, data.menus);
+    userStore.setMenus(menus);
+    modelStore.fetchModelList({ status: "1" });
+    modelStore.fetchModelClassifyList({});
+    resetManageRoutes(router);
+    if (menus.length) {
+      setupManageRoutes(router, menus);
+      modelStore.fetchRoleList({});
+      const firstPath = getFirstMenuPath(menus);
+      router.push(firstPath || "/chat");
+    } else {
+      router.push("/chat");
+    }
+  } catch {
+    message.error("登录失败，请稍后重试");
+  }
 };
 const onFinishFailed = (values: any) => {
   // message.error(values)
