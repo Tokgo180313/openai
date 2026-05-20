@@ -5,16 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Menu } from './entities/menu.entity';
 import {
   CreateMenuDto,
   MenuDto,
   MenuTreeNode,
+  MenuWithRoleIds,
   UpdateMenuDto,
 } from './dto/menu.dto';
 import { RbacService } from 'src/rbac/rbac.service';
 import { RoleMenu } from 'src/rbac/entities/role-menu.entity';
+import { RoleId } from 'src/rbac/constants/role.constants';
 
 @Injectable()
 export class MenuService {
@@ -38,6 +40,87 @@ export class MenuService {
       qb.andWhere('m.name LIKE :name', { name: `%${menuDto.name}%` });
     }
     return qb.getMany();
+  }
+
+  async findMenuList(
+    menuDto?: MenuDto,
+    userId?: string,
+  ): Promise<MenuWithRoleIds[]> {
+    const roleId = await this.resolveListRoleId(menuDto, userId);
+    const menus =
+      roleId === RoleId.SUPER_ADMIN
+        ? await this.findAllMenus(this.omitRoleId(menuDto))
+        : roleId != null
+          ? await this.findMenusByRoleId(roleId, menuDto)
+          : await this.findAllMenus(menuDto);
+    return this.attachRoleIds(menus);
+  }
+
+  private omitRoleId(menuDto?: MenuDto): MenuDto | undefined {
+    if (!menuDto) return menuDto;
+    const { roleId: _roleId, ...rest } = menuDto;
+    void _roleId;
+    return rest;
+  }
+
+  private async resolveListRoleId(
+    menuDto?: MenuDto,
+    userId?: string,
+  ): Promise<number | null> {
+    if (menuDto?.roleId != null) {
+      return menuDto.roleId;
+    }
+    if (userId) {
+      return this.rbacService.getPrimaryRoleId(userId);
+    }
+    return null;
+  }
+
+  private async findMenusByRoleId(
+    roleId: number,
+    menuDto?: MenuDto,
+  ): Promise<Menu[]> {
+    const roleMenus = await this.roleMenuRepo.find({
+      where: { roleId },
+      select: ['menuId'],
+    });
+    const menuIds = [...new Set(roleMenus.map((r) => r.menuId))];
+    if (menuIds.length === 0) {
+      return [];
+    }
+    const qb = this.menuRepo
+      .createQueryBuilder('m')
+      .where('m.id IN (:...menuIds)', { menuIds })
+      .orderBy('m.sort', 'ASC')
+      .addOrderBy('m.id', 'ASC');
+    if (menuDto?.status && menuDto.status !== '') {
+      qb.andWhere('m.status = :status', { status: menuDto.status });
+    }
+    if (menuDto?.name && menuDto.name !== '') {
+      qb.andWhere('m.name LIKE :name', { name: `%${menuDto.name}%` });
+    }
+    return qb.getMany();
+  }
+
+  private async attachRoleIds(menus: Menu[]): Promise<MenuWithRoleIds[]> {
+    if (menus.length === 0) {
+      return [];
+    }
+    const menuIds = menus.map((m) => m.id);
+    const roleMenus = await this.roleMenuRepo.find({
+      where: { menuId: In(menuIds) },
+      select: ['menuId', 'roleId'],
+    });
+    const roleIdsByMenu = new Map<number, number[]>();
+    for (const row of roleMenus) {
+      const list = roleIdsByMenu.get(row.menuId) ?? [];
+      list.push(row.roleId);
+      roleIdsByMenu.set(row.menuId, list);
+    }
+    return menus.map((m) => ({
+      ...m,
+      roleIds: roleIdsByMenu.get(m.id) ?? [],
+    }));
   }
 
   async findMenuTree(): Promise<MenuTreeNode[]> {
@@ -75,7 +158,10 @@ export class MenuService {
       sort: dto.sort ?? 0,
       status: dto.status ?? '1',
     });
-    return this.menuRepo.save(entity);
+    const saved = await this.menuRepo.save(entity);
+    const roleIds = await this.resolveRoleIdsForNewMenu(dto, parentId);
+    await this.rbacService.grantMenuToRoles(saved.id, roleIds);
+    return saved;
   }
 
   async updateMenu(dto: UpdateMenuDto): Promise<Menu> {
@@ -116,7 +202,11 @@ export class MenuService {
     if (dto.type !== undefined) menu.type = dto.type;
     if (dto.sort !== undefined) menu.sort = dto.sort;
     if (dto.status !== undefined) menu.status = dto.status;
-    return this.menuRepo.save(menu);
+    const saved = await this.menuRepo.save(menu);
+    if (dto.roleIds !== undefined) {
+      await this.rbacService.setMenuRoles(saved.id, dto.roleIds);
+    }
+    return saved;
   }
 
   async deleteMenu(id: number): Promise<void> {
@@ -130,6 +220,24 @@ export class MenuService {
     }
     await this.roleMenuRepo.delete({ menuId: id });
     await this.menuRepo.delete(id);
+  }
+
+  /** 新建菜单默认授权：显式 roleIds > 继承父菜单角色 > 仅超管 */
+  private async resolveRoleIdsForNewMenu(
+    dto: CreateMenuDto,
+    parentId: number | null,
+  ): Promise<number[]> {
+    if (dto.roleIds != null && dto.roleIds.length > 0) {
+      return [...new Set(dto.roleIds)];
+    }
+    const roleIds = new Set<number>([RoleId.SUPER_ADMIN]);
+    if (parentId != null) {
+      const inherited = await this.rbacService.getRoleIdsByMenuId(parentId);
+      for (const id of inherited) {
+        roleIds.add(id);
+      }
+    }
+    return [...roleIds];
   }
 
   private async resolveParentId(

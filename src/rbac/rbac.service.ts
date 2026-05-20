@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { UserRole } from './entities/user-role.entity';
@@ -90,6 +90,54 @@ export class RbacService {
   async getRoleMenuIds(roleId: number): Promise<number[]> {
     const rows = await this.roleMenuRepo.find({ where: { roleId } });
     return rows.map((r) => r.menuId);
+  }
+
+  /** 为多个角色授予单个菜单（增量，不覆盖角色其它菜单） */
+  async grantMenuToRoles(menuId: number, roleIds: number[]): Promise<void> {
+    const unique = [...new Set(roleIds.filter((id) => Number.isInteger(id) && id > 0))];
+    if (unique.length === 0) return;
+
+    const roles = await this.roleRepo.find({ where: { id: In(unique) } });
+    if (roles.length !== unique.length) {
+      throw new BadRequestException('存在无效的角色 id');
+    }
+
+    const existing = await this.roleMenuRepo.find({
+      where: { menuId, roleId: In(unique) },
+      select: ['roleId'],
+    });
+    const hasRole = new Set(existing.map((r) => r.roleId));
+    const toInsert = unique
+      .filter((roleId) => !hasRole.has(roleId))
+      .map((roleId) => this.roleMenuRepo.create({ roleId, menuId }));
+    if (toInsert.length > 0) {
+      await this.roleMenuRepo.save(toInsert);
+    }
+  }
+
+  /** 覆盖设置某菜单的角色授权（先删后增） */
+  async setMenuRoles(menuId: number, roleIds: number[]): Promise<void> {
+    const unique = [...new Set(roleIds.filter((id) => Number.isInteger(id) && id > 0))];
+    if (unique.length > 0) {
+      const roles = await this.roleRepo.find({ where: { id: In(unique) } });
+      if (roles.length !== unique.length) {
+        throw new BadRequestException('存在无效的角色 id');
+      }
+    }
+    await this.roleMenuRepo.delete({ menuId });
+    if (unique.length === 0) return;
+    await this.roleMenuRepo.save(
+      unique.map((roleId) => this.roleMenuRepo.create({ roleId, menuId })),
+    );
+  }
+
+  /** 查询已拥有某菜单权限的角色 id */
+  async getRoleIdsByMenuId(menuId: number): Promise<number[]> {
+    const rows = await this.roleMenuRepo.find({
+      where: { menuId },
+      select: ['roleId'],
+    });
+    return rows.map((r) => r.roleId);
   }
 
   async getUserMenuTree(userId: string): Promise<MenuTreeNode[]> {

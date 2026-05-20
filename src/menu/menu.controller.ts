@@ -39,8 +39,11 @@ export class MenuController {
   }
 
   @Post('/findMenuList')
-  async findMenuList(@Body() menuDto: MenuDto) {
-    return this.menuService.findAllMenus(menuDto);
+  async findMenuList(
+    @Body() menuDto: MenuDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.menuService.findMenuList(menuDto, userId);
   }
 
   @Put('/add')

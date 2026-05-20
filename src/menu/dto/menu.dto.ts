@@ -31,6 +31,11 @@ export class MenuDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /** 按角色筛选菜单；角色 1（超管）返回全部菜单 */
+  @IsOptional()
+  @IsInt()
+  roleId?: number;
 }
 
 /** 新增菜单 */
@@ -67,6 +72,12 @@ export class CreateMenuDto {
   @IsOptional()
   @IsIn(['0', '1'])
   status?: string;
+
+  /** 可访问该菜单的角色 id 列表（roles.id） */
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  roleIds?: number[];
 }
 
 /** 编辑菜单 */
@@ -105,6 +116,12 @@ export class UpdateMenuDto {
   @IsOptional()
   @IsIn(['0', '1'])
   status?: string;
+
+  /** 可访问该菜单的角色 id 列表；传入则覆盖原授权 */
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  roleIds?: number[];
 }
 
 export class AssignRoleMenusDto {
@@ -127,3 +144,19 @@ export interface MenuTreeNode {
   sort: number;
   children: MenuTreeNode[];
 }
+
+/** 菜单列表项（含角色授权 roles.id） */
+export type MenuWithRoleIds = {
+  id: number;
+  parentId: number | null;
+  code: string;
+  name: string;
+  path: string | null;
+  icon: string | null;
+  type: number;
+  sort: number;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  roleIds: number[];
+};
