@@ -1,10 +1,10 @@
 <template>
-  <div class="key-container">
+  <div class="provider-container">
     <div class="header">
       <a-form layout="inline" :model="searchForm">
-        <a-form-item label="模型分类">
+        <a-form-item label="服务商">
           <a-input
-            v-model:value="searchForm.modelClassify"
+            v-model:value="searchForm.provider"
             placeholder="可选"
             allowClear
           />
@@ -33,7 +33,7 @@
 
     <div class="content">
       <a-table
-        :data-source="keyList"
+        :data-source="providerList"
         :columns="columnsList"
         :pagination="true"
         :pageSize="10"
@@ -51,7 +51,7 @@
             <a @click="handleEdit(record)">编辑</a>
             <span class="divider">|</span>
             <a-popconfirm
-              title="确认删除该Key吗？"
+              title="确认删除该服务商吗？"
               ok-text="确认"
               cancel-text="取消"
               @confirm="handleDelete(record)"
@@ -73,11 +73,11 @@
 
     </div>
 
-    <add-key-dialog
+    <add-provider-dialog
       :visible="showAddVisible"
       @close="handleAddClose"
     />
-    <update-key-dialog
+    <update-provider-dialog
       :visible="showUpdateVisible"
       :row="editRow"
       @close="handleUpdateClose"
@@ -89,45 +89,45 @@
 import { onMounted, reactive, ref } from "vue";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
-import AddKeyDialog from "./components/AddKeyDialog.vue";
-import UpdateKeyDialog from "./components/UpdateKeyDialog.vue";
+import AddProviderDialog from "./components/AddProviderDialog.vue";
+import UpdateProviderDialog from "./components/UpdateProviderDialog.vue";
 
 let {
-  findKeyListInterface,
+  findProviderListInterface,
   findByIdInterface,
   deleteByIdInterface,
-  findOpenaiModelListInterface,
+  syncOpenAIModelsInterface,
 } = api;
 
-interface KeyType {
+interface ProviderType {
   id: string;
-  modelClassify: string;
+  provider: string;
   baseURL: string;
   updateAt?: string;
 }
 
 const searchForm = reactive<{
-  modelClassify?: string;
+  provider?: string;
   baseURL?: string;
 }>({
-  modelClassify: "",
+  provider: "",
   baseURL: "",
 });
 
-const keyList = ref<KeyType[]>([]);
+const providerList = ref<ProviderType[]>([]);
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
 });
-onMounted(()=>{
-  fetchKeyList();
+onMounted(() => {
+  fetchProviderList();
 });
 const columnsList = ref([
   {
-    title: "模型分类",
-    dataIndex: "modelClassify",
-    key: "modelClassify",
+    title: "服务商",
+    dataIndex: "provider",
+    key: "provider",
     ellipsis: true,
   },
   {
@@ -148,36 +148,36 @@ const columnsList = ref([
   },
 ]);
 
-const fetchKeyList = async () => {
+const fetchProviderList = async () => {
   const dto = {
-    modelClassify: searchForm.modelClassify || undefined,
+    provider: searchForm.provider || undefined,
     baseURL: searchForm.baseURL || undefined,
   };
-  const res = await findKeyListInterface(dto);
+  const res = await findProviderListInterface(dto);
   if (res?.code === 200 || res?.code === 201) {
-    keyList.value = res?.data?.list || res?.data || [];
+    providerList.value = res?.data?.list || res?.data || [];
   } else {
-    keyList.value = [];
-    message.error(res?.message || "获取Key列表失败");
+    providerList.value = [];
+    message.error(res?.message || "获取服务商列表失败");
   }
 };
 
 const handleSearch = () => {
-  fetchKeyList();
+  fetchProviderList();
 };
 
 const showAddVisible = ref(false);
 const handleAddClose = () => {
   showAddVisible.value = false;
-  fetchKeyList();
+  fetchProviderList();
 };
 
 const showUpdateVisible = ref(false);
-const editRow = ref<KeyType | null>(null);
+const editRow = ref<ProviderType | null>(null);
 
-const handleEdit = async (record: KeyType) => {
+const handleEdit = async (record: ProviderType) => {
   if (!record?.id) {
-    message.error("缺少该Key的 id");
+    message.error("缺少该服务商的 id");
     return;
   }
 
@@ -186,23 +186,23 @@ const handleEdit = async (record: KeyType) => {
     editRow.value = res?.data || record;
     showUpdateVisible.value = true;
   } else {
-    message.error(res?.message || "获取Key详情失败");
+    message.error(res?.message || "获取服务商详情失败");
   }
 };
 
 const handleUpdateClose = () => {
   showUpdateVisible.value = false;
   editRow.value = null;
-  fetchKeyList();
+  fetchProviderList();
 };
 
-const handleDelete = (record: KeyType) => {
+const handleDelete = (record: ProviderType) => {
   if (!record?.id) return;
   deleteByIdInterface({ id: record.id })
     .then((res: any) => {
       if (res?.code === 200 || res?.code === 201) {
         message.success(res?.message || "删除成功");
-        fetchKeyList();
+        fetchProviderList();
       } else {
         message.error(res?.message || "删除失败");
       }
@@ -213,8 +213,10 @@ const handleDelete = (record: KeyType) => {
     });
 };
 
-const handleUpdateModel = async (record: KeyType) => {  
-  const res = await findOpenaiModelListInterface({ modelClassify: record.modelClassify });
+const handleUpdateModel = async (record: ProviderType) => {
+  const res = await syncOpenAIModelsInterface({
+    provider: record.provider,
+  });
   if (res?.code === 200 || res?.code === 201) {
     message.success(res?.message || "更新模型成功");
   } else {
@@ -223,12 +225,12 @@ const handleUpdateModel = async (record: KeyType) => {
 };
 const handleChangePage = (page: number) => {
   pagination.current = page;
-  fetchKeyList();
+  fetchProviderList();
 };
 const handleChangePageSize = (pageSize: number) => {
   pagination.pageSize = pageSize;
   pagination.current = 1;
-  fetchKeyList();
+  fetchProviderList();
 };
 const showTotal = (total: number) => {
   return `共 ${total} 条`;
@@ -236,7 +238,7 @@ const showTotal = (total: number) => {
 </script>
 
 <style scoped lang="scss">
-.key-container {
+.provider-container {
   padding: 20px;
 }
 
@@ -254,4 +256,3 @@ const showTotal = (total: number) => {
   color: #999;
 }
 </style>
-

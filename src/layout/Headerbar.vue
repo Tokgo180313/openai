@@ -10,8 +10,8 @@
         <a-select-option
           v-for="item in modelList"
           :key="item.id"
-          :title="item.modelName"
-          :value="item.modelName"
+          :title="item.apiModelName"
+          :value="item.apiModelName"
         >
         </a-select-option>
       </a-select>
@@ -97,9 +97,9 @@ const handleQuestionTypeChange = function () {
   useRequestStore().updateQuestionTye(questionType.value);
   modelStore.setCurrentModel(questionType.value);
   const model = modelList.value.find(
-    (item) => item.modelName === questionType.value,
+    (item) => item.apiModelName === questionType.value,
   );
-  modelStore.setCurrentModelClassify(model?.modelClassify ?? null);
+  modelStore.setCurrentModelClassify(model?.provider ?? null);
 };
 const removeChatTitleId = ref(null);
 const showRemoveEvent = function () {

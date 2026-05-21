@@ -567,7 +567,7 @@ const syncFormWhenOpened = () => {
 
 watch(open, (visible) => {
   if (visible) {
-    void modelStore.fetchModelClassifyList({});
+    void modelStore.fetchModelClassifyList();
     void modelStore.fetchModelList(
       { page: 1, pageSize: 500 },
       { preserveCurrentModel: true },

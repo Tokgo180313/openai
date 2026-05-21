@@ -143,7 +143,7 @@ const statusFilterOptions = [
 ];
 
 interface ModelStoreRow {
-  modelName?: string;
+  apiModelName?: string;
   modelType?: string;
 }
 
@@ -152,7 +152,7 @@ const modelNameOptions = computed(() => {
   const names = [
     ...new Set(
       rows
-        .map((r) => r.modelName)
+        .map((r) => r.apiModelName)
         .filter((n): n is string => n != null && String(n).trim().length > 0)
         .map((n) => String(n).trim()),
     ),

@@ -141,10 +141,10 @@ const filterProviderSearchOption = (input: string, option: { label?: string; val
   return text.toLowerCase().includes(input.trim().toLowerCase());
 };
 
-/** 与模型管理一致：服务商对应 model 表的 modelClassify */
+/** 与 AI 模型管理一致：服务商对应 ai_models.provider */
 interface ModelStoreRow {
-  modelName?: string;
-  modelClassify?: string;
+  apiModelName?: string;
+  provider?: string;
   modelType?: string;
 }
 
@@ -152,12 +152,12 @@ const modelNameSearchOptions = computed(() => {
   const rows = (modelStore.modelList ?? []) as ModelStoreRow[];
   const provider = searchForm.provider?.trim();
   const scoped = provider
-    ? rows.filter((row) => row.modelClassify === provider)
+    ? rows.filter((row) => row.provider === provider)
     : rows;
   const names = [
     ...new Set(
       scoped
-        .map((row) => row.modelName)
+        .map((row) => row.apiModelName)
         .filter((n): n is string => n != null && String(n).trim().length > 0)
         .map((n) => String(n).trim()),
     ),
@@ -179,8 +179,8 @@ watch(
     const rows = (modelStore.modelList ?? []) as ModelStoreRow[];
     const allowed = new Set(
       rows
-        .filter((row) => row.modelClassify === provider)
-        .map((row) => row.modelName)
+        .filter((row) => row.provider === provider)
+        .map((row) => row.apiModelName)
         .filter((n) => n != null && String(n).trim().length > 0)
         .map((n) => String(n).trim()),
     );
@@ -314,7 +314,7 @@ const handlePageChange = (page: number, pageSize: number) => {
 };
 
 onMounted(() => {
-  void modelStore.fetchModelClassifyList({});
+  void modelStore.fetchModelClassifyList();
   void modelStore.fetchModelList({ page: 1, pageSize: 500 }, { preserveCurrentModel: true });
   fetchList();
 });

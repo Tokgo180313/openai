@@ -1,30 +1,33 @@
 import { defineStore } from "pinia";
 import api from "@/api/apiList";
-import type { ModelItem } from "@/types/model.type";
-import { isEnabledChatModel } from "@/types/model.type";
+import type { AiModelItem } from "@/types/ai-model.type";
+import { isEnabledChatModel } from "@/types/ai-model.type";
 import { ROLE } from "@/constants/role";
 
-let {
-  findModelListInterface,
-  findModelClassifyListInterface,
+const {
+  findAiModelListInterface,
+  findAiModelProviderListInterface,
   getRoleListInterface,
 } = api;
 
 export const useModelStore = defineStore("model", {
   state: () => ({
-    modelList: [] as ModelItem[],
+    modelList: [] as AiModelItem[],
+    /** 服务商列表（原 modelClassifyList） */
     modelClassifyList: [] as string[],
     roleList: [] as { id: number; name: string }[],
+    /** 当前选中的 API 模型名 */
     currentModel: null as string | null,
+    /** 当前选中的服务商 */
     currentModelClassify: null as string | null,
   }),
   persist: true,
   getters: {
     getModelList(): string[] {
-      return this.modelList.map((item) => item.modelName);
+      return this.modelList.map((item) => item.apiModelName);
     },
-    /** 启用且 modelType 为 chat 的模型（完整列表项） */
-    getChatModelList(): ModelItem[] {
+    /** 启用且 modelType 为 text 的模型 */
+    getChatModelList(): AiModelItem[] {
       return this.modelList.filter(isEnabledChatModel);
     },
     getModelClassifyList(): string[] {
@@ -44,26 +47,26 @@ export const useModelStore = defineStore("model", {
     },
   },
   actions: {
-    setModelList(modelList: ModelItem[]) {
+    setModelList(modelList: AiModelItem[]) {
       const defaultModel =
         modelList.find(isEnabledChatModel) ?? modelList[0];
-      if (defaultModel?.modelName) {
-        this.setCurrentModel(defaultModel.modelName);
-        this.setCurrentModelClassify(defaultModel.modelClassify ?? null);
+      if (defaultModel?.apiModelName) {
+        this.setCurrentModel(defaultModel.apiModelName);
+        this.setCurrentModelClassify(defaultModel.provider ?? null);
       }
       this.modelList = modelList;
     },
     setCurrentModel(model: string | null) {
       this.currentModel = model;
     },
-    setCurrentModelClassify(modelClassify: string | null) {
-      this.currentModelClassify = modelClassify;
+    setCurrentModelClassify(provider: string | null) {
+      this.currentModelClassify = provider;
     },
     setRoleList(roleList: { id: number; name: string }[]) {
       this.roleList = roleList;
     },
-    setModelClassifyList(modelClassifyList: string[]) {
-      this.modelClassifyList = modelClassifyList;
+    setModelClassifyList(providerList: string[]) {
+      this.modelClassifyList = providerList;
     },
     fetchRoleList(param: Record<string, unknown>) {
       return getRoleListInterface(param).then((res) => {
@@ -86,16 +89,16 @@ export const useModelStore = defineStore("model", {
       });
     },
     /**
-     * @param options.preserveCurrentModel 为 true 时只更新 modelList，不修改 currentModel（供管理类下拉开列表等场景）
+     * @param options.preserveCurrentModel 为 true 时只更新 modelList，不修改 currentModel
      */
     fetchModelList(
       param: Record<string, unknown>,
       options?: { preserveCurrentModel?: boolean },
     ) {
-      return findModelListInterface(param)
+      return findAiModelListInterface(param)
         .then((res) => {
-          if (res.code === 201) {
-            const list: ModelItem[] = res.data.list || res.data || [];
+          if (res.code === 200 || res.code === 201) {
+            const list: AiModelItem[] = res.data.list || res.data || [];
             if (options?.preserveCurrentModel) {
               this.modelList = list;
             } else {
@@ -120,10 +123,10 @@ export const useModelStore = defineStore("model", {
           return [];
         });
     },
-    fetchModelClassifyList(param?: Record<string, unknown>) {
-      return findModelClassifyListInterface(param)
+    fetchModelClassifyList() {
+      return findAiModelProviderListInterface()
         .then((res) => {
-          if (res.code === 200) {
+          if (res.code === 200 || res.code === 201) {
             this.setModelClassifyList(res.data.list || res.data || []);
             return res.data.list || res.data || [];
           } else {

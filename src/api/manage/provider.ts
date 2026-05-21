@@ -1,26 +1,26 @@
 import request from "../reuquest";
 
-export interface KeyDto {
-  modelClassify: string;
+export interface ProviderDto {
+  provider: string;
   baseURL: string;
   apiKey: string;
 }
 
-export interface KeyQueryDto extends Partial<KeyDto> {}
+export interface ProviderQueryDto extends Partial<ProviderDto> {}
 
-export interface KeyUpdateDto extends Partial<KeyDto> {}
+export interface ProviderUpdateDto extends Partial<ProviderDto> {}
 
-const addKeyInterface = function (param: KeyDto) {
+const addProviderInterface = function (param: ProviderDto) {
   return request({
-    url: "/key/add",
+    url: "/provider/add",
     method: "put",
     data: param,
   });
 };
 
-const findKeyListInterface = function (param: KeyQueryDto) {
+const findProviderListInterface = function (param: ProviderQueryDto) {
   return request({
-    url: "/key/findKeyList",
+    url: "/provider/findProviderList",
     method: "post",
     data: param,
   });
@@ -28,7 +28,7 @@ const findKeyListInterface = function (param: KeyQueryDto) {
 
 const findByIdInterface = function (param: { id: string }) {
   return request({
-    url: "/key/findById",
+    url: "/provider/findById",
     method: "get",
     params: param,
   });
@@ -36,15 +36,18 @@ const findByIdInterface = function (param: { id: string }) {
 
 const deleteByIdInterface = function (param: { id: string }) {
   return request({
-    url: "/key/deleteById",
+    url: "/provider/deleteById",
     method: "delete",
     params: param,
   });
 };
 
-const updateByIdInterface = function (param: { id: string; dto: KeyUpdateDto }) {
+const updateByIdInterface = function (param: {
+  id: string;
+  dto: ProviderUpdateDto;
+}) {
   return request({
-    url: "/key/updateById",
+    url: "/provider/updateById",
     method: "put",
     params: { id: param.id },
     data: param.dto,
@@ -52,10 +55,9 @@ const updateByIdInterface = function (param: { id: string; dto: KeyUpdateDto }) 
 };
 
 export default {
-  addKeyInterface,
-  findKeyListInterface,
+  addProviderInterface,
+  findProviderListInterface,
   findByIdInterface,
   deleteByIdInterface,
   updateByIdInterface,
 };
-
