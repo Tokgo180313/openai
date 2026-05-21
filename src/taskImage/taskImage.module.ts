@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from 'src/auth/auth.module';
 import { FileModule } from 'src/file/file.module';
 import { UsageModule } from 'src/usage/usage.module';
-import { KeyModule } from 'src/key/key.module';
+import { ProviderModule } from 'src/provider/provider.module';
 import { UserModule } from 'src/user/user.module';
 import {
   TaskImage,
@@ -25,7 +25,7 @@ import { TaskImageService } from './taskImage.service';
     AuthModule,
     FileModule,
     UsageModule,
-    KeyModule,
+    ProviderModule,
     UserModule,
     AdapterModule,
     AiModelConfigModule,

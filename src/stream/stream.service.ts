@@ -8,7 +8,7 @@ import { toFile } from 'openai/uploads';
 import { ConfigService } from '@nestjs/config';
 import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import { EncryptionService } from 'src/common/utils/encryption.service';
-import { KeyService } from 'src/key/key.service';
+import { ProviderService } from 'src/provider/provider.service';
 import { StreamMessageDto } from './dto/stream.dto';
 import {
   normalizeOpenAIBaseURL,
@@ -71,7 +71,7 @@ export class StreamService {
   constructor(
     @InjectConnection() private readonly connection: Connection,
     private configService: ConfigService,
-    private readonly keyService: KeyService,
+    private readonly providerService: ProviderService,
     private readonly encryptionService: EncryptionService,
     private readonly chatService: ChatService,
   ) {}
@@ -114,21 +114,21 @@ export class StreamService {
     if (!documentId) {
       throw new BadRequestException('documentId is required');
     }
-    const modelClassify = String(dto?.modelClassify ?? '').trim();
-    if (!modelClassify) {
-      throw new BadRequestException('modelClassify is required');
+    const provider = String(dto?.provider ?? dto?.modelClassify ?? '').trim();
+    if (!provider) {
+      throw new BadRequestException('provider is required');
     }
 
-    const keyDoc = await this.keyService.findKeyByModelClassify(modelClassify);
+    const keyDoc = await this.providerService.findByProvider(provider);
     if (!keyDoc?.apiKey) {
       throw new NotFoundException(
-        `no api key configured for modelClassify: ${modelClassify}`,
+        `no api key configured for provider: ${provider}`,
       );
     }
     const rawBase = String(keyDoc.baseURL ?? '').trim();
     if (!rawBase) {
       throw new NotFoundException(
-        `no baseURL configured for modelClassify: ${modelClassify}`,
+        `no baseURL configured for provider: ${provider}`,
       );
     }
 

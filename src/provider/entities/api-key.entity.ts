@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('api_keys')
+@Entity('ai_providers')
 export class ApiKey {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,7 +17,7 @@ export class ApiKey {
 
   /** 小写归一化存储，查询时不区分大小写 */
   @Column({ length: 255 })
-  modelClassify: string;
+  provider: string;
 
   @Column({ length: 2048, nullable: true })
   baseURL: string;

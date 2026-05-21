@@ -12,40 +12,38 @@ import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { OperationLogService } from 'src/common/operation-log/operation-log.service';
-import { KeyService } from './key.service';
-import { KeyDto, KeyQueryDto, KeyUpdateDto } from './dto/key.dto';
+import { ProviderService } from './provider.service';
+import { ProviderDto, ProviderQueryDto, ProviderUpdateDto } from './dto/provider.dto';
 
-@ApiTags('key')
-@Controller('/key')
+@ApiTags('provider')
+@Controller('/provider')
 @UseGuards(JwtAuthGuard)
-export class KeyController {
+export class ProviderController {
   constructor(
-    private readonly keyService: KeyService,
+    private readonly providerService: ProviderService,
     private readonly operationLog: OperationLogService,
   ) {}
 
   @Put('/add')
-  async addKey(@Body() dto: KeyDto, @CurrentUser('id') operatorId: string) {
-    const row = await this.keyService.createKey(dto);
+  async add(@Body() dto: ProviderDto, @CurrentUser('id') operatorId: string) {
+    const row = await this.providerService.create(dto);
     await this.operationLog.append(operatorId, 'API密钥添加', String(row.id));
     return row;
   }
 
-  @Post('/findKeyList')
-  async findKeyList(@Body() dto: KeyQueryDto) {
-    return await this.keyService.findKeyList(dto);
+  @Post('/findProviderList')
+  async findProviderList(@Body() dto: ProviderQueryDto) {
+    return await this.providerService.findProviderList(dto);
   }
 
   @Get('/findById')
   async findById(@Query('id') id: string) {
-    return await this.keyService.findKeyById(id);
+    return await this.providerService.findById(id);
   }
 
-  @Get('/findKeyByModelClassify')
-  async findKeyByModelClassify(
-    @Query('modelClassify') modelClassify: string,
-  ) {
-    return await this.keyService.findKeyByModelClassify(modelClassify);
+  @Get('/findByProvider')
+  async findByProvider(@Query('provider') provider: string) {
+    return await this.providerService.findByProvider(provider);
   }
 
   @Delete('/deleteById')
@@ -53,17 +51,17 @@ export class KeyController {
     @Query('id') id: string,
     @CurrentUser('id') operatorId: string,
   ) {
-    await this.keyService.deleteKeyById(id);
+    await this.providerService.deleteById(id);
     await this.operationLog.append(operatorId, 'API密钥删除', id);
   }
 
   @Put('/updateById')
   async updateById(
     @Query('id') id: string,
-    @Body() dto: KeyUpdateDto,
+    @Body() dto: ProviderUpdateDto,
     @CurrentUser('id') operatorId: string,
   ) {
-    const row = await this.keyService.updateKeyById(id, dto);
+    const row = await this.providerService.updateById(id, dto);
     await this.operationLog.append(operatorId, 'API密钥修改', id);
     return row;
   }

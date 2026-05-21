@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { FileService } from 'src/file/file.service';
 import { UsageService } from 'src/usage/usage.service';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
-import { KeyService } from 'src/key/key.service';
+import { ProviderService } from 'src/provider/provider.service';
 import { EncryptionService } from 'src/common/utils/encryption.service';
 import { UserService } from 'src/user/user.service';
 import { RoleId } from 'src/rbac/constants/role.constants';
@@ -56,7 +56,7 @@ export class TaskImageService {
     private readonly taskImageModel: Model<TaskImageDocument>,
     private readonly fileService: FileService,
     private readonly usageService: UsageService,
-    private readonly keyService: KeyService,
+    private readonly providerService: ProviderService,
     private readonly encryptionService: EncryptionService,
     private readonly userService: UserService,
     private readonly requestParamAdapter: RequestParamAdapterService,
@@ -294,13 +294,10 @@ export class TaskImageService {
       );
     }
 
-    const keyClassify = String(
-      dto.modelClassify ?? serviceProduct,
-    ).trim();
-    const keyDoc = await this.keyService.findKeyByModelClassify(keyClassify);
+    const keyDoc = await this.providerService.findByProvider(serviceProduct);
     if (!keyDoc?.apiKey) {
       throw new NotFoundException(
-        `no api key configured for provider: ${keyClassify}`,
+        `no api key configured for provider: ${serviceProduct}`,
       );
     }
 
@@ -311,7 +308,9 @@ export class TaskImageService {
       throw new BadRequestException('failed to decrypt stored apiKey');
     }
 
-    const modelClassify = String(keyDoc.modelClassify ?? keyClassify).trim();
+    const modelClassify = String(
+      dto.modelClassify ?? keyDoc.provider ?? serviceProduct,
+    ).trim();
     const { imageItems, responseModel, usage } = await this.invokeImageModel(
       adapted,
       {

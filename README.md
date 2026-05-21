@@ -105,8 +105,8 @@ src/
   auth/        # 认证与 JWT
   chat/        # 非流式聊天、标题与消息管理
   stream/      # SSE 流式生成与中止
-  key/         # API Key 管理（加密存储）
-  models/      # 模型配置与同步
+  provider/    # API Key / 服务商配置（加密存储）
+  ai-models/   # AI 模型目录（provider / model_code / api_model_name）
   user/        # 用户管理
   usage/       # 用量统计
   record/      # 操作记录
@@ -127,8 +127,8 @@ src/
 - `auth`：`/auth/login`、`/auth/register`、`/auth/validate`
 - `chat`：`/chat/chatgpt`、`/chat/gemini`、`/chat/titleList`、`/chat/chatList/:id`
 - `stream`：`/stream/generateContentStream`、`/stream/stopStream`
-- `key`：`/key/add`、`/key/findKeyList`、`/key/findKeyByModelClassify`
-- `model`：`/model/findModellist`、`/model/openaiModelList`
+- `provider`：`/provider/add`、`/provider/findList`、`/provider/findByProvider`
+- `ai-model`：`/ai-model/findAiModelList`、`/ai-model/syncOpenAIModels`
 - `user`：`/user/findAll`、`/user/updateUser`、`/user/resetById`
 - `usage`：`/usage/findUsageList`
 - `record`：`/record/findRecordList`

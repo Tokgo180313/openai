@@ -14,12 +14,12 @@ import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { FileModule } from './file/file.module';
 import { StreamModule } from './stream/stream.module';
-import { ModelsModule } from './models/models.module';
+import { AiModelsModule } from './ai-models/ai-models.module';
 import { RecordModule } from './record/record.module';
 import { RoleModule } from './role/role.module';
 import { CommonModule } from './common/common.module';
 import { UsageModule } from './usage/usage.module';
-import { KeyModule } from './key/key.module';
+import { ProviderModule } from './provider/provider.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { TaskImageModule } from './taskImage/taskImage.module';
 import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
@@ -53,12 +53,12 @@ import { OptimizationModule } from './optimization/optimization.module';
     FileModule,
     AuthModule,
     StreamModule,
-    ModelsModule,
+    AiModelsModule,
     RecordModule,
     RoleModule,
     CommonModule,
     UsageModule,
-    KeyModule,
+    ProviderModule,
     ScheduleModule,
     TaskImageModule,
     AiModelConfigModule,

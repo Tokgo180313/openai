@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OperationLogModule } from 'src/common/operation-log/operation-log.module';
-import { KeyController } from './key.controller';
-import { KeyService } from './key.service';
+import { ProviderController } from './provider.controller';
+import { ProviderService } from './provider.service';
 import { ApiKey } from './entities/api-key.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ApiKey]), OperationLogModule],
-  controllers: [KeyController],
-  providers: [KeyService],
-  exports: [KeyService],
+  controllers: [ProviderController],
+  providers: [ProviderService],
+  exports: [ProviderService],
 })
-export class KeyModule {}
-
+export class ProviderModule {}
