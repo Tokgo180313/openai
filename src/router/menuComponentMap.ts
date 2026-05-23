@@ -18,6 +18,7 @@ export const MENU_CODE_COMPONENT_MAP: Record<string, LazyComponent> = {
   "system.schedule": () => import("@/views/schedule/index.vue"),
   "configuration.optimization": () => import("@/views/optimization/index.vue"),
   "parameter.white-list": () => import("@/views/white-list/index.vue"),
+  "uploads.file": () => import("@/views/uploads/index.vue"),
 };
 
 /** 菜单 path -> 页面组件（兜底） */
@@ -35,6 +36,7 @@ export const MENU_PATH_COMPONENT_MAP: Record<string, LazyComponent> = {
   "/system/schedule": () => import("@/views/schedule/index.vue"),
   "/configuration/optimization": () => import("@/views/optimization/index.vue"),
   "/paramter/white-list": () => import("@/views/white-list/index.vue"),
+  "/uploads/file":()=>import ("@/views/uploads/index.vue"),
   // 兼容旧路径
   "/user": () => import("@/views/user/index.vue"),
   "/role": () => import("@/views/role/index.vue"),

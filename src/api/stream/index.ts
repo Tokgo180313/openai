@@ -1,8 +1,9 @@
 import request from "../reuquest";
+import type { SendChatDto } from "@/types/send-chat.type";
 
-const generateContentStreamInterface = function (param) {
+const generateContentStreamInterface = function (param: SendChatDto) {
   return request({
-    url: "/stream/generateContentStream",
+    url: "/ai/stream",
     method: "post",
     data: param,
   });

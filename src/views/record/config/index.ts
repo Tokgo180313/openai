@@ -1,7 +1,7 @@
 import { useModelStore } from "@/stores/modelStore";
 
 const modelStore = useModelStore();
-const roleList = modelStore.getRoleList;
+const roleList = modelStore.roleOptions;
 const columns = [
   {
     title: "用户昵称",

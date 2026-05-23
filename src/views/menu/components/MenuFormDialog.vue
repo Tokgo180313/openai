@@ -108,7 +108,7 @@ const formRef = ref<FormInstance>();
 const submitLoading = ref(false);
 const roleListLoading = ref(false);
 
-const roleOptions = computed(() => modelStore.getRoleList);
+const roleOptions = computed(() => modelStore.roleOptions);
 const defaultFormState = () => ({
   parentId: undefined as number | undefined,
   code: "",

@@ -126,7 +126,7 @@ const searchForm = reactive<{
 });
 
 const providerSearchOptions = computed(() => {
-  const raw = modelStore.getModelClassifyList as string[];
+  const raw = modelStore.providerOptions as string[];
   const list = Array.isArray(raw) ? raw : [];
   const opts = list.map((s) => ({ label: String(s), value: String(s) }));
   const cur = searchForm.provider?.trim();
@@ -149,7 +149,7 @@ interface ModelStoreRow {
 }
 
 const modelNameSearchOptions = computed(() => {
-  const rows = (modelStore.modelList ?? []) as ModelStoreRow[];
+  const rows = (modelStore.aiModelList ?? []) as ModelStoreRow[];
   const provider = searchForm.provider?.trim();
   const scoped = provider
     ? rows.filter((row) => row.provider === provider)
@@ -176,7 +176,7 @@ watch(
   () => {
     const provider = searchForm.provider?.trim();
     if (!provider) return;
-    const rows = (modelStore.modelList ?? []) as ModelStoreRow[];
+    const rows = (modelStore.aiModelList ?? []) as ModelStoreRow[];
     const allowed = new Set(
       rows
         .filter((row) => row.provider === provider)
@@ -314,8 +314,8 @@ const handlePageChange = (page: number, pageSize: number) => {
 };
 
 onMounted(() => {
-  void modelStore.fetchModelClassifyList();
-  void modelStore.fetchModelList({ page: 1, pageSize: 500 }, { preserveCurrentModel: true });
+  void modelStore.fetchProviderList();
+  void modelStore.fetchAiModelList({ page: 1, pageSize: 500 }, { preserveSelection: true });
   fetchList();
 });
 </script>

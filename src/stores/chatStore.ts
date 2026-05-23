@@ -17,7 +17,7 @@ export const useChatStore = defineStore("store", {
     updateDocument(id: string) {
       this.documentId = id;
     },
-    updateTitleId(id: string) {
+    updateTitleId(id: string | null) {
       this.titleId = id;
     },
   },

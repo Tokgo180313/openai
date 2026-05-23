@@ -8,7 +8,7 @@
         style="min-width: 300px"
       >
         <a-select-option
-          v-for="item in modelList"
+          v-for="item in chatModelList"
           :key="item.id"
           :title="item.apiModelName"
           :value="item.apiModelName"
@@ -88,18 +88,18 @@ const goToConsole = async () => {
     message.warning("暂无可访问的后台页面");
   }
 };
-const questionType = ref(modelStore.getCurrentModel|| null);
+const questionType = ref(modelStore.currentApiModelName || null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
 const { id } = storeToRefs(store);
-const modelList = computed(() => modelStore.getChatModelList);
+const chatModelList = computed(() => modelStore.chatModelList);
 const handleQuestionTypeChange = function () {
   useRequestStore().updateQuestionTye(questionType.value);
-  modelStore.setCurrentModel(questionType.value);
-  const model = modelList.value.find(
+  modelStore.setCurrentApiModelName(questionType.value);
+  const model = chatModelList.value.find(
     (item) => item.apiModelName === questionType.value,
   );
-  modelStore.setCurrentModelClassify(model?.provider ?? null);
+  modelStore.setCurrentProvider(model?.provider ?? null);
 };
 const removeChatTitleId = ref(null);
 const showRemoveEvent = function () {
@@ -111,7 +111,6 @@ const handleCloseModal = function () {
   removeChatTitleId.value = null;
 };
 const handleUpdateList = function () {
-  chatStore.updateTitleId(null);
   eventBus.emit("update-chat-list");
 };
 </script>

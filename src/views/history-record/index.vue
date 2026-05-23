@@ -148,7 +148,7 @@ interface ModelStoreRow {
 }
 
 const modelNameOptions = computed(() => {
-  const rows = (modelStore.modelList ?? []) as ModelStoreRow[];
+  const rows = (modelStore.aiModelList ?? []) as ModelStoreRow[];
   const names = [
     ...new Set(
       rows
@@ -412,7 +412,7 @@ function formatTime(v: string | Date | undefined) {
 }
 
 onMounted(() => {
-  void modelStore.fetchModelList({ page: 1, pageSize: 500 }, { preserveCurrentModel: true });
+  void modelStore.fetchAiModelList({ page: 1, pageSize: 500 }, { preserveSelection: true });
   void fetchList();
 });
 </script>

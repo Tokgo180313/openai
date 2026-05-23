@@ -1,26 +1,32 @@
 <template>
-  <a-layout style="min-height: 100vh; min-width: 100vw; text-align: left">
-    <a-layout-sider v-model:collapsed="collapsed" collapsible>
+  <a-layout class="manage-layout">
+    <a-layout-sider
+      v-model:collapsed="collapsed"
+      collapsible
+      class="manage-sider"
+    >
       <div class="logo">
         <i class="iconfont icon-gpt"></i> 后台管理
       </div>
 
-      <a-menu
-        v-model:selectedKeys="selectedKeys"
-        v-model:openKeys="openKeys"
-        theme="dark"
-        mode="inline"
-        @click="handleMenuClick"
-      >
-        <ManageSideMenu v-if="menus.length" :menus="menus" />
-        <a-menu-item v-else disabled key="empty">暂无菜单权限</a-menu-item>
-      </a-menu>
+      <div class="sider-menu-scroll">
+        <a-menu
+          v-model:selectedKeys="selectedKeys"
+          v-model:openKeys="openKeys"
+          theme="dark"
+          mode="inline"
+          @click="handleMenuClick"
+        >
+          <ManageSideMenu v-if="menus.length" :menus="menus" />
+          <a-menu-item v-else disabled key="empty">暂无菜单权限</a-menu-item>
+        </a-menu>
+      </div>
     </a-layout-sider>
-    <a-layout>
+    <a-layout class="manage-main">
       <a-layout-header style="background: #fff; padding: 0">
         <ManageHeader />
       </a-layout-header>
-      <a-layout-content style="margin: 0 16px">
+      <a-layout-content class="manage-content">
         <a-breadcrumb style="margin: 16px 0">
           <a-breadcrumb-item>{{
             (route.meta.title as string) || "管理"
@@ -108,6 +114,47 @@ const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
 </script>
 
 <style lang="scss" scoped>
+.manage-layout {
+  height: 100vh;
+  min-width: 100vw;
+  overflow: hidden;
+  text-align: left;
+}
+
+.manage-sider {
+  height: 100vh;
+  overflow: hidden;
+
+  :deep(.ant-layout-sider-children) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+.sider-menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.manage-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.manage-content {
+  flex: 1;
+  min-height: 0;
+  margin: 0 16px;
+  overflow-y: auto;
+}
+
 .logo {
   height: 32px;
   margin: 16px;

@@ -69,7 +69,7 @@ import { useModelStore } from "../stores/modelStore";
 import { ROLE } from "@/constants/role";
 import type { UserType } from "@/views/user/types/UserType";
 const modelStore = useModelStore();
-const roleList = computed(() => modelStore.getRoleList);
+const roleList = computed(() => modelStore.roleOptions);
 interface Props {
   visible: boolean;
   /** 打开弹窗时默认选中的上级 id，可在下拉里改成其它用户 */

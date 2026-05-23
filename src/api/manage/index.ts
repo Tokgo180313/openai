@@ -8,6 +8,8 @@ import schedule from "./schedule.ts"
 import aiModelConfig from "./aiModelConfig.ts"
 import menu from "./menu.ts"
 import optimization from "./optimization.ts"
+import paramWhitelist from "./param-whitelist.ts"
+import uploadFile from "./upload-file.ts"
 export default {
     ...user,
     ...record,
@@ -19,4 +21,6 @@ export default {
     ...aiModelConfig,
     ...menu,
     ...optimization,
+    ...paramWhitelist,
+    ...uploadFile,
 }

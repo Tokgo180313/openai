@@ -20,7 +20,10 @@
           role="assistant"
         ></MarkdownRenderer>
       </div>
-      <div class="current-content stream-thinking" v-else-if="showStreamThinking">
+      <div
+        class="current-content stream-thinking"
+        v-else-if="showStreamThinking"
+      >
         <span class="stream-thinking-text">正在思考</span>
       </div>
     </div>
@@ -105,24 +108,42 @@
 <script lang="ts" setup>
 import { FileImageOutlined } from "@ant-design/icons-vue";
 import ImagePreview from "../../components/ImagePreview.vue";
+import type { PreviewItem } from "../../components/ImagePreview.vue";
 import MarkdownRenderer from "../../components/MarkdownRenderer.vue";
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { nanoid } from "nanoid";
-import { MessageType } from "../../types/message.type";
+import type { ChatAttachment, SendChatDto } from "../../types/send-chat.type";
+import type { UploadFileSaveResult } from "@/types/upload-file.type";
 import { useModelStore } from "@/stores/modelStore";
 const modelStore = useModelStore();
-const { chatListInterface } = api;
+const {
+  chatListInterface,
+  saveUploadFileApi,
+  deleteUploadFileByIdApi,
+  buildUploadFileDownloadUrl,
+} = api;
 const markdownContent = ref("");
 const markdownInputContent = ref("");
 const isStreamingResponse = ref(false);
 const streamAbortController = ref<AbortController | null>(null);
+const previewItems = ref<PreviewItem[]>([]);
+const hasReadyAttachments = computed(() =>
+  previewItems.value.some((item) => item.uploadedUrl && !item.uploading),
+);
+const hasUploadingAttachments = computed(() =>
+  previewItems.value.some((item) => item.uploading),
+);
 const disabledSendBtn = computed(() => {
-  return markdownInputContent.value.length === 0;
+  return (
+    markdownInputContent.value.length === 0 && !hasReadyAttachments.value
+  );
 });
 const isSendDisabled = computed(() => {
-  return !isStreamingResponse.value && disabledSendBtn.value;
+  if (isStreamingResponse.value) return false;
+  if (hasUploadingAttachments.value) return true;
+  return disabledSendBtn.value;
 });
 /** 流式请求已发出、尚未收到首段内容时展示「正在思考」 */
 const showStreamThinking = computed(
@@ -137,8 +158,40 @@ interface PatseOptions {
   maxLength?: number;
 }
 const messageId = ref("");
+
+const syncTitleIdFromStore = () => {
+  messageId.value = chatStore.getTitleId ?? "";
+};
+
+/** 流式结束且为新建对话时，用后端返回的 titleId 更新当前会话 */
+const applyServerTitleId = (serverTitleId: string) => {
+  if (!serverTitleId || messageId.value === serverTitleId) {
+    return;
+  }
+  const isNewChat = !messageId.value;
+  messageId.value = serverTitleId;
+  chatStore.updateTitleId(serverTitleId);
+  if (isNewChat) {
+    eventBus.emit("add-chat-title", {
+      id: serverTitleId,
+      title: "new chat",
+      documentId: chatStore.getDocumentId ?? documentId.value ?? "",
+    });
+  }
+};
+
+const tryHandleStreamDonePayload = (payload: unknown): boolean => {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as Record<string, unknown>;
+  if (p.done !== true) return false;
+  if (typeof p.titleId === "string" && p.titleId) {
+    applyServerTitleId(p.titleId);
+  }
+  return true;
+};
+
 onMounted(() => {
-  messageId.value = nanoid();
+  syncTitleIdFromStore();
 });
 let textContent: HTMLTextAreaElement | null = null;
 onMounted(() => {
@@ -219,58 +272,94 @@ const fileToBase64 = (file: File) => {
     reader.readAsDataURL(file);
   });
 };
+const resolveCurrentModelCode = () => {
+  const selected = modelStore.chatModelList.find(
+    (item) => item.apiModelName === modelStore.currentApiModelName,
+  );
+  return selected?.modelCode ?? modelStore.currentApiModelName ?? "";
+};
+
+const resolveChatAttachmentType = (
+  item: PreviewItem,
+): ChatAttachment["type"] => {
+  const mime =
+    item.mimeType || (item.file instanceof File ? item.file.type : "") || "";
+  if (item.type === "input_url" || mime.startsWith("image/")) {
+    return "image";
+  }
+  return "file";
+};
+
+const buildChatAttachments = (items: PreviewItem[]): ChatAttachment[] => {
+  return items
+    .filter((item) => item.uploadedUrl && item.fileId)
+    .map((item) => ({
+      id: String(item.fileId ?? item.gridFsFileId ?? ""),
+      type: resolveChatAttachmentType(item),
+      name: item.name || "",
+      url: item.uploadedUrl!,
+      mimeType: item.mimeType,
+      size: item.file instanceof File ? item.file.size : undefined,
+    }));
+};
+
 const sendMessageEvent = async () => {
-  if (disabledSendBtn.value || isStreamingResponse.value) {
+  if (isSendDisabled.value || isStreamingResponse.value) {
     return;
   }
-  const content = document.querySelector("[contenteditable]")?.innerText;
-  console.log(previewItems.value);
-  let paramList = previewItems.value.map((item) => {
-    return {
-      prompt: item.name,
-      model: modelStore.getCurrentModel,
-      modelClassify: modelStore.getCurrentModelClassify,
-      baseURL: import.meta.env.VITE_APP_BASIC_URL,
-      titleId: messageId.value,
-      documentId: documentId.value,
-      type: item.type,
-      fileUrl: item.uploadedUrl,
-      mimeType: item.mimeType? item.mimeType : undefined,
-    };
-  });
-  paramList.push({
-    prompt: content,
-    model: modelStore.getCurrentModel,
-    modelClassify: modelStore.getCurrentModelClassify,
-    baseURL: import.meta.env.VITE_APP_BASIC_URL,
-    titleId: messageId.value,
-    documentId: documentId.value,
-    type: "input_text",
-  });
-  let fileContent = await Promise.all(
-    previewItems.value.map(async (item) => {
-      const isImage = item.type.includes("image");
-      const base64File =
-        isImage && item.file ? await fileToBase64(item.file) : item.file;
+  if (hasUploadingAttachments.value) {
+    message.warning("请等待附件上传完成");
+    return;
+  }
+  const isFirstMessage = markdownContentList.value.length === 0;
+  const content =
+    document.querySelector("[contenteditable]")?.innerText?.trim() ?? "";
+  const readyPreviewItems = previewItems.value.filter(
+    (item) => item.uploadedUrl && item.fileId,
+  );
+  const chatAttachments = buildChatAttachments(readyPreviewItems);
+  const sendPayload: SendChatDto = {
+    titleId: messageId.value || null,
+    modelCode: resolveCurrentModelCode(),
+    content,
+    stream: true,
+    clientMessageId: nanoid(),
+    ...(chatAttachments.length > 0 ? { attachments: chatAttachments } : {}),
+    ...(documentId.value ? { params: { documentId: documentId.value } } : {}),
+  };
+  const fileContent = await Promise.all(
+    readyPreviewItems.map(async (item) => {
+      const isImage = item.type === "input_url";
+      let displayFile: string | File | undefined = item.uploadedUrl;
+      if (isImage && item.file instanceof File) {
+        displayFile = await fileToBase64(item.file);
+      }
       return {
         role: "user",
-        file: base64File,
+        file: displayFile,
         name: item.name,
-        type: isImage ? "input_url" : "input_file",
+        type: item.type,
       };
     }),
   );
   markdownContentList.value.push(...fileContent);
-  markdownContentList.value.push({
-    role: "user",
-    content: content,
-    type: "input_text",
-  });
-  console.log(markdownContentList.value);
+  if (content) {
+    markdownContentList.value.push({
+      role: "user",
+      content,
+      type: "input_text",
+    });
+  }
+  if (isFirstMessage && messageId.value) {
+    eventBus.emit("add-chat-title", {
+      id: messageId.value,
+      title: "new chat",
+      documentId: chatStore.getDocumentId ?? documentId.value ?? "",
+    });
+  }
   scrollLatestQuestionToTop();
   clearInputData();
-  // return;
-  generateContentStreamImpl(paramList);
+  generateContentStreamImpl(sendPayload);
 };
 const stopMessageEvent = () => {
   if (!isStreamingResponse.value) {
@@ -302,7 +391,7 @@ const commitStreamingMarkdownToList = () => {
   markdownContent.value = "";
 };
 
-const generateContentStreamImpl = (param: MessageType[]) => {
+const generateContentStreamImpl = (param: SendChatDto) => {
   // 这里直接用 fetch 读取 `text/event-stream`，逐段拼到页面中
   // （axios 的封装通常不会以流式方式暴露数据流）
   const run = async () => {
@@ -311,9 +400,9 @@ const generateContentStreamImpl = (param: MessageType[]) => {
     isStreamingResponse.value = true;
     try {
       markdownContent.value = "";
-
+      console.log("param", JSON.stringify(param));
       const response = await fetch(
-        `${import.meta.env.VITE_APP_BASIC_URL}/stream/generateContentStream`,
+        `${import.meta.env.VITE_APP_BASIC_URL}/ai/stream`,
         {
           method: "post",
           headers: {
@@ -413,6 +502,7 @@ const generateContentStreamImpl = (param: MessageType[]) => {
         }
         try {
           const parsed = JSON.parse(dataStr) as unknown;
+          if (tryHandleStreamDonePayload(parsed)) return;
           const piece = extractContent(parsed);
           if (piece) markdownContent.value += piece;
         } catch {
@@ -435,6 +525,7 @@ const generateContentStreamImpl = (param: MessageType[]) => {
           // 很多后端只发 `data: {...}\n`，没有空行结束事件；能解析则直接当一条消息处理
           try {
             const parsed = JSON.parse(payload) as unknown;
+            if (tryHandleStreamDonePayload(parsed)) return;
             const piece = extractContent(parsed);
             if (piece) {
               markdownContent.value += piece;
@@ -483,8 +574,10 @@ const generateContentStreamImpl = (param: MessageType[]) => {
         if (tail.startsWith("{") || tail.startsWith("[")) {
           try {
             const parsed = JSON.parse(tail) as unknown;
-            const piece = extractContent(parsed);
-            if (piece) markdownContent.value += piece;
+            if (!tryHandleStreamDonePayload(parsed)) {
+              const piece = extractContent(parsed);
+              if (piece) markdownContent.value += piece;
+            }
           } catch {
             markdownContent.value += tail;
           }
@@ -510,7 +603,6 @@ const generateContentStreamImpl = (param: MessageType[]) => {
 };
 
 const patseImageEvent = function (event: ClipboardEvent) {
-  console.log("粘贴事件出发点");
   const options: PatseOptions = {
     stripFormatting: true,
     convertToMarkdown: true,
@@ -530,10 +622,13 @@ const handlePatse = function (
     // 优先处理图片粘贴
     for (let i = 0; i < clipboardData.items.length; i++) {
       const item = clipboardData.items[i];
-      if (item.type.indexOf("input_url") !== -1) {
+      if (item.type.startsWith("image/")) {
         const file = item.getAsFile();
-        handlePastedImage(file);
-        event.preventDefault();
+        if (file) {
+          appendPreviewItem(file);
+          event.preventDefault();
+          return null;
+        }
       }
     }
     // 粘贴文本时只保留纯文本，去除富文本样式和换行符
@@ -547,25 +642,13 @@ const handlePatse = function (
   }
   return null;
 };
-const handlePastedImage = function (file) {
-  if (!file) {
-    return;
-  }
-  const imageUrl = URL.createObjectURL(file);
-  const img = document.createElement("img");
-  img.src = imageUrl;
-  img.setHTMLUnsafe.maxWidth = "300px";
-  document.body.appendChild(img);
-};
-
-import type { PreviewItem } from "../../components/ImagePreview.vue";
 import { useEventsBus } from "../../stores/event-bus";
 import { useChatStore } from "../../stores/chatStore";
 const chatStore = useChatStore();
 const eventBus = useEventsBus();
 const documentId = ref("");
 const chatChageEvent = eventBus.on("chat-change", () => {
-  messageId.value = chatStore.getTitleId;
+  syncTitleIdFromStore();
   if (documentId.value != chatStore.getDocumentId) {
     documentId.value = chatStore.getDocumentId;
     refreshChatContnet();
@@ -588,7 +671,6 @@ onUnmounted(() => {
     }
   });
 });
-const previewItems = ref<PreviewItem[]>([]);
 const appendPreviewItem = (file: File) => {
   const isImage = file.type.startsWith("image/");
   const id = `${file.name}-${file.size}-${Date.now()}`;
@@ -607,102 +689,76 @@ const beforeUploadEvent = (file: File) => {
   appendPreviewItem(file);
   return false;
 };
-/** 统一取出上传结果体：支持 { code, data: { fileId, file_url, ... } } 或直接返回字段 */
-const uploadResultBody = (res: any) => {
-  if (
-    res &&
-    typeof res === "object" &&
-    res.data != null &&
-    typeof res.data === "object" &&
-    !Array.isArray(res.data)
-  ) {
-    return res.data;
+const parseUploadSaveResult = (res: {
+  code?: number;
+  message?: string;
+  data?: UploadFileSaveResult;
+}): UploadFileSaveResult => {
+  if (res?.code != null && res.code !== 200 && res.code !== 201) {
+    throw new Error(res.message || "上传失败");
   }
-  return res;
+  const data = res?.data;
+  if (!data?.fileId) {
+    throw new Error("上传成功但未返回 fileId");
+  }
+  return data;
 };
-/** 后端示例：{ uploadId, titleId, fileName, mimeType, status, complete, fileId, file_url } */
-const resolveUploadedUrl = (res: any) => {
-  const b = uploadResultBody(res);
-  return (
-    b?.file_url ||
-    b?.url ||
-    b?.fileUrl ||
-    b?.path ||
-    b?.src ||
-    ""
-  );
-};
-const resolveGridFsFileId = (res: any) => {
-  const b = uploadResultBody(res);
-  return b?.fileId || b?.gridFsFileId || "";
-};
-const isLikelyImageUrl = (url: string) => {
-  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(url);
-};
+
 const uploadPreviewFile = async (itemId: string | number, file: File) => {
-  const uploadId = `${file.name}-${file.size}-${file.lastModified}`.replace(
-    /\s+/g,
-    "_",
-  );
-  const token = sessionStorage.getItem("access_token") || "";
   const target = previewItems.value.find((item) => item.id === itemId);
   if (target) {
-    target.fileId = uploadId;
     target.uploadProgress = 0;
   }
   try {
     const formData = new FormData();
     formData.append("file", file, file.name);
-    formData.append("fileName", file.name);
-    formData.append("mimeType", file.type || "application/octet-stream");
-    formData.append("documentId", documentId.value);
-    formData.append("uploadId", uploadId);
+    formData.append("source", "user_upload");
+    const meta: Record<string, unknown> = {};
+    if (messageId.value) meta.titleId = messageId.value;
+    if (documentId.value) meta.documentId = documentId.value;
+    if (Object.keys(meta).length > 0) {
+      formData.append("metadata", JSON.stringify(meta));
+    }
     if (target) {
-      target.uploadProgress = 50;
+      target.uploadProgress = 30;
     }
-    const uploadResponse = await fetch(
-      `${import.meta.env.VITE_APP_BASIC_URL}/file/uploadFile`,
-      {
-        method: "post",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      },
-    );
-    const uploadRes = await uploadResponse.json().catch(() => ({}));
-    if (!uploadResponse.ok) {
-      throw new Error(uploadRes?.message || uploadRes?.msg || "上传失败");
-    }
-    if (
-      typeof uploadRes?.code === "number" &&
-      uploadRes.code !== 200 &&
-      uploadRes.code !== 201
-    ) {
-      throw new Error(uploadRes?.message || uploadRes?.msg || "上传失败");
-    }
+    const uploadRes = await saveUploadFileApi(formData);
     if (!target) return;
-    const uploadedUrl = uploadResultBody(uploadRes)?.file_url || "";
-    if (!uploadedUrl) {
-      throw new Error("上传成功但未返回 file_url");
-    }
-    // 保存后端返回的 file_url 与 fileName 到当前预览对象
+    const saved = parseUploadSaveResult(uploadRes);
+    const fileId = saved.fileId;
+    const uploadedUrl =
+      saved.url?.trim() || buildUploadFileDownloadUrl(fileId);
+    target.fileId = String(fileId);
+    target.gridFsFileId = String(fileId);
     target.uploadedUrl = uploadedUrl;
-    target.name = uploadResultBody(uploadRes)?.fileName || target.name;
-    target.mimeType = uploadResultBody(uploadRes)?.mimeType || target.mimeType;
+    target.name = saved.record?.originalName || target.name;
+    target.mimeType = saved.record?.mimeType || file.type || target.mimeType;
     target.uploading = false;
     target.uploadProgress = 100;
     message.success("上传成功");
-  } catch (error: any) {
-    const target = previewItems.value.find((item) => item.id === itemId);
-    if (target) {
-      target.uploading = false;
-      target.uploadProgress = 0;
+  } catch (error: unknown) {
+    const failed = previewItems.value.find((item) => item.id === itemId);
+    if (failed) {
+      failed.uploading = false;
+      failed.uploadProgress = 0;
     }
-    message.error(error?.message || "上传失败");
+    const errMsg =
+      error instanceof Error ? error.message : "上传失败";
+    message.error(errMsg);
   }
 };
-const handleRemovePreviewItem = (item: PreviewItem) => {
+
+const deleteRemotePreviewFile = async (fileId?: string) => {
+  const id = Number(String(fileId ?? "").trim());
+  if (!Number.isInteger(id) || id < 1) return;
+  try {
+    await deleteUploadFileByIdApi(id);
+  } catch {
+    // 删除失败不阻塞移除预览
+  }
+};
+
+const handleRemovePreviewItem = async (item: PreviewItem) => {
   const index = previewItems.value.findIndex(
     (current) => current.id === item.id,
   );
@@ -710,6 +766,9 @@ const handleRemovePreviewItem = (item: PreviewItem) => {
     const target = previewItems.value[index];
     if (target.url?.startsWith("blob:")) {
       URL.revokeObjectURL(target.url);
+    }
+    if (target.fileId && !target.uploading) {
+      await deleteRemotePreviewFile(target.fileId);
     }
     previewItems.value.splice(index, 1);
   }

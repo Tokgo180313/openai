@@ -283,15 +283,42 @@ const avatarValue = ref<string>(
 const nickName = ref<string>(
   userStore.getNickName ? userStore.getNickName : userStore.getAccount,
 );
+const prependChatTitle = function (item: {
+  id: string;
+  title: string;
+  documentId: string;
+}) {
+  if (!item.id || visibleTitleList.value.some((row) => row.id === item.id)) {
+    return;
+  }
+  const now = new Date().toISOString();
+  const entry: titleInfo = {
+    id: item.id,
+    title: item.title,
+    documentId: item.documentId,
+    createdAt: now,
+    updatedAt: now,
+  };
+  titleList.value = [entry, ...titleList.value];
+  visibleTitleList.value = [entry, ...visibleTitleList.value];
+  selectedRow.value = item.id;
+};
+const handleAddChatTitle = function (payload: { data?: titleInfo }) {
+  const item = payload?.data;
+  if (!item?.id) return;
+  prependChatTitle(item);
+};
 onMounted(() => {
   chatTitleImpl();
   eventBus.on("update-chat-list", () => {
     chatTitleImpl();
     newChatEvent();
   });
+  eventBus.on("add-chat-title", handleAddChatTitle);
 });
 onUnmounted(() => {
   eventBus.off("update-chat-list");
+  eventBus.off("add-chat-title", handleAddChatTitle);
 });
 
 const tryAutoLoadUntilFilled = async function () {
@@ -410,7 +437,7 @@ const selectedEvent = async function (item) {
 };
 const newChatEvent = function () {
   router.push("/chat");
-  let documentId = nanoid();
+  const documentId = nanoid();
   selectedRow.value = null;
   chatStore.updateDocument(documentId);
   chatStore.updateTitleId(null);

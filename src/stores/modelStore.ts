@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import api from "@/api/apiList";
+import type { AiModelQueryDto } from "@/api/manage/ai-model";
 import type { AiModelItem } from "@/types/ai-model.type";
 import { isEnabledChatModel } from "@/types/ai-model.type";
 import { ROLE } from "@/constants/role";
@@ -10,63 +11,56 @@ const {
   getRoleListInterface,
 } = api;
 
-export const useModelStore = defineStore("model", {
+export const useModelStore = defineStore("aiModel", {
   state: () => ({
-    modelList: [] as AiModelItem[],
-    /** 服务商列表（原 modelClassifyList） */
-    modelClassifyList: [] as string[],
+    aiModelList: [] as AiModelItem[],
+    providerList: [] as string[],
     roleList: [] as { id: number; name: string }[],
-    /** 当前选中的 API 模型名 */
-    currentModel: null as string | null,
-    /** 当前选中的服务商 */
-    currentModelClassify: null as string | null,
+    /** 当前选中的 API 模型名（传给聊天接口的 model） */
+    currentApiModelName: null as string | null,
+    /** 当前选中的服务商（传给聊天接口的 provider） */
+    currentProvider: null as string | null,
   }),
   persist: true,
   getters: {
-    getModelList(): string[] {
-      return this.modelList.map((item) => item.apiModelName);
+    /** 全部模型的 API 模型名列表 */
+    apiModelNameList(): string[] {
+      return this.aiModelList.map((item) => item.apiModelName);
     },
     /** 启用且 modelType 为 text 的模型 */
-    getChatModelList(): AiModelItem[] {
-      return this.modelList.filter(isEnabledChatModel);
+    chatModelList(): AiModelItem[] {
+      return this.aiModelList.filter(isEnabledChatModel);
     },
-    getModelClassifyList(): string[] {
-      return this.modelClassifyList;
+    providerOptions(): string[] {
+      return this.providerList;
     },
-    getRoleList() {
+    roleOptions() {
       return this.roleList.map((item) => ({
         label: item.name,
         value: String(item.id),
       }));
     },
-    getCurrentModel(): string | null {
-      return this.currentModel;
-    },
-    getCurrentModelClassify(): string | null {
-      return this.currentModelClassify;
-    },
   },
   actions: {
-    setModelList(modelList: AiModelItem[]) {
-      const defaultModel =
-        modelList.find(isEnabledChatModel) ?? modelList[0];
+    setAiModelList(list: AiModelItem[]) {
+      const defaultModel = list.find(isEnabledChatModel) ?? list[0];
       if (defaultModel?.apiModelName) {
-        this.setCurrentModel(defaultModel.apiModelName);
-        this.setCurrentModelClassify(defaultModel.provider ?? null);
+        this.setCurrentApiModelName(defaultModel.apiModelName);
+        this.setCurrentProvider(defaultModel.provider ?? null);
       }
-      this.modelList = modelList;
+      this.aiModelList = list;
     },
-    setCurrentModel(model: string | null) {
-      this.currentModel = model;
+    setCurrentApiModelName(apiModelName: string | null) {
+      this.currentApiModelName = apiModelName;
     },
-    setCurrentModelClassify(provider: string | null) {
-      this.currentModelClassify = provider;
+    setCurrentProvider(provider: string | null) {
+      this.currentProvider = provider;
     },
     setRoleList(roleList: { id: number; name: string }[]) {
       this.roleList = roleList;
     },
-    setModelClassifyList(providerList: string[]) {
-      this.modelClassifyList = providerList;
+    setProviderList(providerList: string[]) {
+      this.providerList = providerList;
     },
     fetchRoleList(param: Record<string, unknown>) {
       return getRoleListInterface(param).then((res) => {
@@ -82,60 +76,58 @@ export const useModelStore = defineStore("model", {
           );
           this.setRoleList(roleList);
           return roleList;
-        } else {
-          this.setRoleList([]);
-          return [];
         }
+        this.setRoleList([]);
+        return [];
       });
     },
     /**
-     * @param options.preserveCurrentModel 为 true 时只更新 modelList，不修改 currentModel
+     * @param options.preserveSelection 为 true 时只更新 aiModelList，不修改当前选中模型
      */
-    fetchModelList(
-      param: Record<string, unknown>,
-      options?: { preserveCurrentModel?: boolean },
+    fetchAiModelList(
+      param: AiModelQueryDto = {},
+      options?: { preserveSelection?: boolean },
     ) {
       return findAiModelListInterface(param)
         .then((res) => {
           if (res.code === 200 || res.code === 201) {
-            const list: AiModelItem[] = res.data.list || res.data || [];
-            if (options?.preserveCurrentModel) {
-              this.modelList = list;
+            const list: AiModelItem[] = res.data?.list ?? res.data ?? [];
+            if (options?.preserveSelection) {
+              this.aiModelList = list;
             } else {
-              this.setModelList(list);
+              this.setAiModelList(list);
             }
             return list;
-          } else {
-            if (options?.preserveCurrentModel) {
-              this.modelList = [];
-            } else {
-              this.setModelList([]);
-            }
-            return [];
           }
+          if (options?.preserveSelection) {
+            this.aiModelList = [];
+          } else {
+            this.setAiModelList([]);
+          }
+          return [];
         })
         .catch(() => {
-          if (options?.preserveCurrentModel) {
-            this.modelList = [];
+          if (options?.preserveSelection) {
+            this.aiModelList = [];
           } else {
-            this.setModelList([]);
+            this.setAiModelList([]);
           }
           return [];
         });
     },
-    fetchModelClassifyList() {
+    fetchProviderList() {
       return findAiModelProviderListInterface()
         .then((res) => {
           if (res.code === 200 || res.code === 201) {
-            this.setModelClassifyList(res.data.list || res.data || []);
-            return res.data.list || res.data || [];
-          } else {
-            this.setModelClassifyList([]);
-            return [];
+            const list = res.data?.list ?? res.data ?? [];
+            this.setProviderList(list);
+            return list;
           }
+          this.setProviderList([]);
+          return [];
         })
         .catch(() => {
-          this.setModelClassifyList([]);
+          this.setProviderList([]);
           return [];
         });
     },

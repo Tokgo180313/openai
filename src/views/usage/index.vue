@@ -37,7 +37,7 @@ interface UsageType {
   nickName: string;
   account: string;
   modelName: string;
-  modelClassify: string;
+  provider: string;
   promptTokens: number;
   completionTokens: number;
 }

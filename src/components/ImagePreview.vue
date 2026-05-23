@@ -78,6 +78,7 @@ export interface PreviewItem {
   name?: string;
   file?: File | string;
   type: "input_text" | "input_file" | "input_url";
+  mimeType?: string;
   uploading?: boolean;
   uploadProgress?: number;
 }

@@ -302,8 +302,8 @@ const formState = reactive<FormState>(createEmptyForm());
 const submitLoading = ref(false);
 const editId = ref("");
 
-/** 与 model 页一致：分类列表来自 store getter getModelClassifyList */
-const providerClassifyList = computed(() => modelStore.getModelClassifyList as string[]);
+/** 与 AI 模型管理一致：服务商列表来自 store */
+const providerClassifyList = computed(() => modelStore.providerOptions as string[]);
 
 const providerSelectOptions = computed(() => {
   const list = Array.isArray(providerClassifyList.value) ? providerClassifyList.value : [];
@@ -320,8 +320,8 @@ const filterProviderOption = (input: string, option: { label?: string; value?: s
   return text.toLowerCase().includes(input.trim().toLowerCase());
 };
 
-/** 来自 store getter getModelList（依赖 fetchModelList 填充 modelList） */
-const modelNameFromStore = computed(() => modelStore.getModelList as string[]);
+/** 来自 store：API 模型名列表（依赖 fetchAiModelList 填充 aiModelList） */
+const modelNameFromStore = computed(() => modelStore.apiModelNameList as string[]);
 
 const modelNameSelectOptions = computed(() => {
   const list = Array.isArray(modelNameFromStore.value) ? modelNameFromStore.value : [];
@@ -567,10 +567,10 @@ const syncFormWhenOpened = () => {
 
 watch(open, (visible) => {
   if (visible) {
-    void modelStore.fetchModelClassifyList();
-    void modelStore.fetchModelList(
+    void modelStore.fetchProviderList();
+    void modelStore.fetchAiModelList(
       { page: 1, pageSize: 500 },
-      { preserveCurrentModel: true },
+      { preserveSelection: true },
     );
   }
   if (!visible) return;

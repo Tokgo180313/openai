@@ -12,9 +12,9 @@ const columns = [
     ellipsis: true,
   },
   {
-    title: "分类",
-    dataIndex: "modelClassify",
-    key: "modelClassify",
+    title: "服务商",
+    dataIndex: "provider",
+    key: "provider",
     ellipsis: true,
   },
   {

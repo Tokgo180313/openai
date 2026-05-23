@@ -46,6 +46,13 @@ const asideWidth = computed(() => {
 .aside-container {
   background: #f9f9f9;
   color: #000;
+  height: 100vh;
+  overflow: hidden;
+
+  :deep(.ant-layout-sider-children) {
+    height: 100%;
+    overflow-y: auto;
+  }
 }
 .main-layout {
   flex: 1;

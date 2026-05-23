@@ -84,8 +84,8 @@ const onFinish = async () => {
     }
     const menus = await resolveLoginMenus(data.user.roleId, data.menus);
     userStore.setMenus(menus);
-    modelStore.fetchModelList({ enabled: "1" });
-    modelStore.fetchModelClassifyList();
+    modelStore.fetchAiModelList({ enabled: "1" });
+    modelStore.fetchProviderList();
     resetManageRoutes(router);
     if (menus.length) {
       setupManageRoutes(router, menus);
