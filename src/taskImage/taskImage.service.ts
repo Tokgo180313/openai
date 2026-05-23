@@ -308,9 +308,11 @@ export class TaskImageService {
       throw new BadRequestException('failed to decrypt stored apiKey');
     }
 
-    const modelClassify = String(
-      dto.modelClassify ?? keyDoc.provider ?? serviceProduct,
-    ).trim();
+    const provider = String(
+      dto.provider ?? keyDoc.provider ?? serviceProduct,
+    )
+      .trim()
+      .toLowerCase();
     const { imageItems, responseModel, usage } = await this.invokeImageModel(
       adapted,
       {
@@ -323,7 +325,7 @@ export class TaskImageService {
     if (usage) {
       const usageEntity: UsageEntity = {
         modelName: usage.modelName ?? modelName,
-        modelClassify,
+        provider,
         promptTokens: usage.promptTokens,
         completionTokens: usage.completionTokens,
         totalTokens: usage.totalTokens,

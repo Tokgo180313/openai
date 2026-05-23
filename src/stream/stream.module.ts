@@ -3,12 +3,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { StreamController } from './stream.controller';
 import { StreamService } from './stream.service';
 import { ConfigModule } from '@nestjs/config';
-import { ProviderModule } from 'src/provider/provider.module';
-import { ChatModule } from 'src/chat/chat.module';
 import { UsageModule } from 'src/usage/usage.module';
+import { AiModule } from 'src/ai/ai.module';
 
 @Module({
-  imports: [ConfigModule, JwtModule, ProviderModule, ChatModule, UsageModule],
+  imports: [ConfigModule, JwtModule, AiModule, UsageModule],
   controllers: [StreamController],
   providers: [StreamService],
   exports: [StreamService],

@@ -4,8 +4,9 @@ import {
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
-import OpenAI from 'openai';
 import { Model, now } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { ContentEntity } from './entity/ContentEntity';
@@ -32,20 +33,9 @@ import { GeminiUsageEntity } from 'src/usage/entity/gemini.usage.entity';
 import { UsageEntity } from 'src/usage/entity/usage.entity';
 import { readFile } from 'node:fs/promises';
 import { inferUserContentInputType } from 'src/common/utils/user-input-type.util';
+import { AiChatCompletionService } from 'src/ai/services/ai-chat-completion.service';
+import { MessageAttachmentService } from 'src/message-attachments/message-attachment.service';
 
-/** OpenAI SDK 会在 baseURL 后拼接 `/chat/completions`；若 OPENAI_BASE_URL 已含该路径会导致 404。 */
-function normalizeOpenAIBaseURL(raw: string | undefined): string | undefined {
-  if (raw == null || typeof raw !== 'string') return undefined;
-  let u = raw.trim();
-  if (!u) return undefined;
-  while (/\/chat\/completions\/?$/i.test(u)) {
-    u = u.replace(/\/chat\/completions\/?$/i, '');
-  }
-  u = u.replace(/\/+$/, '');
-  return u || undefined;
-}
-
-const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 @Injectable()
 export class ChatService {
   private genAI: any;
@@ -57,6 +47,9 @@ export class ChatService {
     private configService: ConfigService,
     private jwtService: JwtService,
     private usageService: UsageService,
+    @Inject(forwardRef(() => AiChatCompletionService))
+    private readonly aiChatCompletionService: AiChatCompletionService,
+    private readonly messageAttachmentService: MessageAttachmentService,
   ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -67,169 +60,7 @@ export class ChatService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
   public async chatByChatgpt(messageDto: MessageDto, token: string) {
-    try {
-      const items = Array.isArray(messageDto) ? messageDto : [];
-      if (items.length === 0) {
-        throw new BadRequestException('messageDto is required');
-      }
-
-      const last = items[items.length - 1];
-      const documentId = String(last?.id ?? '').trim();
-      if (!documentId) {
-        throw new BadRequestException('messageDto.id is required');
-      }
-
-      const question = last?.question;
-      const questionContent = String(question?.content ?? '').trim();
-      if (!questionContent) {
-        throw new BadRequestException('question.content is required');
-      }
-
-      const normalizeRole = (role: string | undefined): 'system' | 'assistant' | 'user' => {
-        const r = String(role ?? '').trim().toLowerCase();
-        if (r === 'system') return 'system';
-        if (r === 'assistant') return 'assistant';
-        return 'user';
-      };
-
-      // 优先使用前端传入的 messages list；否则用 items.question 作为历史对话构造 messages
-      let providedList: OpenAI.ChatCompletionMessageParam[] | undefined;
-      for (const item of items.slice().reverse()) {
-        if (Array.isArray(item?.list) && item.list.length > 0) {
-          providedList = item.list;
-          break;
-        }
-      }
-
-      let messagesList: OpenAI.ChatCompletionMessageParam[];
-      if (providedList && providedList.length > 0) {
-        messagesList = providedList
-          .map((m) => ({
-            role: normalizeRole((m as any)?.role),
-            content: String((m as any)?.content ?? '').trim(),
-          }))
-          .filter((m) => !!m.content);
-
-        const lastRole = normalizeRole(question?.role);
-        const lastMsg = messagesList[messagesList.length - 1];
-        if (
-          !lastMsg ||
-          String(lastMsg.content ?? '').trim() !== questionContent ||
-          lastMsg.role !== lastRole
-        ) {
-          messagesList.push({ role: lastRole, content: questionContent });
-        }
-      } else {
-        messagesList = items
-          .map((item) => ({
-            role: normalizeRole(item?.question?.role),
-            content: String(item?.question?.content ?? '').trim(),
-          }))
-          .filter((m) => !!m.content);
-
-        // 确保包含本次用户输入
-        if (
-          messagesList.length === 0 ||
-          String(messagesList[messagesList.length - 1]?.content ?? '').trim() !== questionContent
-        ) {
-          messagesList.push({
-            role: normalizeRole(question?.role),
-            content: questionContent,
-          });
-        }
-      }
-
-      if (messagesList.length === 0) {
-        throw new BadRequestException('messagesList is empty');
-      }
-
-      const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-      if (!apiKey) {
-        throw new InternalServerErrorException('OPENAI_API_KEY is not set');
-      }
-
-      const rawBase =
-        this.configService.get<string>('OPENAI_BASE_URL') ??
-        process.env['OPENAI_BASE_URL'];
-      const baseURL = normalizeOpenAIBaseURL(rawBase) ?? OPENAI_DEFAULT_BASE_URL;
-
-      const openai = new OpenAI({
-        apiKey,
-        baseURL,
-      });
-
-      const model = String(question?.useModel ?? '').trim() || 'gpt-4o-mini';
-      const modelClassify = String(question?.modelClassify ?? '').trim() || 'OpenAI';
-
-      const response: OpenAI.ChatCompletion = await openai.chat.completions.create({
-        model,
-        messages: messagesList,
-      });
-
-      const responseText = String(response?.choices?.[0]?.message?.content ?? '').trim();
-      const responseRole = (response?.choices?.[0]?.message?.role ??
-        'assistant') as OpenAI.ChatCompletionMessageParam['role'];
-
-      // 1) 保存用户输入
-      await new this.contentSchema({
-        documentId,
-        useModel: model,
-        role: normalizeRole(question?.role),
-        content: questionContent,
-      }).save();
-
-      // 2) 保存模型回复
-      await new this.contentSchema({
-        documentId,
-        useModel: response.model ?? model,
-        role: responseRole,
-        content: responseText,
-      }).save();
-
-      // 3) 更新/新增聊天主题
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'my-secret-key',
-      });
-      const userId = payload.sub;
-
-      const titleId = last?.titleId ? String(last.titleId).trim() : '';
-      if (titleId) {
-        await this.updateChatTitle(titleId);
-      } else {
-        const chatEntity = new ChatEntity({
-          userId,
-          documentId,
-          title: questionContent,
-        });
-        await new this.chatTitleSchema(chatEntity).save();
-      }
-
-      // 4) 保存 usage（如果返回了）
-      if (response.usage) {
-        const usageEntity: UsageEntity = {
-          modelName: response.model ?? model,
-          modelClassify,
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-          status: '0',
-          description: responseText,
-        };
-        await this.usageService.addUsage(usageEntity, userId);
-      }
-
-      return {
-        documentId,
-        useModel: response.model ?? model,
-        role: responseRole,
-        content: responseText,
-      };
-    } catch (error: any) {
-      // NestJS 下抛出 BadRequestException 会更友好
-      if (error instanceof BadRequestException) throw error;
-      console.error(error);
-      throw new Error(error?.message || 'Failed to chat with ChatGPT');
-    }
+    return this.aiChatCompletionService.chatByChatgpt(messageDto, token);
   }
   public async chatByGemini(
     messageDto: MessageDto,
@@ -354,12 +185,32 @@ export class ChatService {
    * 查找聊天列表
    * @param chatDto
    */
-  public async chatList(id: string) {
+  public async chatList(id: string, userId?: string) {
     const list = await this.contentSchema
       .find({ documentId: id })
       .sort({ createdAt: 1 })
       .lean()
       .exec();
+
+    const uid = String(userId ?? '').trim();
+    if (uid) {
+      const messageIds = (list as Record<string, any>[])
+        .map((item) => String(item?._id ?? '').trim())
+        .filter(Boolean);
+      const attachmentMap =
+        await this.messageAttachmentService.findByMessageIds(
+          messageIds,
+          uid,
+        );
+      for (const item of list as Record<string, any>[]) {
+        const mid = String(item?._id ?? '').trim();
+        const attachments = attachmentMap.get(mid);
+        if (attachments?.length) {
+          item.attachments = attachments;
+        }
+      }
+    }
+
     for (const item of list as Record<string, any>[]) {
       const role = String(item?.role ?? '').trim().toLowerCase();
       if (role === 'user') {

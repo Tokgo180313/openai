@@ -38,8 +38,11 @@ export class ChatController {
   }
 
   @Get('/chatList/:id')
-  async chatList(@Param('id') id: string) {
-    return this.chatService.chatList(id);
+  async chatList(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.chatService.chatList(id, userId);
   }
 
   @Get('/titleList')

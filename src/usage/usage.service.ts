@@ -32,9 +32,9 @@ export class UsageService {
     if (usageDto.modelName) {
       qb.andWhere('u.modelName = :modelName', { modelName: usageDto.modelName });
     }
-    if (usageDto.modelClassify) {
-      qb.andWhere('u.modelClassify = :modelClassify', {
-        modelClassify: usageDto.modelClassify,
+    if (usageDto.provider) {
+      qb.andWhere('u.provider = :provider', {
+        provider: usageDto.provider,
       });
     }
     if (usageDto.startTime) {
@@ -92,7 +92,7 @@ export class UsageService {
       nickName: user.nickName,
       account: user.account,
       modelName: usageDto.modelName,
-      modelClassify: usageDto.modelClassify,
+      provider: usageDto.provider,
       promptTokens: usageDto.promptTokens,
       completionTokens: usageDto.completionTokens,
       totalTokens: usageDto.totalTokens,
@@ -130,7 +130,7 @@ export class UsageService {
       nickName: user.nickName,
       account: user.account,
       modelName,
-      modelClassify: 'Gemini',
+      provider: 'gemini',
       promptTokens: usageDto?.promptTokenCount,
       completionTokens: usageDto?.candidatesTokenCount,
       totalTokens: usageDto?.totalTokenCount,

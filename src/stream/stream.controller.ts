@@ -11,7 +11,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { StreamCompletionUsageOut, StreamService } from './stream.service';
 import type { Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { StreamMessageDto } from './dto/stream.dto';
+import { SendChatDto } from 'src/ai/dto/send-chat.dto';
+import { AiChatSendService } from 'src/ai/services/ai-chat-send.service';
 import { UsageService } from 'src/usage/usage.service';
 
 @ApiTags('stream')
@@ -21,23 +22,19 @@ import { UsageService } from 'src/usage/usage.service';
 export class StreamController {
   constructor(
     private readonly streamService: StreamService,
+    private readonly aiChatSendService: AiChatSendService,
     private readonly usageService: UsageService,
   ) {}
 
+  /** @deprecated 请使用 POST /ai/stream */
   @Post('/generateContentStream')
   public async generateContentStream(
-    @Body() streamDtoList: StreamMessageDto[],
+    @Body() dto: SendChatDto,
     @Res() res: Response,
     @CurrentUser('id') userId: string,
   ) {
-    if (!Array.isArray(streamDtoList) || streamDtoList.length === 0) {
-      throw new BadRequestException('streamDtoList is required');
-    }
-    for (const item of streamDtoList) {
-      item.userId = userId;
-    }
-    const latestDto = streamDtoList[streamDtoList.length - 1];
-    // Server-Sent Events（text/event-stream）
+    const ctx = await this.aiChatSendService.prepareContext(dto, userId);
+
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -47,9 +44,11 @@ export class StreamController {
       let responseContent = '';
       let stopped = false;
       const usageOut: StreamCompletionUsageOut = {};
-      for await (const chunk of this.streamService.streamGenerateContentByOpenAI(
-        streamDtoList,
+      for await (const chunk of this.streamService.streamChat(
+        dto,
+        userId,
         usageOut,
+        ctx,
       )) {
         responseContent += chunk;
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
@@ -58,12 +57,12 @@ export class StreamController {
         try {
           await this.usageService.addUsage(
             {
-              modelName: latestDto.model,
-              modelClassify: latestDto.modelClassify,
+              modelName: ctx.model.apiModelName,
+              provider: ctx.model.provider,
               promptTokens: usageOut.usage.prompt_tokens,
               completionTokens: usageOut.usage.completion_tokens,
               totalTokens: usageOut.usage.total_tokens,
-              description: `stream documentId=${latestDto.documentId ?? ''}`,
+              description: `stream documentId=${ctx.documentId}`,
             },
             userId,
           );
@@ -71,17 +70,25 @@ export class StreamController {
           console.error('generateContentStream addUsage failed:', err);
         }
       }
-      stopped = this.streamService.isStopped(userId, latestDto.documentId);
-      res.write(`data: ${JSON.stringify({ done: true, stopped })}\n\n`);
+      stopped = this.streamService.isStopped(userId, ctx.documentId);
+      res.write(
+        `data: ${JSON.stringify({
+          done: true,
+          stopped,
+          documentId: ctx.documentId,
+          titleId: (ctx.createdTitleId ?? ctx.titleId) || undefined,
+          clientMessageId: dto.clientMessageId,
+        })}\n\n`,
+      );
       if (!stopped && responseContent) {
-        await this.streamService.saveResponse(
+        await this.streamService.saveAssistantResponse(
           responseContent,
-          latestDto.model,
-          latestDto.documentId,
+          ctx.model.apiModelName,
+          ctx.documentId,
         );
       }
       res.end();
-      this.streamService.clearStopped(userId, latestDto.documentId);
+      this.streamService.clearStopped(userId, ctx.documentId);
     } catch (error) {
       if (!res.headersSent) {
         res.status(500).end();
@@ -97,11 +104,14 @@ export class StreamController {
   @Post('/stopStream')
   public async stopStream(
     @Body('documentId') documentId: string,
+    @Body('clientMessageId') clientMessageId: string,
     @CurrentUser('id') userId: string,
   ) {
-    const targetDocumentId = String(documentId ?? '').trim();
+    const targetDocumentId =
+      String(documentId ?? '').trim() ||
+      String(clientMessageId ?? '').trim();
     if (!targetDocumentId) {
-      throw new BadRequestException('documentId is required');
+      throw new BadRequestException('documentId or clientMessageId is required');
     }
     const stopped = this.streamService.stopStream(userId, targetDocumentId);
     return {

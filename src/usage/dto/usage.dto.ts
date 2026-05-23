@@ -14,7 +14,7 @@ export class UsageDto {
   @IsOptional()
   modelName?: string;
   @IsOptional()
-  modelClassify?: string;
+  provider?: string;
   @IsOptional()
   startTime?: Date;
   @IsOptional()

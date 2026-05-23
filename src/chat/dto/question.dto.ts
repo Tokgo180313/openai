@@ -8,5 +8,5 @@ export class QuestionDto{
     @IsString()
     useModel:string;
     @IsString()
-    modelClassify:string;
+    provider:string;
 }

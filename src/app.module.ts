@@ -25,6 +25,10 @@ import { TaskImageModule } from './taskImage/taskImage.module';
 import { AiModelConfigModule } from './aiModelConfig/aiModelConfig.module';
 import { MenuModule } from './menu/menu.module';
 import { OptimizationModule } from './optimization/optimization.module';
+import { WhiteListModule } from './white-list/white-list.module';
+import { AiModule } from './ai/ai.module';
+import { UploadFileModule } from './upload-file/upload-file.module';
+import { MessageAttachmentModule } from './message-attachments/message-attachment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -64,6 +68,10 @@ import { OptimizationModule } from './optimization/optimization.module';
     AiModelConfigModule,
     MenuModule,
     OptimizationModule,
+    WhiteListModule,
+    AiModule,
+    UploadFileModule,
+    MessageAttachmentModule,
   ],
   controllers: [AppController],
   providers: [

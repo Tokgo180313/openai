@@ -1,6 +1,6 @@
 -- 关闭 MYSQL_SYNCHRONIZE 时手动执行（按库内实际情况选择步骤）
 
--- A) 列仍为 modelClassify 时
+-- A) 旧 api_keys 表列名仍为 modelClassify 时（迁移到 provider 列）
 -- ALTER TABLE `api_keys`
 --   CHANGE COLUMN `modelClassify` `provider` VARCHAR(255) NOT NULL;
 

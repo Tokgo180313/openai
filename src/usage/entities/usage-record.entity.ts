@@ -21,7 +21,7 @@ export class UsageRecord {
   modelName: string;
 
   @Column({ nullable: true })
-  modelClassify: string;
+  provider: string;
 
   @Column({ type: 'int', nullable: true })
   promptTokens: number;

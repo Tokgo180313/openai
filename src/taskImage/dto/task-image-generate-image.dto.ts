@@ -30,13 +30,8 @@ export class TaskImageGenerateImageDto {
   @IsString()
   prompt?: string;
 
-  /** 模型/渠道提供方，如 openai、google */
+  /** 模型/渠道提供方，如 openai、google；写入 usages 时作为 provider */
   @IsOptional()
   @IsString()
   provider?: string;
-
-  /** 写入 usages 时的模型分类，默认 OpenAI */
-  @IsOptional()
-  @IsString()
-  modelClassify?: string;
 }

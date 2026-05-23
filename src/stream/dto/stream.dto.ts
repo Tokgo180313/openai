@@ -3,8 +3,6 @@ export class StreamMessageDto {
   text?: string;
   model: string;
   baseURL?: string;
-  /** @deprecated 请使用 provider */
-  modelClassify?: string;
   provider?: string;
   role?: string;
   id?: string;
