@@ -17,10 +17,10 @@ onMounted(async ()=>{
         content.value = response.default;
     } catch (err) {
         error.value = `Failed to load markdown file:${err}`
-        console.error("Error loading markdown file:",err)
-    }.finally(()=>{
+        console.error("Error loading markdown file:", err)
+    } finally {
         loading.value = false
-    })
+    }
 })
 </script>
 

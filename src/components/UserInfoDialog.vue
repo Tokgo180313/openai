@@ -6,7 +6,7 @@
           <a-avatar></a-avatar>
         </a-form-item>
         <a-form-item label="显示名称">
-          <a-input v-model:vlaue="submitForm.nickName"></a-input>
+          <a-input v-model:value="submitForm.nickName"></a-input>
         </a-form-item>
         <a-form-item label="帐号">
           <a-input v-model:value="submitForm.account"></a-input>
@@ -28,7 +28,7 @@ import api from "@/api/apiList"
 import { message } from "ant-design-vue";
 let {updateUserInfoInterface} = api;
 const submitForm = ref({
-  avatar:""
+  avatar: "",
   nickName: "",
   account: "",
 });
