@@ -81,18 +81,18 @@
             </a-tag>
           </template>
           <template v-if="column.key === 'action'">
-            <a @click="handleView(record)">详情</a>
+            <a @click="handleView(record as UploadFileRecord)">详情</a>
             <span class="divider">|</span>
-            <a @click="handleEdit(record)">编辑</a>
+            <a @click="handleEdit(record as UploadFileRecord)">编辑</a>
             <span class="divider">|</span>
-            <a @click="handleDownload(record)">下载</a>
+            <a @click="handleDownload(record as UploadFileRecord)">下载</a>
             <span class="divider">|</span>
             <a-popconfirm
               v-if="record.status === 'temp'"
               title="确定标记为已使用吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleMarkUsed(record)"
+              @confirm="handleMarkUsed(record as UploadFileRecord)"
             >
               <a>标记已用</a>
             </a-popconfirm>
@@ -101,7 +101,7 @@
               title="确定删除该文件吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDelete(record)"
+              @confirm="handleDelete(record as UploadFileRecord)"
             >
               <a style="color: red">删除</a>
             </a-popconfirm>
@@ -142,6 +142,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
+import type { ColumnsType } from "ant-design-vue/es/table";
 import config from "./config";
 import AddUploadFileDialog from "./components/AddUploadFileDialog.vue";
 import UpdateUploadFileDialog from "./components/UpdateUploadFileDialog.vue";
@@ -170,7 +171,7 @@ const {
 } = api;
 
 const { columns } = config;
-const columnsList = ref(columns);
+const columnsList = ref<ColumnsType>(columns as ColumnsType);
 
 const statusOptions = UPLOAD_FILE_STATUS_OPTIONS.map((item) => ({
   value: item.value,

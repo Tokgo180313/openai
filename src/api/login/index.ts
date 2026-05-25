@@ -1,5 +1,5 @@
 import request from "../reuquest"
-const loginInterface = function(param){
+const loginInterface = function (param: Record<string, unknown>) {
     return request({
         url:"/auth/login",
         method:'post',

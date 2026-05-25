@@ -107,6 +107,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
 import config from "./config";
 import AddOptimizationDialog from "./components/AddOptimizationDialog.vue";
 
@@ -171,8 +172,8 @@ const fetchList = async () => {
   try {
     const res = await findOptimizationListInterface(buildQueryParams());
     if (res?.code === 200 || res?.code === 201) {
-      tableData.value = res?.data?.list ?? res?.data ?? [];
-      pagination.total = res?.data?.total ?? tableData.value.length;
+      tableData.value = unwrapList(res.data);
+      pagination.total = unwrapPagedMeta(res.data).total ?? tableData.value.length;
       return;
     }
     tableData.value = [];

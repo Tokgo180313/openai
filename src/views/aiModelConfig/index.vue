@@ -9,7 +9,7 @@
             allowClear
             show-search
             :options="providerSearchOptions"
-            :filter-option="filterProviderSearchOption"
+            :filter-option="filterSelectOption"
             style="width: 160px"
           />
         </a-form-item>
@@ -20,7 +20,7 @@
             allowClear
             show-search
             :options="modelNameSearchOptions"
-            :filter-option="filterModelNameSearchOption"
+            :filter-option="filterSelectOption"
             style="width: 160px"
           />
         </a-form-item>
@@ -31,8 +31,8 @@
             allowClear
             style="width: 100px"
           >
-            <a-select-option :value="true">是</a-select-option>
-            <a-select-option :value="false">否</a-select-option>
+            <a-select-option value="1">是</a-select-option>
+            <a-select-option value="0">否</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item>
@@ -64,13 +64,13 @@
           </a-tooltip>
         </template>
         <template v-else-if="column.key === 'action'">
-          <a @click="openEditModal(record)">编辑</a>
+          <a @click="openEditModal(record as AiModelConfigRow)">编辑</a>
           <span class="divider">|</span>
           <a-popconfirm
             title="确认删除该配置吗？"
             ok-text="确认"
             cancel-text="取消"
-            @confirm="handleDelete(record)"
+            @confirm="handleDelete(record as AiModelConfigRow)"
           >
             <a style="color: red">删除</a>
           </a-popconfirm>
@@ -104,6 +104,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { useModelStore } from "@/stores/modelStore";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
+import { filterSelectOption } from "@/types/select-filter";
 import AddAndUpdateAiModelDialog from "./components/AddAndUpdateAiModelDialog.vue";
 import type { AiModelConfigRow } from "./types";
 
@@ -118,7 +120,7 @@ const {
 const searchForm = reactive<{
   provider?: string;
   modelName?: string;
-  isEnabled?: boolean;
+  isEnabled?: string;
 }>({
   provider: undefined,
   modelName: undefined,
@@ -136,10 +138,8 @@ const providerSearchOptions = computed(() => {
   return opts;
 });
 
-const filterProviderSearchOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
+const filterProviderSearchOption = filterSelectOption;
+const filterModelNameSearchOption = filterSelectOption;
 
 /** 与 AI 模型管理一致：服务商对应 ai_models.provider */
 interface ModelStoreRow {
@@ -191,11 +191,6 @@ watch(
   },
 );
 
-const filterModelNameSearchOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
-
 const list = ref<AiModelConfigRow[]>([]);
 const tableLoading = ref(false);
 const pagination = reactive({
@@ -232,12 +227,17 @@ const fetchList = async () => {
       pageSize: pagination.pageSize,
       provider: trimOrUndefined(searchForm.provider),
       modelName: trimOrUndefined(searchForm.modelName),
-      isEnabled: searchForm.isEnabled,
+      isEnabled:
+        searchForm.isEnabled === "1"
+          ? true
+          : searchForm.isEnabled === "0"
+            ? false
+            : undefined,
     };
     const res = await findAiModelConfigListInterface(params);
     if (res?.code === 200 || res?.code === 201) {
-      list.value = res?.data?.list ?? res?.data ?? [];
-      pagination.total = res?.data?.total ?? list.value.length;
+      list.value = unwrapList<AiModelConfigRow>(res.data);
+      pagination.total = unwrapPagedMeta(res.data).total ?? list.value.length;
       return;
     }
     list.value = [];

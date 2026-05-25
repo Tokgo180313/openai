@@ -74,13 +74,13 @@
             </a-tag>
           </template>
           <template v-if="column.key === 'action'">
-            <a @click="handleEdit(record)">编辑</a>
+            <a @click="handleEdit(record as AiModelItem)">编辑</a>
             <span class="divider">|</span>
             <a-popconfirm
               title="确定要删除该模型吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDelete(record)"
+              @confirm="handleDelete(record as AiModelItem)"
             >
               <a style="color: red">删除</a>
             </a-popconfirm>
@@ -90,7 +90,7 @@
               title="确定要禁用该模型吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDisable(record)"
+              @confirm="handleDisable(record as AiModelItem)"
             >
               <a style="color: red">禁用</a>
             </a-popconfirm>
@@ -99,7 +99,7 @@
               title="确定要启用该模型吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleEnable(record)"
+              @confirm="handleEnable(record as AiModelItem)"
             >
               <a style="color: green">启用</a>
             </a-popconfirm>
@@ -140,6 +140,8 @@ import api from "@/api/apiList";
 import config from "./config";
 import AddAiModelDialog from "./components/AddAiModelDialog.vue";
 import UpdateAiModelDialog from "./components/UpdateAiModelDialog.vue";
+import type { ColumnsType } from "ant-design-vue/es/table";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
 import type { AiModelItem } from "@/types/ai-model.type";
 import { getModelTypeLabel } from "@/types/ai-model.type";
 
@@ -153,7 +155,7 @@ const {
 } = api;
 
 const { columns } = config;
-const columnsList = ref(columns);
+const columnsList = ref<ColumnsType>(columns as ColumnsType);
 
 const searchForm = reactive({
   provider: undefined as string | undefined,
@@ -177,7 +179,7 @@ const pagination = reactive({
 const fetchProviderList = async () => {
   const res = await findAiModelProviderListInterface();
   if (res?.code === 200 || res?.code === 201) {
-    providerList.value = res?.data?.list ?? res?.data ?? [];
+    providerList.value = unwrapList<string>(res.data);
   } else {
     providerList.value = [];
   }
@@ -194,8 +196,9 @@ const getAiModelList = async () => {
   };
   const res = await findAiModelListInterface(dto);
   if (res?.code === 200 || res?.code === 201) {
-    aiModelList.value = res?.data?.list ?? res?.data ?? [];
-    pagination.total = res?.data?.total ?? aiModelList.value.length;
+    aiModelList.value = unwrapList<AiModelItem>(res.data);
+    const meta = unwrapPagedMeta(res.data);
+    pagination.total = meta.total ?? aiModelList.value.length;
   } else {
     aiModelList.value = [];
     pagination.total = 0;
@@ -256,7 +259,7 @@ const editRow = ref<AiModelItem | null>(null);
 const handleEdit = async (record: AiModelItem) => {
   const res = await findAiModelByIdInterface({ id: String(record.id) });
   if (res?.code === 200 || res?.code === 201) {
-    editRow.value = res?.data ?? record;
+    editRow.value = (res?.data ?? record) as AiModelItem;
     showUpdateVisible.value = true;
   } else {
     message.error(res?.message || "获取模型详情失败");

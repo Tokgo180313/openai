@@ -47,6 +47,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import api from "@/api/apiList";
 let { findRecordListInterface } = api;
 import config from "./config";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
 const { columns } = config;
 
 function defaultTodayRange(): [Dayjs, Dayjs] {
@@ -88,8 +89,8 @@ const getRecordList = async () => {
   };
   const res = await findRecordListInterface(param);
   if (res.code === 201) {
-    recordList.value = res.data.list;
-    pagination.total = res.data.total;
+    recordList.value = unwrapList<recordType>(res.data);
+    pagination.total = unwrapPagedMeta(res.data).total ?? recordList.value.length;
   }
 };
 const columnsList = ref(columns);

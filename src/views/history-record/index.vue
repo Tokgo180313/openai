@@ -9,7 +9,7 @@
             allow-clear
             show-search
             :options="modelNameOptions"
-            :filter-option="filterModelOption"
+            :filter-option="filterSelectOption"
             style="width: 200px"
           />
         </a-form-item>
@@ -104,6 +104,7 @@ import dayjs from "dayjs";
 import { fetchInputImageByLocalPathApi, taskImageHistoryRecordApi } from "@/api/images";
 import { useAuthStore } from "@/stores/authStore";
 import { useModelStore } from "@/stores/modelStore";
+import { filterSelectOption } from "@/types/select-filter";
 
 /** 与接口 / 实体字段对齐（兼容 snake_case） */
 export interface TaskImageHistoryRow {
@@ -160,10 +161,7 @@ const modelNameOptions = computed(() => {
   return names.map((s) => ({ label: s, value: s }));
 });
 
-const filterModelOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
+const filterModelOption = filterSelectOption;
 
 const list = ref<TaskImageHistoryRow[]>([]);
 const tableLoading = ref(false);

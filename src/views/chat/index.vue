@@ -151,7 +151,15 @@ const showStreamThinking = computed(
 );
 // 只要输入框里存在任何字符（包括换行符）就隐藏 placeholder
 const isInputEmpty = computed(() => markdownInputContent.value.length === 0);
-const markdownContentList = ref([]);
+interface ChatMarkdownItem {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  type?: "input_text" | "input_file" | "input_url";
+  file?: string;
+  name?: string;
+}
+const markdownContentList = ref<ChatMarkdownItem[]>([]);
 interface PatseOptions {
   stripFormatting?: boolean;
   convertToMarkdown?: boolean;
@@ -313,7 +321,7 @@ const sendMessageEvent = async () => {
   }
   const isFirstMessage = markdownContentList.value.length === 0;
   const content =
-    document.querySelector("[contenteditable]")?.innerText?.trim() ?? "";
+    (document.querySelector("[contenteditable]") as HTMLElement | null)?.innerText?.trim() ?? "";
   const readyPreviewItems = previewItems.value.filter(
     (item) => item.uploadedUrl && item.fileId,
   );
@@ -335,8 +343,10 @@ const sendMessageEvent = async () => {
         displayFile = await fileToBase64(item.file);
       }
       return {
-        role: "user",
-        file: displayFile,
+        id: nanoid(),
+        role: "user" as const,
+        content: "",
+        file: typeof displayFile === "string" ? displayFile : undefined,
         name: item.name,
         type: item.type,
       };
@@ -345,6 +355,7 @@ const sendMessageEvent = async () => {
   markdownContentList.value.push(...fileContent);
   if (content) {
     markdownContentList.value.push({
+      id: nanoid(),
       role: "user",
       content,
       type: "input_text",
@@ -657,7 +668,9 @@ const chatChageEvent = eventBus.on("chat-change", () => {
 const refreshChatContnet = () => {
   chatListInterface(documentId.value).then((res) => {
     if (res.code === 200) {
-      markdownContentList.value = res.data;
+      markdownContentList.value = (Array.isArray(res.data)
+        ? res.data
+        : []) as ChatMarkdownItem[];
       scrollToBottom(false);
     }
   });
@@ -692,12 +705,12 @@ const beforeUploadEvent = (file: File) => {
 const parseUploadSaveResult = (res: {
   code?: number;
   message?: string;
-  data?: UploadFileSaveResult;
+  data?: unknown;
 }): UploadFileSaveResult => {
   if (res?.code != null && res.code !== 200 && res.code !== 201) {
     throw new Error(res.message || "上传失败");
   }
-  const data = res?.data;
+  const data = res?.data as UploadFileSaveResult | undefined;
   if (!data?.fileId) {
     throw new Error("上传成功但未返回 fileId");
   }

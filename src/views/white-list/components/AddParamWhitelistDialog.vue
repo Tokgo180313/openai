@@ -17,7 +17,7 @@
           placeholder="请选择模型"
           show-search
           :disabled="!!props.initialParentId"
-          :filter-option="filterModelOption"
+          :filter-option="filterSelectOption"
           :options="modelOptions"
         />
       </a-form-item>
@@ -27,7 +27,7 @@
           placeholder="不选则为根参数"
           allow-clear
           show-search
-          :filter-option="filterParentOption"
+          :filter-option="filterSelectOption"
           :options="parentOptions"
         />
       </a-form-item>
@@ -131,7 +131,10 @@
 
 <script lang="ts" setup>
 import { computed, reactive, ref, watch } from "vue";
-import type { FormInstance, Rule } from "ant-design-vue";
+import type { FormInstance } from "ant-design-vue";
+import type { Rule } from "ant-design-vue/es/form";
+import type { FormRulesMap } from "@/types/form-rules";
+import { filterSelectOption } from "@/types/select-filter";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
 import type { AiModelItem } from "@/types/ai-model.type";
@@ -237,19 +240,11 @@ const showEnumValues = computed(() =>
   needsEnumValues(submitForm.paramType, submitForm.itemParamType),
 );
 
-const filterModelOption = (input: string, option?: { label?: string; value?: string }) => {
-  const text = String(option?.label ?? option?.value ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
-
-const filterParentOption = (input: string, option?: { label?: string; value?: string }) => {
-  const text = String(option?.label ?? option?.value ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
+const filterModelOption = filterSelectOption;
 
 const jsonFieldRules: Rule[] = [
   {
-    validator: (_rule, value: string) => {
+    validator: (_rule: Rule, value: string) => {
       if (!value?.trim()) return Promise.resolve();
       try {
         JSON.parse(value);
@@ -262,7 +257,7 @@ const jsonFieldRules: Rule[] = [
   },
 ];
 
-const formRules = computed(() => ({
+const formRules = computed<FormRulesMap>(() => ({
   modelId: [{ required: true, message: "请选择模型", trigger: "change" }],
   paramKey: [{ required: true, message: "请输入段名", trigger: "blur" }],
   apiParamKey: [{ required: true, message: "请输入 API 段名", trigger: "blur" }],

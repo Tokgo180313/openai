@@ -7,7 +7,7 @@
     ok-text="确认"
     cancel-text="取消"
   >
-    <a-form :model="submitForm" :rules="rules" label-col="{ span: 4 }" wrapper-col="{ span: 14 }">
+    <a-form :model="submitForm" :rules="rules" :label-col="{ span: 4 }" :wrapper-col="{ span: 14 }">
       <a-form-item label="角色ID" name="roleId">
         <a-input-number
           v-model:value="submitForm.roleId"
@@ -34,6 +34,7 @@ import { computed, ref } from "vue";
 import api from "@/api/apiList.ts";
 import { message } from "ant-design-vue";
 import { ROLE } from "@/constants/role";
+import type { FormRulesMap } from "@/types/form-rules";
 const { addRoleInterface } = api;
 
 interface Props{
@@ -51,7 +52,7 @@ let submitForm = ref<RoleType>({
   name: "普通用户",
   status: "1",
 });
-const rules = {
+const rules: FormRulesMap = {
   roleId: [{ required: true, message: "请输入角色ID", trigger: "blur" }],
   name: [{ required: true, message: "请输入角色名称", trigger: "blur" }],
   status: [{ required: true, message: "请选择状态", trigger: "change" }],

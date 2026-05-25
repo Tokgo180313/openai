@@ -21,7 +21,7 @@
               allowClear
               show-search
               :options="providerSelectOptions"
-              :filter-option="filterProviderOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -34,7 +34,7 @@
               allowClear
               show-search
               :options="modelNameSelectOptions"
-              :filter-option="filterModelNameOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -93,7 +93,7 @@
               allowClear
               show-search
               :options="supportedAspectRatioSelectOptions"
-              :filter-option="filterAspectRatioOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -112,7 +112,7 @@
               allowClear
               show-search
               :options="supportedResolutionsSelectOptions"
-              :filter-option="filterResolutionPresetOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -125,7 +125,7 @@
               allowClear
               show-search
               :options="defaultResolutionSelectOptions"
-              :filter-option="filterResolutionPresetOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -139,7 +139,7 @@
               allowClear
               show-search
               :options="supportedFormatsSelectOptions"
-              :filter-option="filterResolutionPresetOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -152,7 +152,7 @@
               allowClear
               show-search
               :options="maxResolutionSelectOptions"
-              :filter-option="filterResolutionPresetOption"
+              :filter-option="filterSelectOption"
               style="width: 100%"
             />
           </a-form-item>
@@ -210,7 +210,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from "vue";
-import type { FormInstance, Rule } from "ant-design-vue/es/form";
+import type { FormInstance } from "ant-design-vue/es/form";
+import type { Rule } from "ant-design-vue/es/form";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { useModelStore } from "@/stores/modelStore";
@@ -220,6 +221,8 @@ import type {
   FieldMappingsDto,
 } from "@/api/manage/aiModelConfig";
 import type { AiModelConfigRow } from "../types";
+import type { FormRulesMap } from "@/types/form-rules";
+import { filterSelectOption } from "@/types/select-filter";
 
 const open = defineModel<boolean>("open", { required: true });
 
@@ -253,7 +256,7 @@ interface FormState {
   displayName: string;
   modelType: string;
   apiUrl: string;
-  maxImageCount?: number | null;
+  maxImageCount?: number;
   supportedAspectRatio: string[];
   defaultAspectRatio: string;
   supportedResolutions: string[];
@@ -265,7 +268,7 @@ interface FormState {
   compatibleWithOpenAi: boolean;
   defaultParamsJson: string;
   isEnabled: boolean;
-  sort?: number | null;
+  sort?: number;
 }
 
 const emptyFieldMappings = (): FieldMappingsForm => ({
@@ -315,11 +318,6 @@ const providerSelectOptions = computed(() => {
   return opts;
 });
 
-const filterProviderOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
-
 /** 来自 store：API 模型名列表（依赖 fetchAiModelList 填充 aiModelList） */
 const modelNameFromStore = computed(() => modelStore.apiModelNameList as string[]);
 
@@ -332,11 +330,6 @@ const modelNameSelectOptions = computed(() => {
   }
   return opts;
 });
-
-const filterModelNameOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
 
 /** 预设宽高比（展示层统一半角冒号） */
 const ASPECT_RATIO_PRESET = [
@@ -365,11 +358,6 @@ const supportedAspectRatioSelectOptions = computed(() => {
   const extra = orphans.map((r) => ({ label: r, value: r }));
   return [...base, ...extra];
 });
-
-const filterAspectRatioOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
 
 /** 分辨率档位（可选值） */
 const RESOLUTION_PRESET = ["1K", "2K", "3K", "4K", "8K"] as const;
@@ -400,11 +388,6 @@ const maxResolutionSelectOptions = computed(() => {
   return base;
 });
 
-const filterResolutionPresetOption = (input: string, option: { label?: string; value?: string }) => {
-  const text = String(option?.value ?? option?.label ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
-
 const FORMAT_PRESET = ["jpeg", "png"] as const;
 const presetFormatSet = new Set<string>(FORMAT_PRESET);
 
@@ -415,7 +398,7 @@ const supportedFormatsSelectOptions = computed(() => {
   return [...base, ...orphans.map((r) => ({ label: r, value: r }))];
 });
 
-const formRules = {
+const formRules: FormRulesMap = {
   provider: [{ required: true, message: "请选择服务商", trigger: "change" }],
   modelName: [{ required: true, message: "请选择模型名", trigger: "change" }],
   displayName: [{ required: true, message: "请输入展示名称", trigger: "blur" }],

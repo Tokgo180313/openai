@@ -43,13 +43,15 @@ interface SubmitFormType {
   apiKey: string;
 }
 
+import type { FormRulesMap } from "@/types/form-rules";
+
 const submitForm = reactive<SubmitFormType>({
   provider: "",
   baseURL: "",
   apiKey: "",
 });
 
-const formRules = {
+const formRules: FormRulesMap = {
   provider: [{ required: true, message: "请输入服务商", trigger: "blur" }],
   baseURL: [{ required: true, message: "请输入BaseURL", trigger: "blur" }],
   apiKey: [{ required: true, message: "请输入ApiKey", trigger: "blur" }],

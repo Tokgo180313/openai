@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy Quasar boot file, not used in Vite app
 // src/utils/tinymce-init.ts
 import { boot } from 'quasar/wrappers'
 import tinymce from 'tinymce/tinymce'

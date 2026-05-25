@@ -11,7 +11,7 @@
             </a-form>
         </div>
         <div class="content">
-            <a-table :data-source="usageList" :columns="columnsList" :pagination="false" size="small" bordered striped scroll="max-height: 500px"></a-table>
+            <a-table :data-source="usageList" :columns="columnsList" :pagination="false" size="small" bordered striped :scroll="{ y: 500 }"></a-table>
         </div>
         <div class="pagination">
             <a-pagination :current="pagination.current" :pageSize="pagination.pageSize" :total="pagination.total" @change="paginationChangeEvent"></a-pagination>
@@ -21,7 +21,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import type { ColumnsType } from 'ant-design-vue/es/table';
 import { PaginationType } from '@/types/pagination';
+import { unwrapList, unwrapPagedMeta } from '@/api/response';
 import api from '@/api/apiList';
 import config from './config';
 const { columns } = config;
@@ -42,10 +44,10 @@ interface UsageType {
   completionTokens: number;
 }
 const usageList = ref<UsageType[]>([]);
-const columnsList = ref<TableColumnType[]>([]);
+const columnsList = ref<ColumnsType>([]);
 onMounted(() => {
   getUsageList();
-  columnsList.value = columns;
+  columnsList.value = columns as ColumnsType;
 });
 const pagination = ref<PaginationType>({
   current: 1,
@@ -64,8 +66,8 @@ const getUsageList = async () => {
   };
   const res = await findUsageListInterface(requestParam);
   if (res.code === 201) {
-    usageList.value = res.data.list ||res.data|| [];
-    pagination.value.total = res.data.total;
+    usageList.value = unwrapList<UsageType>(res.data);
+    pagination.value.total = unwrapPagedMeta(res.data).total ?? usageList.value.length;
   }
 };
 </script>

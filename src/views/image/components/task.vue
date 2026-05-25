@@ -270,7 +270,7 @@ const textStorageKey = `image-task-text-${props.taskId}`;
 const store = useTaskStore();
 
 const uploadSlots = ref<UploadWithMeta[][]>(
-  Array.from({ length: 4 }, () => []),
+  Array.from({ length: 4 }, (): UploadWithMeta[] => []),
 );
 
 /** 与 uploadSlots 下标对齐，服务端保存的图片路径/URL；空字符串表示该槽无图 */
@@ -624,7 +624,7 @@ async function applyPersistedTaskImageFromApiData(raw: unknown) {
   }
   sourceImages.value = paths;
 
-  const slots: UploadWithMeta[][] = Array.from({ length: 4 }, () => []);
+  const slots: UploadWithMeta[][] = Array.from({ length: 4 }, (): UploadWithMeta[] => []);
   for (let i = 0; i < 4; i++) {
     const lp = (paths[i] ?? "").trim();
     if (!lp) continue;
@@ -1179,7 +1179,7 @@ async function clearAllSlotImagesAndSyncServer() {
     const u = slot[0]?.url;
     if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
   }
-  uploadSlots.value = Array.from({ length: 4 }, () => []);
+  uploadSlots.value = Array.from({ length: 4 }, (): UploadWithMeta[] => []);
   if (props.shouldRegisterTaskImage) {
     const paths = ensureFourSourceImageSlots([...sourceImages.value]);
     for (let i = 0; i < 4; i++) {

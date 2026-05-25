@@ -87,6 +87,7 @@ import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import { useModelStore } from "@/stores/modelStore";
 import type { CreateMenuDto, MenuRow, ParentTreeOption, UpdateMenuDto } from "../types";
+import type { FormRulesMap } from "@/types/form-rules";
 
 const { addMenuInterface, updateMenuInterface } = api;
 const modelStore = useModelStore();
@@ -125,7 +126,7 @@ const formState = reactive(defaultFormState());
 
 const parentTreeData = computed(() => props.parentTreeOptions);
 
-const formRules = {
+const formRules: FormRulesMap = {
   code: [{ required: true, message: "请输入菜单编码", trigger: "blur" }],
   name: [{ required: true, message: "请输入菜单名称", trigger: "blur" }],
   type: [{ required: true, message: "请选择类型", trigger: "change" }],
@@ -224,8 +225,8 @@ const handleSubmit = async () => {
   try {
     const payload = buildPayload();
     const res = props.isEditMode
-      ? await updateMenuInterface(payload as UpdateMenuDto)
-      : await addMenuInterface(payload as CreateMenuDto);
+      ? await updateMenuInterface(payload as unknown as Record<string, unknown>)
+      : await addMenuInterface(payload as unknown as Record<string, unknown>);
 
     if (res?.code === 200 || res?.code === 201) {
       message.success(res?.message || (props.isEditMode ? "编辑成功" : "添加成功"));

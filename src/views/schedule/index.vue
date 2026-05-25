@@ -16,8 +16,8 @@
             allowClear
             style="width: 120px"
           >
-            <a-select-option :value="true">启用</a-select-option>
-            <a-select-option :value="false">禁用</a-select-option>
+            <a-select-option value="1">启用</a-select-option>
+            <a-select-option value="0">禁用</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="执行状态">
@@ -65,13 +65,13 @@
           {{ formatDate(record.nextRunAt) }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <a @click="openEditModal(record)">编辑</a>
+          <a @click="openEditModal(record as ScheduleItem)">编辑</a>
           <span class="divider">|</span>
           <a-popconfirm
             :title="record.isEnabled ? '确认禁用该任务吗？' : '确认启用该任务吗？'"
             ok-text="确认"
             cancel-text="取消"
-            @confirm="handleToggleEnabled(record)"
+            @confirm="handleToggleEnabled(record as ScheduleItem)"
           >
             <a>
               {{ record.isEnabled ? "禁用" : "启用" }}
@@ -82,7 +82,7 @@
             title="确认删除该任务吗？"
             ok-text="确认"
             cancel-text="取消"
-            @confirm="handleDelete(record)"
+            @confirm="handleDelete(record as ScheduleItem)"
           >
             <a style="color: red">删除</a>
           </a-popconfirm>
@@ -160,6 +160,8 @@ import { onMounted, reactive, ref } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
+import type { FormRulesMap } from "@/types/form-rules";
 
 const {
   addScheduleInterface,
@@ -183,7 +185,7 @@ interface ScheduleItem {
 
 const searchForm = reactive<{
   name?: string;
-  isEnabled?: boolean;
+  isEnabled?: string;
   status?: string;
 }>({
   name: "",
@@ -234,7 +236,7 @@ const formState = reactive({
   lastError: "",
 });
 
-const formRules = {
+const formRules: FormRulesMap = {
   name: [{ required: true, message: "请输入任务名称", trigger: "blur" }],
   conExpression: [
     { required: true, message: "请输入Cron表达式", trigger: "blur" },
@@ -285,13 +287,18 @@ const fetchScheduleList = async () => {
       page: pagination.current,
       pageSize: pagination.pageSize,
       name: searchForm.name || undefined,
-      isEnabled: searchForm.isEnabled,
+      isEnabled:
+        searchForm.isEnabled === "1"
+          ? true
+          : searchForm.isEnabled === "0"
+            ? false
+            : undefined,
       status: searchForm.status || undefined,
     };
     const res = await findScheduleListInterface(params);
     if (res?.code === 200 || res?.code === 201) {
-      scheduleList.value = res?.data?.list || res?.data || [];
-      pagination.total = res?.data?.total || scheduleList.value.length;
+      scheduleList.value = unwrapList<ScheduleItem>(res.data);
+      pagination.total = unwrapPagedMeta(res.data).total ?? scheduleList.value.length;
       return;
     }
     scheduleList.value = [];
@@ -326,7 +333,7 @@ const openEditModal = async (record: ScheduleItem) => {
   try {
     const res = await findScheduleByIdInterface({ id: record.id });
     if (res?.code === 200 || res?.code === 201) {
-      const data = res?.data || record;
+      const data = (res?.data ?? record) as ScheduleItem;
       isEditMode.value = true;
       editId.value = data.id;
       formState.name = data.name || "";

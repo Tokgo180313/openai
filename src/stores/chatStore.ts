@@ -1,16 +1,13 @@
 import { defineStore } from "pinia";
-interface stateInfo {
-  loading: boolean;
-}
+
 export const useChatStore = defineStore("store", {
-  state: () => ({ documentId: null, titleId: null }),
+  state: () => ({
+    documentId: null as string | null,
+    titleId: null as string | null,
+  }),
   getters: {
-    getDocumentId() {
-      return this.documentId;
-    },
-    getTitleId() {
-      return this.titleId;
-    },
+    getDocumentId: (state) => state.documentId,
+    getTitleId: (state) => state.titleId,
   },
   persist: true,
   actions: {

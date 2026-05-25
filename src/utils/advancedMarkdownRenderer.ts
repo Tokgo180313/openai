@@ -7,9 +7,13 @@ const md = new MarkdownIt({
     typographer:true,
     breaks:true,
     highlight:function(str:string,lang:string){
-        if(lang&& markdownItHighlightjs.getLanguage(lang)){
+        const hl = markdownItHighlightjs as typeof markdownItHighlightjs & {
+            getLanguage?: (lang: string) => boolean;
+            highlight?: (str: string, opts: { language: string }) => { value: string };
+        };
+        if(lang && hl.getLanguage?.(lang)){
             try {
-                return markdownItHighlightjs.highlight(str,{language:lang}).value;
+                return hl.highlight!(str,{language:lang}).value;
             } catch (__) {
                 
             }
@@ -20,14 +24,14 @@ const md = new MarkdownIt({
 
 md.use(function(md){
     const defaultRender = md.renderer.rules.link_open || function(tokens,idx,options,env,self){
-        return self.rederToken(tokens,idx,options)
+        return self.renderToken(tokens, idx, options)
     };
 
     md.renderer.rules.link_open = function(tokens,idx,options,env,self){
         const token = tokens[idx];
         const hrefIndex = token.attrIndex("href");
         if(hrefIndex >= 0){
-            const href = token.attrs[hrefIndex][1];
+            const href = token.attrs![hrefIndex][1];
             if(href.startsWith('http')){
                 token.attrPush(['target','_blank'])
                 token.attrPush(['rel','noopener noreferrer'])

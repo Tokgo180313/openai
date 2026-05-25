@@ -91,9 +91,9 @@ const goToConsole = async () => {
 const questionType = ref(modelStore.currentApiModelName || null);
 const showRemoveDialog = ref(false);
 const store = useRequestStore();
-const { id } = storeToRefs(store);
 const chatModelList = computed(() => modelStore.chatModelList);
 const handleQuestionTypeChange = function () {
+  if (!questionType.value) return;
   useRequestStore().updateQuestionTye(questionType.value);
   modelStore.setCurrentApiModelName(questionType.value);
   const model = chatModelList.value.find(
@@ -101,14 +101,14 @@ const handleQuestionTypeChange = function () {
   );
   modelStore.setCurrentProvider(model?.provider ?? null);
 };
-const removeChatTitleId = ref(null);
+const removeChatTitleId = ref("");
 const showRemoveEvent = function () {
   showRemoveDialog.value = true;
   removeChatTitleId.value = chatStore.getTitleId;
 };
 const handleCloseModal = function () {
   showRemoveDialog.value = false;
-  removeChatTitleId.value = null;
+  removeChatTitleId.value = "";
 };
 const handleUpdateList = function () {
   eventBus.emit("update-chat-list");

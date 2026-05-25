@@ -1,47 +1,47 @@
 import request from "../reuquest"
-const updateUserInfoInterface = function(param){
+const updateUserInfoInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/updateUser",
         method:"post",
         data:param
     })
 }
-const findAllUserInfoInterface = function(param){
+const findAllUserInfoInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/findAll",
         method:"post",
         data:param
     })
 }
- const addUserInfoInterface = function(param){
+ const addUserInfoInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/add",
         method:"put",
         data:param
     })
  }
- const resetUserInfoInterface = function(param){
+ const resetUserInfoInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/resetById",
         method:"post",
         data:param
     })
  }
- const removeUserInfoInterface = function(param){
+ const removeUserInfoInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/deleteById",
         method:"delete",
         params:param,
     })
  }
-const updatePasswordInterface = function(param){
+const updatePasswordInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/updatePassword",
         method:"post",
         data:param,
     })
  }
- const updateNickNameInterface = function(param){
+ const updateNickNameInterface = function (param: Record<string, unknown>){
     return request({
         url:"/user/updateNickName",
         method:"post",

@@ -27,27 +27,14 @@ export const useAuthStore = defineStore("auth", {
     key: "auth",
   },
   getters: {
-    getToken() {
-      return this.token;
-    },
-    getNickName() {
-      return this.nickName;
-    },
-    getRoleId() {
-      return this.roleId;
-    },
-    getRoleIds() {
-      return this.roleIds;
-    },
-    getAccount() {
-      return this.account;
-    },
-    getUserId() {
-      return this.userId ?? sessionStorage.getItem("user_id");
-    },
-    getMenus() {
-      return this.menus;
-    },
+    getToken: (state) => state.token,
+    getNickName: (state) => state.nickName,
+    getRoleId: (state) => state.roleId,
+    getRoleIds: (state) => state.roleIds,
+    getAccount: (state) => state.account,
+    getUserId: (state) =>
+      state.userId ?? sessionStorage.getItem("user_id"),
+    getMenus: (state) => state.menus,
   },
 
   actions: {

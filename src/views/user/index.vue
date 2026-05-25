@@ -23,13 +23,13 @@
         <template v-if="column.key == 'action'">
           <a-popconfirm
             title="此操作将重置用户密码，是否确认重置"
-            @confirm="resetEvent(record)"
+            @confirm="resetEvent(record as UserType)"
           >
             <a-button type="text" v-if="showRemoveIcon">重置</a-button>
           </a-popconfirm>
           <a-popconfirm
             title="此操作将永久删除该用户，是否确认删除？"
-            @confirm="removeEvent(record)"
+            @confirm="removeEvent(record as UserType)"
           >
             <template #icon>
               <QestionCircleOutlined style="color: red" />
@@ -61,8 +61,9 @@
 import { computed, onMounted, ref } from "vue";
 import UserAddDialog from "@/components/UserAddDialog.vue";
 import { useAuthStore } from "@/stores/authStore";
-import { UserType, columnType, searchFormType } from "./types/UserType";
-import { PaginationType } from "@/types/pagination";
+import type { UserType, columnType, searchFormType } from "./types/UserType";
+import type { PaginationType } from "@/types/pagination";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
 import { getRoleName, isNormalUser } from "@/constants/role";
@@ -133,25 +134,25 @@ const removeEvent = function (row: UserType) {
 const searchEvent = function () {
   findAllUserInfoImpl();
 };
-const paginationChangeEvent = function (page, pageSize) {
+const paginationChangeEvent = function (page: number, pageSize: number) {
   pagination.value.current = page;
-  pagination.vlaue.pageSize = pageSize;
+  pagination.value.pageSize = pageSize;
   findAllUserInfoImpl();
 };
 const findAllUserInfoImpl = function () {
   findAllUserInfoInterface(requestParam.value).then((res) => {
     if (res.code === 201) {
-      dataSource.value = res.data.list || [];
-      pagination.value.total = res.data.total;
+      dataSource.value = unwrapList<UserType>(res.data);
+      pagination.value.total = unwrapPagedMeta(res.data).total ?? 0;
     } else {
-      dataSource.vlaue = [];
+      dataSource.value = [];
     }
   });
 };
 const showAddUserDialog = function () {
   showAddUserVisible.value = true;
 };
-const closeModalEvent = function (value) {
+const closeModalEvent = function (value?: boolean) {
   showAddUserVisible.value = false;
   if (value) {
     findAllUserInfoImpl();

@@ -52,6 +52,7 @@ import { computed, reactive, ref, watch } from "vue";
 import type { FormInstance } from "ant-design-vue";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
+import type { FormRulesMap } from "@/types/form-rules";
 import type { AiModelItem } from "@/types/ai-model.type";
 
 const { updateAiModelInterface } = api;
@@ -83,7 +84,7 @@ const providerOptions = computed(() =>
   (props.providerList ?? []).map((p) => ({ label: p, value: p })),
 );
 
-const formRules = {
+const formRules: FormRulesMap = {
   provider: [{ required: true, message: "请选择服务商", trigger: "change" }],
   modelCode: [{ required: true, message: "请输入模型编码", trigger: "blur" }],
   apiModelName: [{ required: true, message: "请输入 API 模型名", trigger: "blur" }],

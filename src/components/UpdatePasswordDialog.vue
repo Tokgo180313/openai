@@ -23,12 +23,13 @@ import api from "@/api/apiList";
 const { updatePasswordInterface } = api;
 import { message } from "ant-design-vue";
 import { resetManageRoutes } from "@/router/dynamicRoutes";
-const formRules = {
+import type { FormRulesMap } from "@/types/form-rules";
+const formRules: FormRulesMap = {
   oldPassword: [{ required: true, message: "请输入旧密码", trigger: "blur" }],
   newPassword: [{ required: true, message: "请输入新密码", trigger: "blur" }],
   confirmPassword: [
     { required: true, message: "请再次输入新密码", trigger: "blur" },
-    { validator: (rule, value) => {
+    { validator: (_rule: unknown, value: string) => {
       console.log(value, submitForm.value.newPassword);
         if (value !== submitForm.value.newPassword) {
           return Promise.reject("两次输入的新密码不一致");
@@ -54,9 +55,12 @@ const submitForm = ref<SubmitForm>({
   newPassword: "",
   confirmPassword: "",
 });
-const open = computed(() => props.visible);
 import { useAuthStore } from "../stores/authStore";
-import user from "../api/user";
+
+const open = computed({
+  get: () => props.visible,
+  set: () => emit("close-modal"),
+});
 const userStore = useAuthStore();
 import { useRouter } from "vue-router";
 const router = useRouter();
@@ -68,7 +72,6 @@ const handleOk = () => {
   }
   updatePasswordInterface(submitForm.value).then((res) => {
     if (res.code == 200) {
-      open.value = false;
       emit("close-modal");
       userStore.clearToken();
       resetManageRoutes(router);

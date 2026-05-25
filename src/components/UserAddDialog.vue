@@ -26,7 +26,7 @@
             show-search
             :options="parentOptions"
             :loading="parentListLoading"
-            :filter-option="filterParentOption"
+            :filter-option="filterSelectOption"
             allow-clear
             style="width: 100%"
           />
@@ -68,6 +68,9 @@ let { addUserInfoInterface, findAllUserInfoInterface } = api;
 import { useModelStore } from "../stores/modelStore";
 import { ROLE } from "@/constants/role";
 import type { UserType } from "@/views/user/types/UserType";
+import { unwrapList } from "@/api/response";
+import { filterSelectOption } from "@/types/select-filter";
+import type { SelectValue } from "ant-design-vue/es/select";
 const modelStore = useModelStore();
 const roleList = computed(() => modelStore.roleOptions);
 interface Props {
@@ -89,15 +92,11 @@ const parentOptions = ref<{ label: string; value: string }[]>([]);
 
 let submitForm = ref<UserInfoDtoType>({
   account: "",
+  password: "",
   roleId: ROLE.NORMAL_USER,
   nickName: "",
   parentId: "",
 });
-
-function filterParentOption(input: string, option: { label?: string }) {
-  const label = option.label ?? "";
-  return label.toLowerCase().includes(input.trim().toLowerCase());
-}
 
 async function loadParentOptions() {
   parentListLoading.value = true;
@@ -108,7 +107,7 @@ async function loadParentOptions() {
       pageSize: 500,
     });
     if (res.code === 201) {
-      const list = (res.data?.list || []) as UserType[];
+      const list = unwrapList<UserType>(res.data);
       parentOptions.value = list.map((u) => ({
         value: u.id,
         label: u.account || String(u.id),
@@ -156,8 +155,8 @@ const confirmAddEvent = async function () {
 const cancelEvent = function () {
   emits("close-modal", false);
 };
-const roleChangeEvent = function (value) {
-  submitForm.value.roleId = value;
+const roleChangeEvent = function (value: SelectValue) {
+  submitForm.value.roleId = String(value ?? "");
 };
 const onFinish = function () {
   console.log(submitForm);
@@ -167,6 +166,7 @@ const onFinishFailed = function () {};
 const resetForm = function () {
   submitForm.value = {
     account: "",
+    password: "",
     roleId: ROLE.NORMAL_USER,
     nickName: "",
     parentId: props.defaultParentId ?? "",

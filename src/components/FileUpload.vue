@@ -43,7 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const emit = defineEmits<{
   uploadSuccess: [files: any[]];
-  uploadError: [error: Error];
+  uploadError: [error: unknown];
   fileAdded: [file: any];
   fileRemoved: [file: any];
 }>();
@@ -82,14 +82,14 @@ const handleProcessFile = (error: any, file: any) => {
   console.log("file processed", file);
   emit("uploadSuccess", file.value);
 };
-const handleRemoveFile = (error: any, file: ayn) => {
+const handleRemoveFile = (error: unknown, file: File) => {
   if (error) {
     emit("uploadError", error);
     return;
   }
   emit("fileRemoved", file);
 };
-const handleError = (error: ayn) => {
+const handleError = (error: unknown) => {
   console.error("filepond error", error);
   emit("uploadError", error);
 };

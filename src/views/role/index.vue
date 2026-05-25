@@ -52,14 +52,14 @@
               type="primary"
               danger
               v-if="record.status === '1'"
-              @click="handleStop(record)"
+              @click="handleStop(record as RoleType)"
               size="small"
               >停用</a-button
             >
             <a-button
               type="primary"
               v-if="record.status === '0'"
-              @click="handleStart(record)"
+              @click="handleStart(record as RoleType)"
               size="small"
               >启用</a-button
             >
@@ -85,19 +85,21 @@ import config from "./config";
 const { columns } = config;
 import { Modal } from "ant-design-vue";
 import { ROLE } from "@/constants/role";
+import { unwrapList } from "@/api/response";
+
 interface submitFormType {
   name: string;
   status: string;
 }
-const submitForm = ref<submitFormType>({
-  name: null,
-  status: null,
-});
 interface RoleType {
   id: number;
   name: string;
   status: string;
 }
+const submitForm = ref<submitFormType>({
+  name: "",
+  status: "",
+});
 const tableData = ref<RoleType[]>([]);
 const columnsList = computed(() => columns);
 onMounted(() => {
@@ -106,7 +108,7 @@ onMounted(() => {
 const handleSearch = () => {
   getRoleListInterface(submitForm.value).then((res) => {
     if (res.code === 201) {
-      tableData.value = res.data;
+      tableData.value = unwrapList<RoleType>(res.data);
     } else {
       message.error(res.message);
       tableData.value = [];

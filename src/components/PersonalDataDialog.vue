@@ -29,6 +29,7 @@ const { updateNickNameInterface } = api;
 import { message } from "ant-design-vue";
 import { useAuthStore } from "../stores/authStore";
 import { getRoleName } from "@/constants/role";
+import type { FormRulesMap } from "@/types/form-rules";
 const userStore = useAuthStore();
 const props = defineProps<Props>();
 const emits = defineEmits(["close-modal"]);
@@ -51,7 +52,7 @@ watch(
     }
   }
 );
-const formRules = {
+const formRules: FormRulesMap = {
   nickName: [{ required: true, message: "请输入昵称", trigger: "blur" }],
 };
 const open = computed(() => props.visible);

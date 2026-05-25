@@ -54,7 +54,7 @@
 import { reactive, ref, watch } from "vue";
 import { message } from "ant-design-vue";
 import api from "@/api/apiList";
-import type { UploadFileRecord } from "@/types/upload-file.type";
+import type { UploadFileRecord, UploadFileUpdateDto } from "@/types/upload-file.type";
 import {
   UPLOAD_FILE_SOURCE_OPTIONS,
   UPLOAD_FILE_STATUS_OPTIONS,
@@ -184,7 +184,7 @@ const handleSubmit = async () => {
       ...(submitForm.duration != null ? { duration: submitForm.duration } : {}),
       ...(metadata !== undefined ? { metadata } : {}),
     };
-    const res = (await updateUploadFileApi(dto)) as {
+    const res = (await updateUploadFileApi(dto as UploadFileUpdateDto)) as {
       code?: number;
       message?: string;
     };

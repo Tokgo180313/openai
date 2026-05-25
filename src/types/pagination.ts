@@ -1,6 +1,6 @@
 export interface PaginationType {
-    current:string,
-    pageSize:string,
-    total:string,
-    pageSizeOptions?:string[],
+  current: number;
+  pageSize: number;
+  total: number;
+  pageSizeOptions?: string[];
 }

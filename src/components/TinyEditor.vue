@@ -9,7 +9,7 @@
 
 <script lang="ts" setup>
 import Editor from "@tinymce/tinymce-vue";
-import { TinyTypes } from "../types/TinyTypes";
+import type { TinyTypes } from "../types/TinyTypes";
 import { computed ,ref} from "vue";
 const props = withDefaults(defineProps<TinyTypes>(), {
   modelValue: "",

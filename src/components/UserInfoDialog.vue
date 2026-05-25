@@ -24,9 +24,11 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import api from "@/api/apiList"
+import api from "@/api/apiList";
 import { message } from "ant-design-vue";
-let {updateUserInfoInterface} = api;
+
+const openModal = defineModel<boolean>("open", { default: false });
+const { updateUserInfoInterface } = api;
 const submitForm = ref({
   avatar: "",
   nickName: "",

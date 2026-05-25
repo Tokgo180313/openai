@@ -21,7 +21,7 @@ interface Props {
 }
 const props = defineProps<Props>();
 const openModal = computed(() => props.visible);
-const emit = defineEmits(["close-modal"]);
+const emit = defineEmits(["close-modal", "update-list"]);
 const closeModelEvent = function () {
   emit("close-modal");
 };

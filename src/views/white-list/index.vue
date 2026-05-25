@@ -9,7 +9,7 @@
             style="width: 220px"
             allow-clear
             show-search
-            :filter-option="filterModelOption"
+            :filter-option="filterSelectOption"
             :options="modelOptions"
           />
         </a-form-item>
@@ -96,7 +96,7 @@
           <template v-if="column.key === 'action'">
             <a
               v-if="isContainerParamType(record.paramType, record.itemParamType)"
-              @click="openAddChild(record)"
+              @click="openAddChild(record as ParamWhitelistItem)"
             >
               添加子参数
             </a>
@@ -104,13 +104,13 @@
               v-if="isContainerParamType(record.paramType, record.itemParamType)"
               class="divider"
             >|</span>
-            <a @click="handleEdit(record)">编辑</a>
+            <a @click="handleEdit(record as ParamWhitelistItem)">编辑</a>
             <span class="divider">|</span>
             <a-popconfirm
               title="确定要删除该参数吗？子参数需先删除。"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDelete(record)"
+              @confirm="handleDelete(record as ParamWhitelistItem)"
             >
               <a style="color: red">删除</a>
             </a-popconfirm>
@@ -120,7 +120,7 @@
               title="确定要禁用吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDisable(record)"
+              @confirm="handleDisable(record as ParamWhitelistItem)"
             >
               <a style="color: red">禁用</a>
             </a-popconfirm>
@@ -129,7 +129,7 @@
               title="确定要启用吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleEnable(record)"
+              @confirm="handleEnable(record as ParamWhitelistItem)"
             >
               <a style="color: green">启用</a>
             </a-popconfirm>
@@ -174,6 +174,9 @@ import config from "./config";
 import AddParamWhitelistDialog from "./components/AddParamWhitelistDialog.vue";
 import UpdateParamWhitelistDialog from "./components/UpdateParamWhitelistDialog.vue";
 import type { AiModelItem } from "@/types/ai-model.type";
+import type { ColumnsType } from "ant-design-vue/es/table";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
+import { filterSelectOption } from "@/types/select-filter";
 import type {
   ParamWhitelistItem,
   WhitelistTreeNode,
@@ -197,7 +200,7 @@ const {
 } = api;
 
 const { columns } = config;
-const columnsList = ref(columns);
+const columnsList = ref<ColumnsType>(columns as ColumnsType);
 
 const searchForm = reactive({
   modelId: undefined as string | undefined,
@@ -248,10 +251,7 @@ const pagination = reactive({
   total: 0,
 });
 
-const filterModelOption = (input: string, option?: { label?: string; value?: string }) => {
-  const text = String(option?.label ?? option?.value ?? "");
-  return text.toLowerCase().includes(input.trim().toLowerCase());
-};
+const filterModelOption = filterSelectOption;
 
 const getModelLabel = (modelId?: string) => {
   if (!modelId) return "-";
@@ -263,7 +263,7 @@ const getModelLabel = (modelId?: string) => {
 const fetchModelList = async () => {
   const res = await findAiModelListInterface({ page: 1, pageSize: 500 });
   if (res?.code === 200 || res?.code === 201) {
-    modelList.value = res?.data?.list ?? res?.data ?? [];
+    modelList.value = unwrapList<AiModelItem>(res.data);
   } else {
     modelList.value = [];
   }
@@ -281,9 +281,9 @@ const fetchList = async () => {
   };
   const res = await findParamWhitelistListInterface(dto);
   if (res?.code === 200 || res?.code === 201) {
-    const raw: ParamWhitelistItem[] = res?.data?.list ?? res?.data ?? [];
+    const raw = unwrapList<ParamWhitelistItem>(res.data);
     whitelistTree.value = normalizeWhitelistTree(raw);
-    pagination.total = res?.data?.total ?? raw.length;
+    pagination.total = unwrapPagedMeta(res.data).total ?? raw.length;
   } else {
     whitelistTree.value = [];
     pagination.total = 0;
@@ -362,7 +362,7 @@ const editRow = ref<ParamWhitelistItem | null>(null);
 const handleEdit = async (record: ParamWhitelistItem) => {
   const res = await findParamWhitelistByIdInterface({ id: String(record.id) });
   if (res?.code === 200 || res?.code === 201) {
-    editRow.value = res?.data ?? record;
+    editRow.value = (res?.data ?? record) as ParamWhitelistItem;
     showUpdateVisible.value = true;
   } else {
     message.error(res?.message || "获取详情失败");

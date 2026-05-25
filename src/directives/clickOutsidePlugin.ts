@@ -1,4 +1,4 @@
-// import { App } from "vue";
+import type { App } from "vue";
 import type { ObjectDirective } from "@vue/runtime-core"; // 从 @vue/runtime-core 导入 ObjectDirective
 import type { DirectiveBinding } from "@vue/runtime-core";  // 从 @vue/runtime-core 导入 DirectiveBinding
 

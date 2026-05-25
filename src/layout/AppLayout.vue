@@ -29,7 +29,7 @@ import { computed, ref } from "vue";
 import SideBar from "./SideBar.vue";
 import Headerbar from "./Headerbar.vue";
 const isCollapsed = ref(false);
-const handleCollapsedChange = function(value){
+const handleCollapsedChange = function (value: boolean) {
   isCollapsed.value = value
 }
 const asideWidth = computed(() => {

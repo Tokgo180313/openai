@@ -35,26 +35,29 @@
       <a-table
         :data-source="providerList"
         :columns="columnsList"
-        :pagination="true"
-        :pageSize="10"
-        :current="pagination.current"
-        @change="handleChangePage"
-        @showSizeChange="handleChangePageSize"
-        :pageSizeOptions="['10', '20', '30', '40', '50']"
-        :showTotal="showTotal"
+        :pagination="{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '30', '40', '50'],
+          showTotal: showTotal,
+          onChange: handleChangePage,
+          onShowSizeChange: handleChangePageSize,
+        }"
         size="small"
         bordered
         striped
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
-            <a @click="handleEdit(record)">编辑</a>
+            <a @click="handleEdit(record as ProviderType)">编辑</a>
             <span class="divider">|</span>
             <a-popconfirm
               title="确认删除该服务商吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleDelete(record)"
+              @confirm="handleDelete(record as ProviderType)"
             >
               <a style="color: red">删除</a>
             </a-popconfirm>
@@ -63,7 +66,7 @@
               title="确定要更新该模型吗？"
               ok-text="确认"
               cancel-text="取消"
-              @confirm="handleUpdateModel(record)"
+              @confirm="handleUpdateModel(record as ProviderType)"
             >
               <a>更新模型</a>
             </a-popconfirm>
@@ -89,6 +92,8 @@
 import { onMounted, reactive, ref } from "vue";
 import api from "@/api/apiList";
 import { message } from "ant-design-vue";
+import { unwrapList } from "@/api/response";
+import type { ColumnsType } from "ant-design-vue/es/table";
 import AddProviderDialog from "./components/AddProviderDialog.vue";
 import UpdateProviderDialog from "./components/UpdateProviderDialog.vue";
 
@@ -103,6 +108,7 @@ interface ProviderType {
   id: string;
   provider: string;
   baseURL: string;
+  apiKey?: string;
   updateAt?: string;
 }
 
@@ -123,7 +129,7 @@ const pagination = reactive({
 onMounted(() => {
   fetchProviderList();
 });
-const columnsList = ref([
+const columnsList = ref<ColumnsType>([
   {
     title: "服务商",
     dataIndex: "provider",
@@ -155,7 +161,7 @@ const fetchProviderList = async () => {
   };
   const res = await findProviderListInterface(dto);
   if (res?.code === 200 || res?.code === 201) {
-    providerList.value = res?.data?.list || res?.data || [];
+    providerList.value = unwrapList<ProviderType>(res.data);
   } else {
     providerList.value = [];
     message.error(res?.message || "获取服务商列表失败");
@@ -183,7 +189,7 @@ const handleEdit = async (record: ProviderType) => {
 
   const res = await findByIdInterface({ id: record.id });
   if (res?.code === 200 || res?.code === 201) {
-    editRow.value = res?.data || record;
+    editRow.value = (res?.data || record) as ProviderType;
     showUpdateVisible.value = true;
   } else {
     message.error(res?.message || "获取服务商详情失败");

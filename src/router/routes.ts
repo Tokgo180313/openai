@@ -14,19 +14,19 @@ const routes: RouteRecordRaw[] = [
       {
         path: "/chat",
         name: "/chat",
-        title: "首页",
+        meta: { title: "首页" },
         component: () => import("@/views/chat/index.vue"),
       },
       {
         path: "/image",
         name: "/image",
-        title: "图片",
+        meta: { title: "图片" },
         component: () => import("@/views/image/index.vue"),
       },
       {
         path: "/imageTask",
         name: "/imageTask",
-        title: "图片任务",
+        meta: { title: "图片任务" },
         component: () => import("@/views/imageTask/index.vue"),
       },
     ],
@@ -39,7 +39,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/login",
     name: "/login",
-    title: "登陆",
     component: () => import("@/views/login/index.vue"),
     meta: {
       title: "登录",
@@ -49,7 +48,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/manage",
     name: MANAGE_ROUTE_PARENT,
-    title: "管理",
     component: ManageLayout,
     children: [],
     meta: {

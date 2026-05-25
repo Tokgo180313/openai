@@ -1,18 +1,19 @@
-import type { EventType } from "./types/event.type";
 import { defineStore } from "pinia";
 import type { EventPayload, EventType } from "./types/event.type";
 import { ref } from "vue";
-type EventCallback = (payload:any) => void
-export const useEventsBus = defineStore("eventBus",()=>{
-    const listeners = ref<Map<eventType,EventCallback[]>>(new Map());
-    const emit = (event:EventType,data?:any)=>{
-        const callbacks = listeners.value.get(event)||[];
 
-        const payload :EventPayload = {
-            type:event,
+type EventCallback = (payload: EventPayload) => void;
+
+export const useEventsBus = defineStore("eventBus", () => {
+    const listeners = ref<Map<EventType, EventCallback[]>>(new Map());
+    const emit = (event: EventType, data?: unknown) => {
+        const callbacks = listeners.value.get(event) || [];
+
+        const payload: EventPayload = {
+            type: event,
             data,
-            timestamp:Date.now(),
-        }
+            timestamp: Date.now(),
+        };
 
         callbacks.forEach(callback => {
             try {
@@ -43,7 +44,7 @@ export const useEventsBus = defineStore("eventBus",()=>{
         }
     };
     const once = (event:EventType,callback:EventCallback)=>{
-        const onceCallback = (payload:ayn)=>{
+        const onceCallback = (payload: EventPayload) => {
             callback(payload);
             off(event,onceCallback);
         }

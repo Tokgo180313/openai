@@ -89,15 +89,15 @@
           {{ formatDate(record.updatedAt) }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <a @click="openEditDialog(record)">编辑</a>
+          <a @click="openEditDialog(record as MenuRow)">编辑</a>
           <span class="action-divider">|</span>
-          <a @click="openAddChildDialog(record)">添加子菜单</a>
+          <a @click="openAddChildDialog(record as MenuRow)">添加子菜单</a>
           <span class="action-divider">|</span>
           <a-popconfirm
             title="确认删除该菜单吗？若有子菜单请先删除子菜单。"
             ok-text="确认"
             cancel-text="取消"
-            @confirm="handleDelete(record)"
+            @confirm="handleDelete(record as MenuRow)"
           >
             <a class="danger-link">删除</a>
           </a-popconfirm>
@@ -122,6 +122,7 @@ import { message } from "ant-design-vue";
 import api from "@/api/apiList";
 import config from "./config";
 import MenuFormDialog from "./components/MenuFormDialog.vue";
+import type { ColumnsType } from "ant-design-vue/es/table";
 import type { MenuQueryForm, MenuRow } from "./types";
 import { buildParentTreeOptions } from "./utils/parentTree";
 import { hasNestedChildren, listToMenuTree } from "./utils/tree";
@@ -145,7 +146,7 @@ const dialogEditMode = ref(false);
 const dialogRecord = ref<MenuRow | null>(null);
 const dialogDefaultParentId = ref<number | null | undefined>(undefined);
 
-const columnsList = computed(() => columns);
+const columnsList = computed<ColumnsType>(() => columns as ColumnsType);
 
 const parentTreeOptions = computed(() =>
   buildParentTreeOptions(rawList.value, dialogRecord.value?.id),
@@ -182,7 +183,9 @@ const formatDate = (value?: string) => {
 const handleSearch = async () => {
   tableLoading.value = true;
   try {
-    const res = await findMenuListInterface(buildQueryParams());
+    const res = await findMenuListInterface(
+      buildQueryParams() as unknown as Record<string, unknown>,
+    );
     if (res?.code === 200 || res?.code === 201) {
       const data = res?.data;
       rawList.value = Array.isArray(data) ? data : [];

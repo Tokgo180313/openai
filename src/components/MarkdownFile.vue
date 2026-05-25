@@ -5,8 +5,7 @@
 
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
-import { MarkdownFileTypes } from '../types/MarkdownFileTypes';
-const props = defineProps<MarkdownFileTypes>
+const props = defineProps<{ filePath: string }>();
 const content = ref<string>("")
 const loading = ref<boolean>(true)
 const error = ref<string>("")

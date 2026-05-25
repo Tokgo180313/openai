@@ -96,7 +96,7 @@
       <div
         class="content-item"
         @mouseenter="mouseenterItemEvent(item)"
-        @mouseleave="mouseleaveItemEvent"
+        @mouseleave="() => mouseleaveItemEvent(item)"
         @click="selectedEvent(item)"
         v-for="item in visibleTitleList"
         :key="item.id"
@@ -244,7 +244,7 @@ const footerWidth = computed(() => {
   return isCollapsed.value ? "60px" : "200px";
 });
 const currentRow = ref(null);
-const selectedRow = ref(null);
+const selectedRow = ref<string | null>(null);
 const isCollapsed = ref(false);
 const emit = defineEmits(["collapsedChange"]);
 const isEnter = ref(false);
@@ -253,6 +253,7 @@ const showContentItemIcon = ref(null);
 const siderContentRef = ref<HTMLElement | null>(null);
 let showLoginOutDialog = ref(false);
 import apiList from "@/api/apiList";
+import { unwrapList, unwrapPagedMeta } from "@/api/response";
 import { useEventsBus } from "../stores/event-bus";
 import { useChatStore } from "../stores/chatStore";
 import { nanoid } from "nanoid";
@@ -278,10 +279,12 @@ const userStore = useAuthStore();
 const color = "#f56a00";
 const gap = 4;
 const avatarValue = ref<string>(
-  userStore.getNickName ? userStore.getNickName.slice(0, 1) : userStore.getAccount.slice(0, 1),
+  userStore.getNickName
+    ? userStore.getNickName.slice(0, 1)
+    : (userStore.getAccount ?? "").slice(0, 1),
 );
 const nickName = ref<string>(
-  userStore.getNickName ? userStore.getNickName : userStore.getAccount,
+  userStore.getNickName ? userStore.getNickName : (userStore.getAccount ?? ""),
 );
 const prependChatTitle = function (item: {
   id: string;
@@ -303,21 +306,23 @@ const prependChatTitle = function (item: {
   visibleTitleList.value = [entry, ...visibleTitleList.value];
   selectedRow.value = item.id;
 };
-const handleAddChatTitle = function (payload: { data?: titleInfo }) {
-  const item = payload?.data;
+const handleAddChatTitle = function (payload: { data?: unknown }) {
+  const item = payload?.data as titleInfo | undefined;
   if (!item?.id) return;
   prependChatTitle(item);
 };
+const handleUpdateChatList = () => {
+  chatTitleImpl();
+  newChatEvent();
+};
+
 onMounted(() => {
   chatTitleImpl();
-  eventBus.on("update-chat-list", () => {
-    chatTitleImpl();
-    newChatEvent();
-  });
+  eventBus.on("update-chat-list", handleUpdateChatList);
   eventBus.on("add-chat-title", handleAddChatTitle);
 });
 onUnmounted(() => {
-  eventBus.off("update-chat-list");
+  eventBus.off("update-chat-list", handleUpdateChatList);
   eventBus.off("add-chat-title", handleAddChatTitle);
 });
 
@@ -340,9 +345,9 @@ const chatTitleImpl = function () {
   chatTitleListInterface({ page: 1, pageSize: PAGE_SIZE })
     .then((res) => {
       if (res.code === 200) {
-        titleList.value = res.data?.list || [];
+        titleList.value = unwrapList<titleInfo>(res.data);
         visibleTitleList.value = titleList.value;
-        hasMoreTitle.value = !!res.data?.hasMore;
+        hasMoreTitle.value = !!unwrapPagedMeta(res.data).hasMore;
       } else {
         titleList.value = [];
         visibleTitleList.value = [];
@@ -374,11 +379,11 @@ const loadMoreTitleList = function () {
   return chatTitleListInterface({ page: nextPage, pageSize: PAGE_SIZE })
     .then((res) => {
       if (res.code === 200) {
-        const nextList = res.data?.list || [];
+        const nextList = unwrapList<titleInfo>(res.data);
         currentPage.value = nextPage;
         titleList.value = [...titleList.value, ...nextList];
         visibleTitleList.value = titleList.value;
-        hasMoreTitle.value = !!res.data?.hasMore;
+        hasMoreTitle.value = !!unwrapPagedMeta(res.data).hasMore;
         return nextList.length > 0;
       } else {
         hasMoreTitle.value = false;
@@ -421,13 +426,13 @@ const mouseleaveEvent = () => {
     showIcon.value = "icon-gpt";
   }
 };
-const mouseenterItemEvent = function (item) {
+const mouseenterItemEvent = function (item: titleInfo) {
   currentRow.value = item.id;
 };
-const mouseleaveItemEvent = function (item) {
+const mouseleaveItemEvent = function (item: titleInfo) {
   currentRow.value = null;
 };
-const selectedEvent = async function (item) {
+const selectedEvent = async function (item: titleInfo) {
   await router.push("/chat");
   await nextTick();
   selectedRow.value = item.id;
@@ -459,11 +464,11 @@ const closeModalEvent = function () {
 const showUserSetEvent = function () {
   console.log("user set");
 };
-const selectedIconEvent = function (item) {
+const selectedIconEvent = function (item: titleInfo) {
   event?.stopPropagation();
   showContentItemIcon.value = item.id;
 };
-const handleOpenChange = function (value) {
+const handleOpenChange = function (value: boolean) {
   if (!value) {
     showContentItemIcon.value = null;
     currentRow.value = null;
@@ -472,19 +477,19 @@ const handleOpenChange = function (value) {
   }
 };
 const showRemoveChatVisible = ref(false);
-const removeChatTitleId = ref(null);
+const removeChatTitleId = ref("");
 const showUpdateNickNameDialog = ref(false);
 const showRenameDialog = ref(false);
 const renameLoading = ref(false);
 const renameTitle = ref("");
 const renameTitleId = ref("");
-const RemoveChatEvent = function (item) {
+const RemoveChatEvent = function (item: titleInfo) {
   showRemoveChatVisible.value = true;
   removeChatTitleId.value = item.id;
 };
 const closeRemoveChatEvent = function () {
   showRemoveChatVisible.value = false;
-  removeChatTitleId.value = null;
+  removeChatTitleId.value = "";
 };
 const updateListEvent = function () {
   chatTitleImpl();
@@ -548,8 +553,8 @@ const confirmRenameEvent = function () {
 const closeUpdateNickNameDialog = function (value?: string) {
   if (value) {
     userStore.setNickName(value);
-    nickName.value = value || userStore.getAccount;
-    avatarValue.value = (value || userStore.getAccount).slice(0, 1);
+    nickName.value = value || (userStore.getAccount ?? "");
+    avatarValue.value = (value || userStore.getAccount || "").slice(0, 1);
   }
   showUpdateNickNameDialog.value = false;
 };

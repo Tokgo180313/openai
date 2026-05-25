@@ -6,10 +6,11 @@ export interface UserType {
     updateTime:Date,
 }
 
-export interface columnType{
-    title?:string,
-    name?:string,
-    dataIndex?:string
+export interface columnType {
+  title?: string;
+  name?: string;
+  dataIndex?: string;
+  key?: string;
 }
 
 export interface searchFormType{

@@ -72,6 +72,8 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>();
 const submitLoading = ref(false);
 
+import type { FormRulesMap } from "@/types/form-rules";
+
 const defaultFormState = () => ({
   type: "image_edit",
   content: "",
@@ -80,7 +82,7 @@ const defaultFormState = () => ({
 
 const formState = reactive(defaultFormState());
 
-const formRules = {
+const formRules: FormRulesMap = {
   type: [{ required: true, message: "请选择类型", trigger: "change" }],
   content: [{ required: true, message: "请输入文案内容", trigger: "blur" }],
   status: [{ required: true, message: "请选择状态", trigger: "change" }],

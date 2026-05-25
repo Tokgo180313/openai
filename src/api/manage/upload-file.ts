@@ -1,9 +1,6 @@
 import request from "../reuquest";
 import type {
-  UploadFileListResult,
   UploadFileQueryDto,
-  UploadFileRecord,
-  UploadFileSaveResult,
   UploadFileUpdateDto,
 } from "@/types/upload-file.type";
 

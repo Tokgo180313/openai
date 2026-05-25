@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import api from "@/api/apiList";
+import { unwrapList } from "@/api/response";
 import type { AiModelQueryDto } from "@/api/manage/ai-model";
 import type { AiModelItem } from "@/types/ai-model.type";
 import { isEnabledChatModel } from "@/types/ai-model.type";
@@ -34,12 +35,11 @@ export const useModelStore = defineStore("aiModel", {
     providerOptions(): string[] {
       return this.providerList;
     },
-    roleOptions() {
-      return this.roleList.map((item) => ({
+    roleOptions: (state) =>
+      state.roleList.map((item: { id: number; name: string }) => ({
         label: item.name,
         value: String(item.id),
-      }));
-    },
+      })),
   },
   actions: {
     setAiModelList(list: AiModelItem[]) {
@@ -65,7 +65,9 @@ export const useModelStore = defineStore("aiModel", {
     fetchRoleList(param: Record<string, unknown>) {
       return getRoleListInterface(param).then((res) => {
         if (res.code === 201) {
-          let roleList = (res.data.list || res.data || []).map(
+          let roleList = unwrapList<{ id: number | string; name: string }>(
+            res.data,
+          ).map(
             (item: { id: number | string; name: string }) => ({
               id: Number(item.id),
               name: item.name,
@@ -91,7 +93,7 @@ export const useModelStore = defineStore("aiModel", {
       return findAiModelListInterface(param)
         .then((res) => {
           if (res.code === 200 || res.code === 201) {
-            const list: AiModelItem[] = res.data?.list ?? res.data ?? [];
+            const list: AiModelItem[] = unwrapList<AiModelItem>(res.data);
             if (options?.preserveSelection) {
               this.aiModelList = list;
             } else {
@@ -106,7 +108,7 @@ export const useModelStore = defineStore("aiModel", {
           }
           return [];
         })
-        .catch(() => {
+        .catch((): AiModelItem[] => {
           if (options?.preserveSelection) {
             this.aiModelList = [];
           } else {
@@ -119,14 +121,14 @@ export const useModelStore = defineStore("aiModel", {
       return findAiModelProviderListInterface()
         .then((res) => {
           if (res.code === 200 || res.code === 201) {
-            const list = res.data?.list ?? res.data ?? [];
+            const list = unwrapList<string>(res.data);
             this.setProviderList(list);
             return list;
           }
           this.setProviderList([]);
           return [];
         })
-        .catch(() => {
+        .catch((): string[] => {
           this.setProviderList([]);
           return [];
         });

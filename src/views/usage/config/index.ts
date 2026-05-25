@@ -52,7 +52,7 @@ const columns = [
     dataIndex:"status",
     key:"status",
     width: 80,
-    customRender: ({ record }) => {
+    customRender: ({ record }: { record: { status?: string } }) => {
       if(record.status === "success" || record.status === "0"){
         return "成功";
       }
