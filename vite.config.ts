@@ -41,4 +41,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: "js/[name]-[hash].js",
+        chunkFileNames: "js/[name]-[hash].js",
+        assetFileNames: (assetInfo) => {
+          const name = assetInfo.names?.[0] ?? assetInfo.name ?? "";
+          if (/\.css$/i.test(name)) {
+            return "css/[name]-[hash][extname]";
+          }
+          return "assets/[name]-[hash][extname]";
+        },
+      },
+    },
+  },
 });
