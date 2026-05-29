@@ -53,7 +53,7 @@ import { MessageAttachmentModule } from './message-attachments/message-attachmen
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGO_URI'),
+        uri: config.get<string>('MONGODB_URI'),
         autoIndex: true, // 自动索引
       }),
     }),
