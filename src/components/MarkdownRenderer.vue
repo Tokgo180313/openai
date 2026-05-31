@@ -58,6 +58,7 @@ import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import { message } from "ant-design-vue";
+import { copyTextToClipboard } from "@/utils/clipboard";
 
 interface Props {
   content: string;
@@ -326,16 +327,9 @@ const addCopyFunction = () => {
           );
           const text = lines.map((line) => line.textContent || "").join("\n");
 
-          navigator.clipboard
-            .writeText(text)
+          copyTextToClipboard(text)
             .then(() => {
-              // const originalText = element.textContent;
-              // element.textContent = "已复制!";
               message.success("代码已复制到剪贴板");
-
-              // setTimeout(() => {
-              // element.textContent = originalText;
-              // }, 2000);
             })
             .catch((err) => {
               console.error("复制失败:", err);
@@ -350,7 +344,7 @@ const addCopyFunction = () => {
 const copyMessageContent = async () => {
   if (!currentItem.value.content) return;
   try {
-    await navigator.clipboard.writeText(currentItem.value.content);
+    await copyTextToClipboard(currentItem.value.content);
     message.success("内容已复制");
   } catch (error) {
     console.error("复制失败:", error);
