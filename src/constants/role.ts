@@ -41,6 +41,13 @@ export function isManageRole(roleId: string | number | null | undefined): boolea
   return id === ROLE.SUPER_ADMIN || id === ROLE.ADMIN;
 }
 
+/** 登录成功后默认进入 /chat（非后台管理角色） */
+export function isChatDefaultOnLogin(
+  roleId: string | number | null | undefined,
+): boolean {
+  return !isManageRole(roleId);
+}
+
 export function isNormalUser(roleId: string | number | null | undefined): boolean {
   return normalizeRoleId(roleId) === ROLE.NORMAL_USER;
 }

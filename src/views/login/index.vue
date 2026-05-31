@@ -56,6 +56,7 @@ import {
   resetManageRoutes,
   setupManageRoutes,
 } from "@/router/dynamicRoutes";
+import { isChatDefaultOnLogin } from "@/constants/role";
 import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
@@ -90,11 +91,13 @@ const onFinish = async () => {
     if (menus.length) {
       setupManageRoutes(router, menus);
       modelStore.fetchRoleList({});
-      const firstPath = getFirstMenuPath(menus);
-      router.push(firstPath || "/chat");
-    } else {
-      router.push("/chat");
     }
+
+    const redirectPath =
+      !isChatDefaultOnLogin(data.user.roleId) && menus.length
+        ? getFirstMenuPath(menus) || "/chat"
+        : "/chat";
+    router.push(redirectPath);
   } catch {
     message.error("登录失败，请稍后重试");
   }
