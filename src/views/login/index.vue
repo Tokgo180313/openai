@@ -4,9 +4,11 @@
       <div class="login-input">
         <a-form
           :model="submitForm"
-          :label-col="{ span: 8 }"
-          :wrapper-col="{ span: 16 }"
+          :layout="formLayout"
+          :label-col="formLabelCol"
+          :wrapper-col="formWrapperCol"
           autocomplete="off"
+          class="login-form"
           @finish="onFinish"
           @finishFailed="onFinishFailed"
         >
@@ -30,10 +32,8 @@
               placeholder="password"
             ></a-input-password>
           </a-form-item>
-          <a-form-item :wrapper-col="{ offset: 8, span: 16 }">
-            <a-button type="primary" htmlType="submit" style="width: 100%"
-              >登陆</a-button
-            >
+          <a-form-item class="login-submit-item" :wrapper-col="submitWrapperCol">
+            <a-button type="primary" htmlType="submit" block>登陆</a-button>
           </a-form-item>
         </a-form>
       </div>
@@ -42,7 +42,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref } from "vue";
+import { computed, reactive } from "vue";
 import { FormState } from "./types/FormState.ts";
 import api from "@/api/apiList.ts";
 import { useRouter } from "vue-router";
@@ -59,8 +59,21 @@ import {
 import { isChatDefaultOnLogin } from "@/constants/role";
 import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
 import { isMobileViewport } from "@/utils/breakpoint";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
+const { isMobile } = useBreakpoint();
+
+const formLayout = computed(() => (isMobile.value ? "vertical" : "horizontal"));
+const formLabelCol = computed(() =>
+  isMobile.value ? undefined : { span: 8 },
+);
+const formWrapperCol = computed(() =>
+  isMobile.value ? undefined : { span: 16 },
+);
+const submitWrapperCol = computed(() =>
+  isMobile.value ? undefined : { offset: 8, span: 16 },
+);
 let { loginInterface } = api;
 let submitForm = reactive<FormState>({
   account: "",
@@ -112,14 +125,17 @@ const onFinishFailed = (values: any) => {
 
 <style scoped lang="scss">
 .content {
+  position: relative;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   background: url("@/assets/images/background.jpg") no-repeat center;
   background-size: cover;
 }
+
 .login {
-  padding: 1.5rem 1.5rem 0 1.5rem;
-  width: min(420px, 92vw);
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 2rem));
   min-height: 220px;
   position: absolute;
   border-radius: 1em;
@@ -128,10 +144,40 @@ const onFinishFailed = (values: any) => {
   top: 50%;
   transform: translate(-50%, -50%);
   background-color: #fff;
+  padding: 1.5rem;
 }
+
 .login-input {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 100%;
+
+  :deep(.login-form) {
+    width: 100%;
+  }
+
+  :deep(.ant-form-item) {
+    margin-bottom: 1rem;
+  }
+
+  :deep(.login-submit-item) {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .login {
+    width: min(320px, calc(100vw - 2rem));
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .login-input {
+    :deep(.ant-form-item-label > label) {
+      height: auto;
+    }
+
+    :deep(.ant-input),
+    :deep(.ant-input-affix-wrapper) {
+      width: 100%;
+    }
+  }
 }
 </style>
