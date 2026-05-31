@@ -1,12 +1,10 @@
 <template>
   <template v-for="item in menus" :key="item.id">
     <a-sub-menu v-if="isDirectory(item)" :key="`dir-${item.id}`">
-      <template #title>
-        <span class="menu-title">
-          <i v-if="item.icon" :class="item.icon"></i>
-          <span>{{ item.name }}</span>
-        </span>
+      <template #icon>
+        <i v-if="item.icon" :class="item.icon"></i>
       </template>
+      <template #title>{{ item.name }}</template>
       <ManageSideMenu :menus="item.children" />
     </a-sub-menu>
     <a-menu-item
@@ -40,11 +38,3 @@ function isDirectory(item: LoginMenuItem): boolean {
   );
 }
 </script>
-
-<style scoped lang="scss">
-.menu-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-</style>

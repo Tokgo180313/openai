@@ -5,8 +5,9 @@
       collapsible
       class="manage-sider"
     >
-      <div class="logo">
-        <i class="iconfont icon-gpt"></i> 后台管理
+      <div class="logo" :class="{ 'logo-collapsed': collapsed }">
+        <i class="iconfont icon-gpt"></i>
+        <span v-if="!collapsed" class="logo-text">后台管理</span>
       </div>
 
       <div class="sider-menu-scroll">
@@ -15,6 +16,7 @@
           v-model:openKeys="openKeys"
           theme="dark"
           mode="inline"
+          :inline-collapsed="collapsed"
           @click="handleMenuClick"
         >
           <ManageSideMenu v-if="menus.length" :menus="menus" />
@@ -62,7 +64,15 @@ import type { LoginMenuItem } from "@/types/auth.type";
 
 const collapsed = ref<boolean>(false);
 const selectedKeys = ref<string[]>([]);
-const openKeys = ref<string[]>([]);
+const expandedOpenKeys = ref<string[]>([]);
+const openKeys = computed({
+  get: () => (collapsed.value ? [] : expandedOpenKeys.value),
+  set: (keys) => {
+    if (!collapsed.value) {
+      expandedOpenKeys.value = keys;
+    }
+  },
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -85,8 +95,12 @@ function collectDirectoryOpenKeys(
 
 function syncMenuState(path: string) {
   selectedKeys.value = path ? [path] : [];
-  if (!openKeys.value.length && menus.value.length) {
-    openKeys.value = collectDirectoryOpenKeys(menus.value);
+  if (
+    !collapsed.value &&
+    !expandedOpenKeys.value.length &&
+    menus.value.length
+  ) {
+    expandedOpenKeys.value = collectDirectoryOpenKeys(menus.value);
   }
 }
 
@@ -99,8 +113,14 @@ watch(
 );
 
 watch(menus, (list) => {
-  if (list.length) {
-    openKeys.value = collectDirectoryOpenKeys(list);
+  if (list.length && !collapsed.value) {
+    expandedOpenKeys.value = collectDirectoryOpenKeys(list);
+  }
+});
+
+watch(collapsed, (isCollapsed) => {
+  if (!isCollapsed && menus.value.length) {
+    expandedOpenKeys.value = collectDirectoryOpenKeys(menus.value);
   }
 });
 
@@ -116,7 +136,8 @@ const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
 <style lang="scss" scoped>
 .manage-layout {
   height: 100vh;
-  min-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   text-align: left;
 }
@@ -130,6 +151,12 @@ const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+
+  &.ant-layout-sider-collapsed {
+    :deep(.ant-menu-inline .ant-menu-sub.ant-menu-inline) {
+      display: none !important;
+    }
   }
 }
 
@@ -156,11 +183,26 @@ const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
 }
 
 .logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   height: 32px;
   margin: 16px;
   background: rgba(255, 255, 255, 0.3);
   line-height: 32px;
   text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+
+  &.logo-collapsed {
+    padding: 0;
+  }
+
+  .logo-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .site-layout-background {

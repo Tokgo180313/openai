@@ -846,16 +846,15 @@ watch(
   text-align: center;
   margin: auto;
   padding: 0 2em;
-  // width: 62.8%;
   width: 90%;
+  max-width: 900px;
+  box-sizing: border-box;
   overflow-anchor: auto;
 }
 .footer {
   bottom: 0;
   background: #fff;
   margin: 0 auto;
-  // width: 62.8%;
-  //   height: 120px;
   border: 1px solid lightgray;
   border-radius: 2em;
   button {
@@ -864,6 +863,8 @@ watch(
   display: flex;
   flex-direction: column;
   width: 90%;
+  max-width: 900px;
+  box-sizing: border-box;
   padding: 0.5em;
 }
 .markdown-content {
@@ -1000,6 +1001,22 @@ watch(
   }
   100% {
     background-position: 0% 50%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .content {
+    width: 100%;
+    padding: 0 0.5em;
+  }
+
+  .footer {
+    width: 100%;
+    border-radius: 1em;
+  }
+
+  .operate-bar {
+    padding: 0 0.5em;
   }
 }
 </style>

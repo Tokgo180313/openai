@@ -1,23 +1,35 @@
 <template>
   <div class="main-container">
-    <div class="system-setting">
-      <a-select
-        v-model:value="questionType"
-        :bordered="false"
-        @change="handleQuestionTypeChange"
-        style="min-width: 300px"
-      >
-        <a-select-option
-          v-for="item in chatModelList"
-          :key="item.id"
-          :title="item.apiModelName"
-          :value="item.apiModelName"
+    <div class="header-leading">
+      <a-tooltip v-if="showMenuButton" title="打开菜单" placement="bottom">
+        <i
+          class="iconfont icon-a-icon1beifen menu-toggle"
+          @click="emit('toggleMenu')"
+        ></i>
+      </a-tooltip>
+      <div class="system-setting">
+        <a-select
+          v-model:value="questionType"
+          :bordered="false"
+          @change="handleQuestionTypeChange"
+          class="model-select"
         >
-        </a-select-option>
-      </a-select>
+          <a-select-option
+            v-for="item in chatModelList"
+            :key="item.id"
+            :title="item.apiModelName"
+            :value="item.apiModelName"
+          >
+          </a-select-option>
+        </a-select>
+      </div>
     </div>
     <div class="system-operation">
-      <a-tooltip v-if="hasManageAccess" title="控制台" placement="bottom">
+      <a-tooltip
+        v-if="showManageConsole"
+        title="控制台"
+        placement="bottom"
+      >
         <i
           style="margin: 0 1em; cursor: pointer"
           class="iconfont icon-zonghekongzhitai"
@@ -53,7 +65,6 @@ import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { useRequestStore } from "../stores/requestStore";
 import RemoveChatDialog from "../components/RemoveChatDialog.vue";
-import { storeToRefs } from "pinia";
 import { useModelStore } from "@/stores/modelStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useEventsBus } from "@/stores/event-bus";
@@ -64,14 +75,26 @@ import {
   setupManageRoutes,
 } from "@/router/dynamicRoutes";
 import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+
+withDefaults(
+  defineProps<{
+    showMenuButton?: boolean;
+  }>(),
+  { showMenuButton: false },
+);
+
+const emit = defineEmits<{ toggleMenu: [] }>();
 
 const modelStore = useModelStore();
 const eventBus = useEventsBus();
 const chatStore = useChatStore();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isMobile } = useBreakpoint();
 
 const hasManageAccess = computed(() => hasManageMenus(authStore.getMenus));
+const showManageConsole = computed(() => hasManageAccess.value && !isMobile.value);
 
 const goToConsole = async () => {
   const menus = await resolveLoginMenus(authStore.getRoleId, authStore.getMenus);
@@ -90,7 +113,6 @@ const goToConsole = async () => {
 };
 const questionType = ref(modelStore.currentApiModelName || null);
 const showRemoveDialog = ref(false);
-const store = useRequestStore();
 const chatModelList = computed(() => modelStore.chatModelList);
 const handleQuestionTypeChange = function () {
   if (!questionType.value) return;
@@ -121,15 +143,39 @@ const handleUpdateList = function () {
 }
 .main-container {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1em;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5em;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+.header-leading {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  min-width: 0;
+}
+.menu-toggle {
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0.25em;
+  flex-shrink: 0;
 }
 .system-operation {
   text-align: right;
-  margin-right: 1em;
+  margin-right: 0.5em;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .system-setting {
   text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+.model-select {
+  min-width: 0;
+  width: 100%;
+  max-width: 200px;
 }
 .option-item {
   display: flex;
@@ -137,6 +183,19 @@ const handleUpdateList = function () {
   width: 120px;
   .item-icon {
     margin: 0 1em;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .main-container {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25em;
+  }
+  .system-operation {
+    margin-right: 0.25em;
+  }
+  .model-select {
+    max-width: 100%;
   }
 }
 </style>

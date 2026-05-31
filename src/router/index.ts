@@ -10,6 +10,8 @@ import {
   setupManageRoutes,
 } from "./dynamicRoutes";
 import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
+import { isMobileViewport } from "@/utils/breakpoint";
+import { message } from "ant-design-vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,6 +50,11 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
       setupManageRoutes(router, menus);
       return to.fullPath;
     }
+  }
+
+  if (isMobileViewport() && to.path.startsWith("/manage")) {
+    message.warning("移动端暂不支持后台管理");
+    return "/chat";
   }
 
   return true;

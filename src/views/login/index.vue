@@ -58,6 +58,7 @@ import {
 } from "@/router/dynamicRoutes";
 import { isChatDefaultOnLogin } from "@/constants/role";
 import { resolveLoginMenus } from "@/utils/resolveLoginMenus";
+import { isMobileViewport } from "@/utils/breakpoint";
 const userStore = useAuthStore();
 const modelStore = useModelStore();
 let { loginInterface } = api;
@@ -94,7 +95,9 @@ const onFinish = async () => {
     }
 
     const redirectPath =
-      !isChatDefaultOnLogin(data.user.roleId) && menus.length
+      !isMobileViewport() &&
+      !isChatDefaultOnLogin(data.user.roleId) &&
+      menus.length
         ? getFirstMenuPath(menus) || "/chat"
         : "/chat";
     router.push(redirectPath);
@@ -109,15 +112,15 @@ const onFinishFailed = (values: any) => {
 
 <style scoped lang="scss">
 .content {
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   background: url("@/assets/images/background.jpg") no-repeat center;
-  background-size: 100% 100%;
+  background-size: cover;
 }
 .login {
   padding: 1.5rem 1.5rem 0 1.5rem;
-  width: 26vw;
-  height: 26vh;
+  width: min(420px, 92vw);
+  min-height: 220px;
   position: absolute;
   border-radius: 1em;
   box-shadow: 0 0 0 0.1em rgba(211, 211, 211, 0.5);
@@ -125,8 +128,6 @@ const onFinishFailed = (values: any) => {
   top: 50%;
   transform: translate(-50%, -50%);
   background-color: #fff;
-  // display: grid;
-  // place-items: center;
 }
 .login-input {
   display: flex;

@@ -1,11 +1,11 @@
 <template>
-  <div>
+  <div class="sidebar-root">
     <div class="sider-header">
-      <div class="system-icon" v-if="!isCollapsed" @click="newChatEvent">
+      <div class="system-icon" v-if="showExpanded" @click="newChatEvent">
         <i style="font-size: 1.6rem" class="iconfont icon-gpt"></i>
       </div>
       <a-tooltip
-        v-if="!isCollapsed"
+        v-if="showExpanded && !embedded"
         title="关闭侧边栏"
         placement="right"
         trigger="hover"
@@ -15,7 +15,7 @@
         </div>
       </a-tooltip>
       <a-tooltip
-        v-if="isCollapsed"
+        v-if="!showExpanded && !embedded"
         title="打开侧边栏"
         placement="bottom"
         trigger="hover"
@@ -32,13 +32,13 @@
     </div>
     <div class="sider-tool">
       <div class="tool-item" @click="newChatEvent">
-        <div class="item-icon" v-if="!isCollapsed">
+        <div class="item-icon" v-if="showExpanded">
           <i style="font-size: 1.2rem" class="iconfont icon-shuxie"></i>
         </div>
-        <div v-if="!isCollapsed" class="item-text">
+        <div v-if="showExpanded" class="item-text">
           <span>新聊天</span>
         </div>
-        <div class="item-icon" v-if="isCollapsed">
+        <div class="item-icon" v-if="!showExpanded">
           <a-tooltip
             title="新聊天"
             placement="right"
@@ -50,13 +50,13 @@
         </div>
       </div>
       <div class="tool-item" @click="newImageChatEvent">
-        <div class="item-icon" v-if="!isCollapsed">
+        <div class="item-icon" v-if="showExpanded">
           <i style="font-size: 1.2rem" class="iconfont icon-image"></i>
         </div>
-        <div v-if="!isCollapsed" class="item-text">
+        <div v-if="showExpanded" class="item-text">
           <span>图片</span>
         </div>
-        <div class="item-icon" v-if="isCollapsed">
+        <div class="item-icon" v-if="!showExpanded">
           <a-tooltip
             title="图片"
             placement="right"
@@ -68,13 +68,13 @@
         </div>
       </div>
       <div class="tool-item" @click="newImageTaskEvent">
-        <div class="item-icon" v-if="!isCollapsed">
+        <div class="item-icon" v-if="showExpanded">
           <i style="font-size: 1.2rem" class="iconfont icon-renwujincheng"></i>
         </div>
-        <div v-if="!isCollapsed" class="item-text">
+        <div v-if="showExpanded" class="item-text">
           <span>图片任务</span>
         </div>
-        <div class="item-icon" v-if="isCollapsed">
+        <div class="item-icon" v-if="!showExpanded">
           <a-tooltip
             title="图片任务"
             placement="right"
@@ -86,9 +86,9 @@
         </div>
       </div>
     </div>
-    <div v-if="!isCollapsed" class="placeholder">你的聊天</div>
+    <div v-if="showExpanded" class="placeholder">你的聊天</div>
     <div
-      v-if="!isCollapsed"
+      v-if="showExpanded"
       class="sider-content"
       ref="siderContentRef"
       @scroll="handleScrollLoadMore"
@@ -157,7 +157,7 @@
         {{ hasMoreTitle ? "上滑加载更多..." : "没有更多了" }}
       </div>
     </div>
-    <div class="sider-footer" :style="{ width: footerWidth }">
+    <div class="sider-footer" :class="{ 'is-collapsed': !showExpanded }">
       <a-popover placement="top" trigger="click">
         <template #content>
           <div class="item-list" style="width: 160px">
@@ -190,14 +190,14 @@
         <div class="footer-item">
           <div class="item-icon">
             <a-avatar
-              size="default"
+              :size="showExpanded ? 'default' : 24"
               :style="{ backgroundColor: color, verticalAlign: 'middle' }"
               :gap="gap"
             >
               {{ avatarValue }}
             </a-avatar>
           </div>
-          <div class="item-text">{{ nickName }}</div>
+          <div v-if="showExpanded" class="item-text">{{ nickName }}</div>
         </div>
       </a-popover>
     </div>
@@ -240,13 +240,20 @@ import LoginOutDialog from "@/components/LoginOutDialog.vue";
 import RemoveChatDialog from "@/components/RemoveChatDialog.vue";
 import PersonalDataDialog from "@/components/PersonalDataDialog.vue";
 import { message } from "ant-design-vue";
-const footerWidth = computed(() => {
-  return isCollapsed.value ? "60px" : "200px";
-});
+
+const props = withDefaults(
+  defineProps<{
+    /** 移动端抽屉内嵌模式：始终展开、隐藏折叠按钮 */
+    embedded?: boolean;
+  }>(),
+  { embedded: false },
+);
+
 const currentRow = ref(null);
 const selectedRow = ref<string | null>(null);
 const isCollapsed = ref(false);
-const emit = defineEmits(["collapsedChange"]);
+const showExpanded = computed(() => props.embedded || !isCollapsed.value);
+const emit = defineEmits(["collapsedChange", "navigate"]);
 const isEnter = ref(false);
 const showIcon = ref("icon-gpt");
 const showContentItemIcon = ref(null);
@@ -439,6 +446,7 @@ const selectedEvent = async function (item: titleInfo) {
   chatStore.updateDocument(item.documentId);
   chatStore.updateTitleId(item.id);
   eventBus.emit("chat-change");
+  emit("navigate");
 };
 const newChatEvent = function () {
   router.push("/chat");
@@ -447,12 +455,15 @@ const newChatEvent = function () {
   chatStore.updateDocument(documentId);
   chatStore.updateTitleId(null);
   eventBus.emit("chat-change");
+  emit("navigate");
 };
 const newImageChatEvent = function () {
   router.push("/image");
+  emit("navigate");
 };
 const newImageTaskEvent = function () {
   router.push("/imageTask");
+  emit("navigate");
 };
 const loginOutEvent = function () {
   showLoginOutDialog.value = true;
@@ -560,6 +571,14 @@ const closeUpdateNickNameDialog = function (value?: string) {
 };
 </script>
 <style scoped lang="scss">
+.sidebar-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
 .iconfont {
   font-size: 1.2rem;
 }
@@ -612,11 +631,16 @@ const closeUpdateNickNameDialog = function (value?: string) {
   line-height: 2rem;
   color: rgba(51, 51, 51, 0.6);
   margin: 1em 0;
-  letter-spacing: 0.5em;
+  letter-spacing: 0.2em;
+  padding: 0 0.5em;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .sider-content {
-  overflow: auto;
-  max-height: calc(100vh - 13rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -626,17 +650,24 @@ const closeUpdateNickNameDialog = function (value?: string) {
     min-height: 2rem;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin: 0 0.3em;
     padding: 0.2rem 0;
     border-radius: 0.5em;
     cursor: pointer;
-    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
     .content-icon {
       padding: 0 0.5rem;
+      flex-shrink: 0;
     }
     .content-text {
       margin-left: 0.85rem;
-      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
   .content-item:hover {
@@ -650,26 +681,51 @@ const closeUpdateNickNameDialog = function (value?: string) {
   }
 }
 .sider-footer {
-  position: fixed;
-  bottom: 0;
+  flex-shrink: 0;
+  margin-top: auto;
+  width: 100%;
+  box-sizing: border-box;
   background-color: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   .footer-item {
     line-height: 3rem;
     height: 3rem;
     display: flex;
     justify-content: flex-start;
+    align-items: center;
     cursor: pointer;
     border-radius: 0.5rem;
     margin: 0 0.3em;
+    min-width: 0;
+    overflow: hidden;
     .item-icon {
       margin-left: 0.85rem;
+      flex-shrink: 0;
     }
     .item-text {
       margin-left: 0.6em;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
   .footer-item:hover {
     background-color: rgba(211, 211, 211, 0.5);
+  }
+  &.is-collapsed {
+    border-top: none;
+    .footer-item {
+      justify-content: center;
+      height: auto;
+      line-height: normal;
+      padding: 0.6rem 0;
+      margin: 0;
+      .item-icon {
+        margin-left: 0;
+      }
+    }
   }
 }
 
