@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { RoleId } from 'src/rbac/constants/role.constants';
+import { User } from 'src/user/entities/user.entity';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
 import { parsePositiveIntId } from 'src/common/utils/positive-int-id.util';
 import { RecordService } from 'src/record/record.service';
@@ -16,24 +18,66 @@ export class UsageService {
   constructor(
     @InjectRepository(UsageRecord)
     private readonly usageRepo: Repository<UsageRecord>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly recordService: RecordService,
     private readonly userService: UserService,
   ) {}
 
+  /** null 表示不限制账号（超管/管理员）；否则仅可见列表内账号的用量 */
+  private async resolveVisibleAccounts(
+    viewerUserId: string,
+  ): Promise<string[] | null> {
+    const viewer = await this.userService.findById(viewerUserId);
+    if (!viewer) {
+      throw new NotFoundException('用户不存在');
+    }
+    const role = viewer.roleId;
+    if (role === RoleId.SUPER_ADMIN || role === RoleId.ADMIN) {
+      return null;
+    }
+    if (role === RoleId.MEMBER || role === RoleId.TEAM_MEMBER) {
+      return [viewer.account];
+    }
+    if (role === RoleId.TEAM_MANAGER) {
+      const subIds = await this.userService.findSubordinateUserIdsWithRole(
+        viewerUserId,
+        RoleId.TEAM_MEMBER,
+      );
+      const ids = [...new Set([viewerUserId, ...subIds])];
+      const users = await this.userRepo.find({
+        where: { id: In(ids) },
+        select: ['account'],
+      });
+      return users.map((u) => u.account).filter(Boolean);
+    }
+    return [viewer.account];
+  }
+
   async findUsageList(
     usageDto: UsageDto,
+    viewerUserId: string,
   ): Promise<PaginationResponse<UsageRecord>> {
     const { skip, limit } = usageDto;
     const qb = this.usageRepo.createQueryBuilder('u');
 
-    if (usageDto.account) {
+    const visibleAccounts = await this.resolveVisibleAccounts(viewerUserId);
+    if (visibleAccounts !== null) {
+      if (visibleAccounts.length === 0) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('u.account IN (:...visibleAccounts)', { visibleAccounts });
+      }
+    } else if (usageDto.account) {
       qb.andWhere('u.account = :account', { account: usageDto.account });
     }
     if (usageDto.modelName) {
-      qb.andWhere('u.modelName = :modelName', { modelName: usageDto.modelName });
+      qb.andWhere('LOWER(u.modelName) LIKE LOWER(:modelName)', {
+        modelName: `%${usageDto.modelName}%`,
+      });
     }
     if (usageDto.provider) {
-      qb.andWhere('u.provider = :provider', {
+      qb.andWhere('LOWER(u.provider) = LOWER(:provider)', {
         provider: usageDto.provider,
       });
     }

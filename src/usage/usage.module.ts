@@ -5,10 +5,11 @@ import { UsageService } from './usage.service';
 import { UsageRecord } from './entities/usage-record.entity';
 import { RecordModule } from 'src/record/record.module';
 import { UserModule } from 'src/user/user.module';
+import { User } from 'src/user/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UsageRecord]),
+    TypeOrmModule.forFeature([UsageRecord, User]),
     RecordModule,
     UserModule,
   ],

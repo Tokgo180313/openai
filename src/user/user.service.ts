@@ -3,11 +3,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserDto } from './dto/UserDto';
+import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { PasswordUtil } from 'src/common/utils/password.utils';
 import { PaginationDto } from './dto/PaginationDto';
 import { PaginationResponse } from 'src/interfaces/pagination.interface';
@@ -215,6 +217,18 @@ export class UserService {
       .getOne();
   }
 
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    const v = id?.trim();
+    if (!v || !this.isUuid(v)) {
+      return null;
+    }
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id: v })
+      .getOne();
+  }
+
   async findById(id: string): Promise<UserWithRoles | null> {
     const v = id?.trim();
     if (!v || !this.isUuid(v)) {
@@ -249,26 +263,33 @@ export class UserService {
   }
 
   async updatePassword(
-    id: string,
-    newPassword: string,
-    operatorId: string,
-  ): Promise<void> {
-    const existing = await this.findById(id);
-    if (!existing) {
+    userId: string,
+    dto: UpdatePasswordDto,
+  ): Promise<UserWithRoles> {
+    const { oldPassword, newPassword, confirmPassword } = dto;
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('新密码与确认密码不一致');
+    }
+    const user = await this.findByIdWithPassword(userId);
+    if (!user) {
       throw new NotFoundException('用户不存在');
     }
+    if (!(await PasswordUtil.compare(oldPassword, user.password))) {
+      throw new UnauthorizedException('原密码错误');
+    }
     const hashPassword = await PasswordUtil.hash(newPassword);
-    const result = await this.userRepo.update(existing.id, {
+    const result = await this.userRepo.update(user.id, {
       password: hashPassword,
       passwordType: '1',
     });
     if (!result.affected) {
       throw new NotFoundException('用户不存在');
     }
-    const updated = await this.findById(id);
-    if (updated) {
-      await this.addRecord(updated.account, '密码修改', operatorId);
+    const updated = await this.findById(userId);
+    if (!updated) {
+      throw new NotFoundException('用户不存在');
     }
+    return updated;
   }
 
   async updateUser(userDto: UserDto, operatorId: string): Promise<UserWithRoles> {

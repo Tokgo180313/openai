@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserDto } from './dto/UserDto';
+import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PaginationDto } from './dto/PaginationDto';
@@ -95,6 +96,17 @@ export class UserController {
   ) {
     const user = await this.userService.updateNickName(id, userDto.nickName || '');
     await this.appendOperationLog(id, '昵称修改', user.account);
+    return user;
+  }
+
+  @Post('/updatePassword')
+  @UseGuards(JwtAuthGuard)
+  async updatePassword(
+    @Body() dto: UpdatePasswordDto,
+    @CurrentUser('id') id: string,
+  ) {
+    const user = await this.userService.updatePassword(id, dto);
+    await this.appendOperationLog(id, '密码修改', user.account);
     return user;
   }
 }
